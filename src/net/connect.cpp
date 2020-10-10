@@ -26,40 +26,78 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "socks_connect.h"
+#include "connect.h"
 
+#include <boost/asio/ip/address.hpp>
 #include <boost/system/error_code.hpp>
 #include <boost/system/system_error.hpp>
 #include <cstdint>
 #include <memory>
 #include <system_error>
 
+#include "common/expect.h"
 #include "net/error.h"
-#include "net/net_utils_base.h"
+#include "net/parse.h"
+#include "net/net_helper.h"
+#include "net/resolve.h"
 #include "net/socks.h"
 #include "string_tools.h"
 
 namespace net
 {
+namespace dnssec
+{
+    boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>>
+    connector::operator()(const std::string& addr, const std::string& port, boost::asio::steady_timer& timeout, const bool fetch_tlsa) const
+    {
+        using future_type = std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>;
+
+        if (!fetch_tlsa)
+            return epee::net_utils::connect(addr, port, timeout);
+
+        std::uint16_t porti = 0;
+        if (!epee::string_tools::get_xtype_from_string(porti, port))
+            return boost::make_exceptional_future<future_type>(std::system_error{net::error::invalid_port});
+
+        // If IPv4/Ipv6 given, connect directly without DNS lookups
+        {
+            expect<boost::asio::ip::tcp::endpoint> endpoint = get_tcp_endpoint(addr, porti);
+            if (endpoint)
+                return epee::net_utils::connect(std::move(*endpoint), timeout);
+            if (endpoint != net::error::unsupported_address)
+                return boost::make_exceptional_future<future_type>(std::system_error{endpoint.error(), "Failed to parse " + addr});
+        }
+
+        expect<service_response> response = resolve_hostname(addr, port);
+        if (!response)
+            return boost::make_exceptional_future<future_type>(std::system_error{response.error(), "Failed to resolve " + addr});
+
+        boost::system::error_code error{};
+        auto ip_addr = boost::asio::ip::address::from_string(std::move(response->ip.front()), error);
+        if (error)
+            return boost::make_exceptional_future<future_type>(boost::system::system_error{error, "Invalid IP from DNS"});
+        return epee::net_utils::connect({std::move(ip_addr), porti}, timeout, std::move(response->tlsa));
+    }
+} // dnssec
 namespace socks
 {
-    boost::unique_future<boost::asio::ip::tcp::socket>
-    connector::operator()(const std::string& remote_host, const std::string& remote_port, boost::asio::steady_timer& timeout) const
+    boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>>
+    connector::operator()(const std::string& remote_host, const std::string& remote_port, boost::asio::steady_timer& timeout, bool) const
     {
         struct future_socket
         {
-            boost::promise<boost::asio::ip::tcp::socket> result_;
+            boost::promise<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>> result_;
 
             void operator()(boost::system::error_code error, boost::asio::ip::tcp::socket&& socket)
             {
                 if (error)
                     result_.set_exception(boost::system::system_error{error});
                 else
-                    result_.set_value(std::move(socket));
+                    result_.set_value({std::move(socket), {}});
             }
         };
 
-        boost::unique_future<boost::asio::ip::tcp::socket> out{};
+        boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>> out{};
         {
             std::uint16_t port = 0;
             if (!epee::string_tools::get_xtype_from_string(port, remote_port))
@@ -67,7 +105,7 @@ namespace socks
 
             bool is_set = false;
             std::uint32_t ip_address = 0;
-            boost::promise<boost::asio::ip::tcp::socket> result{};
+            boost::promise<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>> result{};
             out = result.get_future();
             const auto proxy = net::socks::make_connect_client(
                 boost::asio::ip::tcp::socket{GET_IO_SERVICE(timeout)}, net::socks::version::v4a, future_socket{std::move(result)}

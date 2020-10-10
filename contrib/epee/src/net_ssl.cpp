@@ -30,11 +30,16 @@
 #include <thread>
 #include <boost/asio/ssl.hpp>
 #include <boost/lambda/lambda.hpp>
+#include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/pem.h>
+#include <openssl/opensslv.h>
+#include "hex.h"
 #include "misc_log_ex.h"
 #include "net/net_helper.h"
 #include "net/net_ssl.h"
+
+#define MONERO_DANE_SUPPORTED 0x10100000 <= OPENSSL_VERSION_NUMBER
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
 #define MONERO_DEFAULT_LOG_CATEGORY "net.ssl"
@@ -49,6 +54,9 @@ static void add_windows_root_certs(SSL_CTX *ctx) noexcept;
 
 namespace
 {
+  constexpr const std::uint8_t tlsa_pkix_ta = 0;
+  constexpr const std::uint8_t tlsa_pkix_ee = 1;
+
   struct openssl_bio_free
   {
     void operator()(BIO* ptr) const noexcept
@@ -330,6 +338,10 @@ boost::asio::ssl::context ssl_options_t::create_context() const
   switch (verification)
   {
     case ssl_verification_t::system_ca:
+#if MONERO_DANE_SUPPORTED
+      if (SSL_CTX_dane_enable(ctx) <= 0)
+        MERROR("Unable to initialize DANE for SSL context");
+#endif
 #ifdef _WIN32
       try { add_windows_root_certs(ssl_context.native_handle()); }
       catch (const std::exception &e) { ssl_context.set_default_verify_paths(); }
@@ -413,6 +425,54 @@ bool is_ssl(const unsigned char *data, size_t len)
   return false;
 }
 
+bool ssl_options_t::dane_enabled() const noexcept
+{
+  // user verification modes are more secure, never replace with tlsa entries
+  return MONERO_DANE_SUPPORTED && verification == ssl_verification_t::system_ca;
+}
+
+bool ssl_options_t::should_fetch_tlsa() const noexcept
+{
+  return dane_enabled() && fingerprints_.empty();
+}
+
+bool ssl_options_t::set_tlsa(const std::vector<std::string>& tlsa)
+{
+  if (!dane_enabled() || tlsa.empty())
+    return false;
+
+  /* This filters out self-signed TLSA records if the current mode is SSL
+     required + system_ca check. This forces an attacker to control the DNSSEC
+     and get a root-CA certificate. Getting the signature is trivial if the DNS
+     (whether DNSSEC or not) is controlled, but this could force the third party
+     to log the attackers attempt. This may need to be rolled back if its too
+     aggressive - CLI wallet configuration does not allow required SSL +
+     system_ca mode anyway (fingerprint must be provided instead). */
+  const bool allow_self_signed = (support == ssl_support_t::e_ssl_support_autodetect);
+  support = ssl_support_t::e_ssl_support_enabled;
+
+  fingerprints_.clear();
+  fingerprints_.reserve(tlsa.size());
+  for (const std::string& entry : tlsa)
+  {
+    const auto data = strspan<std::uint8_t>(entry);
+    if (4 <= data.size())
+    {
+      if (allow_self_signed || data[0] == tlsa_pkix_ta || data[0] == tlsa_pkix_ee)
+      {
+	fingerprints_.emplace_back();
+	fingerprints_.back().assign(data.begin(), data.end());
+      }
+      else
+	MWARNING("Filtered out self-signed DANE/TLSA record due to settings");
+    }
+    else
+      MWARNING("Invalid DANE/TLSA record detected");
+  }
+  std::sort(fingerprints_.begin(), fingerprints_.end());
+  return !fingerprints_.empty();
+}
+
 bool ssl_options_t::has_strong_verification(boost::string_ref host) const noexcept
 {
   // onion and i2p addresses contain information about the server cert
@@ -435,7 +495,7 @@ bool ssl_options_t::has_strong_verification(boost::string_ref host) const noexce
 bool ssl_options_t::has_fingerprint(boost::asio::ssl::verify_context &ctx) const
 {
   // can we check the certificate against a list of fingerprints?
-  if (!fingerprints_.empty()) {
+  if (!dane_enabled() && !fingerprints_.empty()) {
     X509_STORE_CTX *sctx = ctx.native_handle();
     if (!sctx)
     {
@@ -477,6 +537,26 @@ boost::system::error_code ssl_options_t::handshake(
   std::chrono::milliseconds timeout) const
 {
   socket.next_layer().set_option(boost::asio::ip::tcp::no_delay(true));
+  SSL* const ssl_ctx = socket.native_handle();
+
+#if MONERO_DANE_SUPPORTED
+  if (dane_enabled() && !fingerprints_.empty())
+  {
+    if (SSL_dane_enable(ssl_ctx, host.c_str()) <= 0)
+    {
+      MERROR("DANE/TLSA available, but initializing OpenSSL support failed");
+      return boost::asio::error::ssl_errors(ERR_peek_error());
+    }
+
+    for (const std::vector<std::uint8_t>& entry : fingerprints_)
+    {
+      auto bytes = epee::to_span(entry);
+      bytes.remove_prefix(3);
+      if (!bytes.empty() && 0 < SSL_dane_tlsa_add(ssl_ctx, entry[0], entry[1], entry[2], bytes.data(), bytes.size()))
+        MINFO("DANE/TLSA enabled with " << int(entry[0]) << ' ' << int(entry[1]) << ' ' << int(entry[2]) << ' ' << to_hex::string(bytes));
+    }
+  }
+#endif
 
   /* Using system-wide CA store for client verification is funky - there is
      no expected hostname for server to verify against. If server doesn't have
@@ -495,7 +575,6 @@ boost::system::error_code ssl_options_t::handshake(
     socket.set_verify_mode(boost::asio::ssl::verify_peer | boost::asio::ssl::verify_fail_if_no_peer_cert);
 
     // in case server is doing "virtual" domains, set hostname
-    SSL* const ssl_ctx = socket.native_handle();
     if (type == boost::asio::ssl::stream_base::client && !host.empty() && ssl_ctx)
       SSL_set_tlsext_host_name(ssl_ctx, host.c_str());
 

@@ -28,8 +28,8 @@
 
 #include "http.h"
 
+#include "connect.h"
 #include "parse.h"
-#include "socks_connect.h"
 
 namespace net
 {
@@ -40,7 +40,7 @@ bool client::set_proxy(const std::string &address)
 {
   if (address.empty())
   {
-    set_connector(epee::net_utils::direct_connect{});
+    set_connector(net::dnssec::connect);
   }
   else
   {

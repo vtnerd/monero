@@ -131,6 +131,7 @@ target_link_libraries(rpc_base
 
 target_link_libraries(rpc
   PUBLIC
+    epee
     rpc_base
     common
     cryptonote_core

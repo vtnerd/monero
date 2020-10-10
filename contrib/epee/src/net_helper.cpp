@@ -44,8 +44,8 @@ std::error_code convert_error_code(boost::system::error_code error)
 
 namespace net_utils
 {
-	boost::unique_future<boost::asio::ip::tcp::socket>
-	direct_connect::operator()(const std::string& addr, const std::string& port, boost::asio::steady_timer& timeout) const
+	boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>>
+	connector::operator()(const std::string& addr, const std::string& port, boost::asio::steady_timer& timeout, bool) const
 	{
 		// Get a list of endpoints corresponding to the server name.
 		//////////////////////////////////////////////////////////////////////////
@@ -84,20 +84,24 @@ namespace net_utils
 			if (iterator == end)
 				throw boost::system::system_error{boost::asio::error::fault, "Failed to resolve " + addr};
 		}
+		return connect(*iterator, timeout);
+	}
 
-		//////////////////////////////////////////////////////////////////////////
-
+	boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>>
+	connector::operator()(const boost::asio::ip::tcp::endpoint& addr, boost::asio::steady_timer& timeout, std::vector<std::string> tlsa) const
+	{
 		struct new_connection
 		{
-			boost::promise<boost::asio::ip::tcp::socket> result_;
+			std::vector<std::string> tlsa;
+			boost::promise<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>> result_;
 			boost::asio::ip::tcp::socket socket_;
 
-			explicit new_connection(boost::asio::io_service& io_service)
-			  : result_(), socket_(io_service)
+			explicit new_connection(boost::asio::io_service& io_service, std::vector<std::string> tlsa)
+			  : tlsa(std::move(tlsa)), result_(), socket_(io_service)
 			{}
 		};
 
-		const auto shared = std::make_shared<new_connection>(GET_IO_SERVICE(timeout));
+		const auto shared = std::make_shared<new_connection>(GET_IO_SERVICE(timeout), std::move(tlsa));
 		timeout.async_wait([shared] (boost::system::error_code error)
 		{
 			if (error != boost::system::errc::operation_canceled && shared && shared->socket_.is_open())
@@ -106,14 +110,14 @@ namespace net_utils
 				shared->socket_.close();
 			}
 		});
-		shared->socket_.async_connect(*iterator, [shared] (boost::system::error_code error)
+		shared->socket_.async_connect(addr, [shared] (const boost::system::error_code error)
 		{
 			if (shared)
 			{
 				if (error)
 					shared->result_.set_exception(boost::system::system_error{error});
 				else
-					shared->result_.set_value(std::move(shared->socket_));
+					shared->result_.set_value({std::move(shared->socket_), std::move(shared->tlsa)});
 			}
 		});
 		return shared->result_.get_future();
@@ -122,7 +126,8 @@ namespace net_utils
 	boost::system::error_code blocked_mode_client::try_connect(const std::string& addr, const std::string& port, std::chrono::milliseconds timeout)
 	{
 		m_deadline.expires_from_now(timeout);
-		boost::unique_future<boost::asio::ip::tcp::socket> connection = m_connector(addr, port, m_deadline);
+		const bool fetch_tlsa = m_ssl_options.should_fetch_tlsa();
+		auto connection = m_connector(addr, port, m_deadline, fetch_tlsa);
 		for (;;)
 		{
 			m_io_service.reset();
@@ -132,8 +137,11 @@ namespace net_utils
 				break;
 		}
 
-		m_ssl_socket->next_layer() = connection.get();
+		auto result = connection.get();
 		m_deadline.cancel();
+		m_ssl_socket->next_layer() = std::move(result.first);
+		if (fetch_tlsa)
+			m_ssl_options.set_tlsa(std::move(result.second));
 		if (m_ssl_socket->next_layer().is_open())
 		{
 			boost::system::error_code error{};

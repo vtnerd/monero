@@ -53,7 +53,7 @@ namespace net_utils
   enum class ssl_verification_t : uint8_t
   {
     none = 0,         //!< Do not verify peer.
-    system_ca,        //!< Verify peer via system ca only (do not inspect user certificates)
+    system_ca,        //!< Verify peer via system ca or DANE/TLSA (do not inspect user certificates)
     user_certificates,//!< Verify peer via specific (non-chain) certificate(s) only.
     user_ca           //!< Verify peer via specific (possibly chain) certificate(s) only.
   };
@@ -102,6 +102,20 @@ namespace net_utils
 
     //! \return False iff ssl is disabled, otherwise true.
     explicit operator bool() const noexcept { return support != ssl_support_t::e_ssl_support_disabled; }
+
+    //! \return True if DANE/TLSA DNSsec records can be used for peer verification.
+    bool dane_enabled() const noexcept;
+
+    //! \return True if DANE/TLSA can be used but has not been "set".
+    bool should_fetch_tlsa() const noexcept;
+
+    /*
+      Sets TLSA fingerprints if `dane_enabled()`. This object will be upgraded to
+      `supported = enabled` if at least one DANE/TLSA recorded is provided.
+
+      \param tlsa DANE/TLSA records from dnssec.
+      \return True if DANE/TLSA will verify peers in `handshake(...)`. */
+    bool set_tlsa(const std::vector<std::string>& tlsa);
 
     //! \retrurn True if `host` can be verified using `this` configuration WITHOUT system "root" CAs.
     bool has_strong_verification(boost::string_ref host) const noexcept;

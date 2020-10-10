@@ -66,11 +66,17 @@ namespace epee
 
 namespace net_utils
 {
-	struct direct_connect
+	struct connector
 	{
-		boost::unique_future<boost::asio::ip::tcp::socket>
-			operator()(const std::string& addr, const std::string& port, boost::asio::steady_timer&) const;
+		//! \return Future to a connected socket with an empty TLSA record set.
+		boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>>
+			operator()(const std::string& addr, const std::string& port, boost::asio::steady_timer&, bool = false) const;
+
+		//! \return Future to a connected socket with TLSA records "passed-through".
+		boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>>
+			operator()(const boost::asio::ip::tcp::endpoint& addr, boost::asio::steady_timer&, std::vector<std::string> tlsa = {}) const;
 	};
+	constexpr const connector connect{};
 
 
   class blocked_mode_client
@@ -109,7 +115,7 @@ namespace net_utils
 				m_io_service(),
 				m_ctx(boost::asio::ssl::context::tlsv12),
 				m_ssl_socket(new boost::asio::ssl::stream<boost::asio::ip::tcp::socket>(m_io_service, m_ctx)),
-				m_connector(direct_connect{}),
+				m_connector(net_utils::connect),
 				m_ssl_options(epee::net_utils::ssl_support_t::e_ssl_support_autodetect),
 				m_stream_error(make_error_code(std::errc::not_connected)),
 				m_deadline(m_io_service, std::chrono::steady_clock::time_point::max()),
@@ -120,21 +126,23 @@ namespace net_utils
 			check_deadline();
 		}
 
+		//! A connected socket + TLSA records for verifying TLS peer (if possible)
+		using connect_result = std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>;
+
 		/*! The first/second parameters are host/port respectively. The third
 		    parameter is for setting the timeout callback - the timer is
 		    already set by the caller, the callee only needs to set the
-		    behavior.
+		    behavior. The last bool parameter indicates whether DANE/TLSA
+		    records can be used to verify the TLS peer (fetching is
+		    optional).
 
 		    Additional asynchronous operations should be queued using the
 		    `io_service` from the timer. The implementation should assume
 		    multi-threaded I/O processing.
 
 		    If the callee cannot start an asynchronous operation, an exception
-		    should be thrown to signal an immediate failure.
-
-		    The return value is a future to a connected socket. Asynchronous
-		    failures should use the `set_exception` method. */
-		using connect_func = boost::unique_future<boost::asio::ip::tcp::socket>(const std::string&, const std::string&, boost::asio::steady_timer&);
+		    should be thrown to signal an immediate failure. */
+		using connect_func = boost::unique_future<connect_result>(const std::string&, const std::string&, boost::asio::steady_timer&, bool);
 
 		inline
 			~blocked_mode_client()

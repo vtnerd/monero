@@ -67,6 +67,12 @@ namespace net
     expect<epee::net_utils::ipv4_network_subnet>
         get_ipv4_subnet_address(boost::string_ref address, bool allow_implicit_32 = false);
 
-    expect<boost::asio::ip::tcp::endpoint> get_tcp_endpoint(const boost::string_ref address);
+    /*!
+      \param address IPv4 (dotted) or IPv6 (semicolons) address with optional
+          port.
+      \param default_port If `address` does not contain a port number, use this
+          as default.
+      \return A TCP endpoint or error. */
+    expect<boost::asio::ip::tcp::endpoint> get_tcp_endpoint(const boost::string_ref address, std::uint16_t default_port = 0);
 }
 

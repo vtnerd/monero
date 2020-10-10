@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, The Monero Project
+// Copyright (c) 2020, The Monero Project
 //
 // All rights reserved.
 //
@@ -26,30 +26,46 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#pragma once
+#include "net/resolve.h"
 
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/steady_timer.hpp>
-#include <boost/thread/future.hpp>
-#include <string>
+#include <boost/utility/string_ref.hpp>
+#include "common/dns_utils.h"
+#include "common/expect.h"
+#include "net/error.h"
 
 namespace net
 {
-namespace socks
+namespace dnssec
 {
-    //! Primarily for use with `epee::net_utils::http_client`.
-    struct connector
+  expect<service_response> resolve_hostname(const std::string& addr, const std::string& tlsa_port)
+  {
+    // use basic (blocking) unbound for now, possibly refactor later
+    tools::DNSResolver& resolver = tools::DNSResolver::instance();
+
+    bool dnssec_available = false;
+    bool dnssec_valid = false;
+    std::vector<std::string> ip_records = resolver.get_ipv4(addr, dnssec_available, dnssec_valid);
+
+    if (dnssec_available && !dnssec_valid)
+      return {net::error::bogus_dnssec};
+
+    if (ip_records.empty())
     {
-        boost::asio::ip::tcp::endpoint proxy_address;
+      ip_records = resolver.get_ipv6(addr, dnssec_available, dnssec_valid);
+      if (dnssec_available && !dnssec_valid)
+        return {net::error::bogus_dnssec};
+      if (ip_records.empty())
+        return {net::error::dns_query_failure};
+    }
 
-        /*! Creates a new socket, asynchronously connects to `proxy_address`,
-            and requests a connection to `remote_host` on `remote_port`. Sets
-            socket as closed if `timeout` is reached.
-
-            \return The socket if successful, and exception in the future with
-                error otherwise. */
-        boost::unique_future<boost::asio::ip::tcp::socket>
-            operator()(const std::string& remote_host, const std::string& remote_port, boost::asio::steady_timer& timeout) const;
-    };
-} // socks
+    std::vector<std::string> tlsa{};
+    if (dnssec_available && !tlsa_port.empty())
+    {
+      tlsa = resolver.get_tlsa_tcp_record(addr, tlsa_port, dnssec_available, dnssec_valid);
+      if (!dnssec_valid)
+        return {net::error::bogus_dnssec};
+    }
+    return {{std::move(ip_records), std::move(tlsa)}};
+  }
+} // dnssec
 } // net

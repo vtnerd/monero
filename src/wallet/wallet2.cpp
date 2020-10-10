@@ -83,7 +83,6 @@ using namespace epee;
 #include "ringdb.h"
 #include "device/device_cold.hpp"
 #include "device_trezor/device_trezor.hpp"
-#include "net/socks_connect.h"
 
 extern "C"
 {
@@ -1350,7 +1349,7 @@ bool wallet2::init(std::string daemon_address, boost::optional<epee::net_utils::
   m_checkpoints.init_default_checkpoints(m_nettype);
   m_is_initialized = true;
   m_upper_transaction_weight_limit = upper_transaction_weight_limit;
-  return set_daemon(daemon_address, daemon_login, trusted_daemon, std::move(ssl_options));
+  return set_daemon(std::move(daemon_address), std::move(daemon_login), trusted_daemon, std::move(ssl_options));
 }
 //----------------------------------------------------------------------------------------------------
 bool wallet2::is_deterministic() const
@@ -13688,9 +13687,10 @@ bool wallet2::parse_uri(const std::string &uri, std::string &address, std::strin
 uint64_t wallet2::get_blockchain_height_by_date(uint16_t year, uint8_t month, uint8_t day)
 {
   uint32_t version;
-  if (!check_connection(&version))
+  expect<void> status{};
+  if (!(status = check_connection(&version)))
   {
-    throw std::runtime_error("failed to connect to daemon: " + get_daemon_address());
+    throw std::system_error(status.error(), "failed to connect to daemon: " + get_daemon_address());
   }
   if (version < MAKE_CORE_RPC_VERSION(1, 6))
   {

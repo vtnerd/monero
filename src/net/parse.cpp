@@ -123,10 +123,9 @@ namespace net
         return {epee::net_utils::ipv4_network_subnet{ip, (uint8_t)mask}};
     }
 
-    expect<boost::asio::ip::tcp::endpoint> get_tcp_endpoint(const boost::string_ref address)
+    expect<boost::asio::ip::tcp::endpoint> get_tcp_endpoint(const boost::string_ref address, const std::uint16_t default_port)
     {
-        uint16_t port = 0;
-        expect<epee::net_utils::network_address> parsed = get_network_address(address, port);
+        expect<epee::net_utils::network_address> parsed = get_network_address(address, default_port);
         if (!parsed)
         {
             return parsed.error();

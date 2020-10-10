@@ -54,12 +54,12 @@
 #include <type_traits>
 
 #include "crypto/crypto.h"
+#include "net/connect.h"
 #include "net/dandelionpp.h"
 #include "net/error.h"
 #include "net/i2p_address.h"
 #include "net/net_utils_base.h"
 #include "net/socks.h"
-#include "net/socks_connect.h"
 #include "net/parse.h"
 #include "net/tor_address.h"
 #include "net/zmq.h"
@@ -1158,13 +1158,58 @@ TEST(socks_client, resolve_command)
     while (test_client->called_ == 1);
 }
 
+TEST(dnssec_connector, ipv4)
+{
+    io_thread io{};
+    boost::asio::steady_timer timeout{io.io_service};
+    timeout.expires_from_now(std::chrono::seconds{5});
+
+    boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>> sock =
+        net::dnssec::connect("127.0.0.1", std::to_string(io.acceptor.local_endpoint().port()), timeout, true);
+
+    ASSERT_EQ(boost::future_status::ready, sock.wait_for(boost::chrono::seconds{3}));
+    EXPECT_TRUE(io.connected);
+    EXPECT_TRUE(io.server.is_open());
+
+    const auto result = sock.get();
+    EXPECT_TRUE(result.first.is_open());
+    EXPECT_TRUE(result.second.empty());
+}
+
+TEST(dnssec_connector, error)
+{
+    io_thread io{};
+    boost::asio::steady_timer timeout{io.io_service};
+    timeout.expires_from_now(std::chrono::seconds{5});
+
+    boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>> sock =
+        net::dnssec::connect("127.0.0.1", "not_a_port", timeout, true);
+
+    ASSERT_EQ(boost::future_status::ready, sock.wait_for(boost::chrono::seconds{3}));
+    EXPECT_THROW(sock.get(), std::system_error);
+}
+
+TEST(dnssec_connector, timeout)
+{
+    io_thread io{};
+    io.acceptor.cancel();
+    boost::asio::steady_timer timeout{io.io_service};
+    timeout.expires_from_now(std::chrono::milliseconds{10});
+
+    boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>> sock =
+        net::dnssec::connect("127.0.0.1", std::to_string(io.acceptor.local_endpoint().port()), timeout, true);
+
+    ASSERT_EQ(boost::future_status::ready, sock.wait_for(boost::chrono::seconds{3}));
+    EXPECT_THROW(sock.get(), boost::system::system_error);
+}
+
 TEST(socks_connector, host)
 {
     io_thread io{};
     boost::asio::steady_timer timeout{io.io_service};
     timeout.expires_from_now(std::chrono::seconds{5});
 
-    boost::unique_future<boost::asio::ip::tcp::socket> sock =
+    boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>> sock =
         net::socks::connector{io.acceptor.local_endpoint()}("example.com", "8080", timeout);
 
     while (!io.connected)
@@ -1182,7 +1227,9 @@ TEST(socks_connector, host)
     boost::asio::write(io.server, boost::asio::buffer(reply_bytes));
 
     ASSERT_EQ(boost::future_status::ready, sock.wait_for(boost::chrono::seconds{3}));
-    EXPECT_TRUE(sock.get().is_open());
+    const auto result = sock.get();
+    EXPECT_TRUE(result.first.is_open());
+    EXPECT_TRUE(result.second.empty());
 }
 
 TEST(socks_connector, ipv4)
@@ -1191,7 +1238,7 @@ TEST(socks_connector, ipv4)
     boost::asio::steady_timer timeout{io.io_service};
     timeout.expires_from_now(std::chrono::seconds{5});
 
-    boost::unique_future<boost::asio::ip::tcp::socket> sock =
+    boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>> sock =
         net::socks::connector{io.acceptor.local_endpoint()}("250.88.125.99", "8080", timeout);
 
     while (!io.connected)
@@ -1208,7 +1255,9 @@ TEST(socks_connector, ipv4)
     boost::asio::write(io.server, boost::asio::buffer(reply_bytes));
 
     ASSERT_EQ(boost::future_status::ready, sock.wait_for(boost::chrono::seconds{3}));
-    EXPECT_TRUE(sock.get().is_open());
+    const auto result = sock.get();
+    EXPECT_TRUE(result.first.is_open());
+    EXPECT_TRUE(result.second.empty());
 }
 
 TEST(socks_connector, error)
@@ -1217,7 +1266,7 @@ TEST(socks_connector, error)
     boost::asio::steady_timer timeout{io.io_service};
     timeout.expires_from_now(std::chrono::seconds{5});
 
-    boost::unique_future<boost::asio::ip::tcp::socket> sock =
+    boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>> sock =
         net::socks::connector{io.acceptor.local_endpoint()}("250.88.125.99", "8080", timeout);
 
     while (!io.connected)
@@ -1234,7 +1283,7 @@ TEST(socks_connector, error)
     boost::asio::write(io.server, boost::asio::buffer(reply_bytes));
 
     ASSERT_EQ(boost::future_status::ready, sock.wait_for(boost::chrono::seconds{3}));
-    EXPECT_THROW(sock.get().is_open(), boost::system::system_error);
+    EXPECT_THROW(sock.get(), boost::system::system_error);
 }
 
 TEST(socks_connector, timeout)
@@ -1243,11 +1292,11 @@ TEST(socks_connector, timeout)
     boost::asio::steady_timer timeout{io.io_service};
     timeout.expires_from_now(std::chrono::milliseconds{10});
 
-    boost::unique_future<boost::asio::ip::tcp::socket> sock =
+    boost::unique_future<std::pair<boost::asio::ip::tcp::socket, std::vector<std::string>>> sock =
         net::socks::connector{io.acceptor.local_endpoint()}("250.88.125.99", "8080", timeout);
 
     ASSERT_EQ(boost::future_status::ready, sock.wait_for(boost::chrono::seconds{3}));
-    EXPECT_THROW(sock.get().is_open(), boost::system::system_error);
+    EXPECT_THROW(sock.get(), boost::system::system_error);
 }
 
 TEST(dandelionpp_map, traits)
