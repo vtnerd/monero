@@ -1164,7 +1164,7 @@ namespace nodetool
       {
         LOG_DEBUG_CC(context, " COMMAND_HANDSHAKE(AND CLOSE) INVOKED OK");
       }
-      context_ = context;
+      context_ = context; // TODO limited copy so that vector<copyable_byte_slice> can be vector<byte_slice>
     }, P2P_DEFAULT_HANDSHAKE_INVOKE_TIMEOUT);
 
     if(r)
@@ -2208,7 +2208,7 @@ namespace nodetool
   }
   //-----------------------------------------------------------------------------------
   template<class t_payload_net_handler>
-  epee::net_utils::zone node_server<t_payload_net_handler>::send_txs(std::vector<cryptonote::blobdata> txs, const epee::net_utils::zone origin, const boost::uuids::uuid& source, const cryptonote::relay_method tx_relay)
+  epee::net_utils::zone node_server<t_payload_net_handler>::send_txs(std::vector<epee::byte_slice> txs, const epee::net_utils::zone origin, const boost::uuids::uuid& source, const cryptonote::relay_method tx_relay)
   {
     namespace enet = epee::net_utils;
 
@@ -2530,7 +2530,7 @@ namespace nodetool
       peerid_type peer_id_l = arg.node_data.peer_id;
       uint32_t port_l = arg.node_data.my_port;
       //try ping to be sure that we can add this peer to peer_list
-      try_ping(arg.node_data, context, [peer_id_l, port_l, context, this]()
+      try_ping(arg.node_data, context, [peer_id_l, port_l, &context, this]()
       {
         CHECK_AND_ASSERT_MES((context.m_remote_address.get_type_id() == epee::net_utils::ipv4_network_address::get_type_id() || context.m_remote_address.get_type_id() == epee::net_utils::ipv6_network_address::get_type_id()), void(),
             "Only IPv4 or IPv6 addresses are supported here");
