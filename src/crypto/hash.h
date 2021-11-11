@@ -32,10 +32,12 @@
 
 #include <stddef.h>
 #include <iostream>
+#include <type_traits>
 
 #include "common/pod-class.h"
 #include "generic-ops.h"
 #include "hex.h"
+#include "serialization/wire/traits.h"
 #include "span.h"
 
 namespace crypto {
@@ -95,3 +97,16 @@ namespace crypto {
 
 CRYPTO_MAKE_HASHABLE(hash)
 CRYPTO_MAKE_COMPARABLE(hash8)
+
+namespace wire
+{
+  template<>
+  struct is_blob<crypto::hash>
+    : std::true_type
+  {};
+
+  template<>
+  struct is_blob<crypto::hash8>
+    : std::true_type
+  {};
+}

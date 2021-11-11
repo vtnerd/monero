@@ -44,6 +44,7 @@
 #include "hex.h"
 #include "span.h"
 #include "hash.h"
+#include "serialization/wire/traits.h"
 
 namespace crypto {
 
@@ -316,3 +317,26 @@ CRYPTO_MAKE_HASHABLE(public_key)
 CRYPTO_MAKE_HASHABLE_CONSTANT_TIME(secret_key)
 CRYPTO_MAKE_HASHABLE(key_image)
 CRYPTO_MAKE_COMPARABLE(signature)
+
+namespace wire
+{
+  template<>
+  struct is_blob<crypto::hash>
+    : std::true_type
+  {};
+
+  template<>
+  struct is_blob<crypto::key_derivation>
+    : std::true_type
+  {};
+
+  template<>
+  struct is_blob<crypto::key_image>
+    : std::true_type
+  {};
+
+  template<>
+  struct is_blob<crypto::public_key>
+    : std::true_type
+  {};
+}

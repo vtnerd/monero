@@ -26,6 +26,8 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+add_subdirectory(wire)
+
 set(EPEE_INCLUDE_DIR_BASE "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 
 # Add headers to the file list, to be able to search for them and autosave in IDEs.
@@ -67,6 +69,7 @@ endif()
 target_link_libraries(epee
   PUBLIC
     easylogging
+    epee_wire
     ${Boost_CHRONO_LIBRARY}
     ${Boost_FILESYSTEM_LIBRARY}
     ${Boost_THREAD_LIBRARY}
