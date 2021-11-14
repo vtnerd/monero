@@ -40,3 +40,23 @@
   {                                                            \
     map(dest, source);                                         \
   }
+
+//! Define object map inside `struct`/`class` declaration.
+#define WIRE_BEGIN_MAP()                                         \
+  template<typename R>                                           \
+  void read_bytes(R& source)                                     \
+  { wire_map(source, *this); }                                   \
+                                                                 \
+  template<typename W>                                                \
+  void write_bytes(W& dest) const                                     \
+  { wire_map(dest, *this); }                                          \
+                                                                      \
+  template<typename F, typename T>                                    \
+  static void wire_map(F& format, T& self)                            \
+  { ::wire::object(format
+
+
+//! End object map; omit last `,`
+#define WIRE_END_MAP() \
+    );                 \
+  }

@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include <type_traits>
 #include "net/fwd.h"
 #include "serialization/wire/epee/fwd.h"
 
@@ -41,6 +42,16 @@ namespace epee
   namespace net_utils
   {
     class network_address;
-    WIRE_EPEE_DECLARE_OBJECT(network_address);
+
+    void read_bytes(wire::epee_reader&, network_address&);
+    void write_bytes_explicit(wire::epee_writer&, const network_address&);
+
+    // This prevents implicit conversion of network_address
+    template<typename T>
+    inline typename std::enable_if<std::is_same<T, network_address>::value>::type
+    write_bytes(wire::epee_writer& dest, const T& source)
+    {
+      write_bytes_explicit(dest, source);
+    }
   }
 }

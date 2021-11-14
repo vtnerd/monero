@@ -321,11 +321,6 @@ CRYPTO_MAKE_COMPARABLE(signature)
 namespace wire
 {
   template<>
-  struct is_blob<crypto::hash>
-    : std::true_type
-  {};
-
-  template<>
   struct is_blob<crypto::key_derivation>
     : std::true_type
   {};

@@ -39,7 +39,8 @@
 #include "string_tools.h"
 #include "net/levin_protocol_handler_async.h"
 #include "net/abstract_tcp_server2.h"
-#include "serialization/keyvalue_serialization.h"
+#include "serialization/wire/epee.h"
+#include "serialization/wire.h"
 
 #include "../unit_tests/unit_tests_utils.h"
 
@@ -235,10 +236,11 @@ namespace net_load_tests
 
     struct request
     {
-      BEGIN_KV_SERIALIZE_MAP()
-      END_KV_SERIALIZE_MAP()
+      WIRE_BEGIN_MAP()
+      WIRE_END_MAP()
     };
   };
+  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_CLOSE_ALL_CONNECTIONS::request);
 
   struct CMD_START_OPEN_CLOSE_TEST
   {
@@ -249,18 +251,20 @@ namespace net_load_tests
       uint64_t open_request_target;
       uint64_t max_opened_conn_count;
 
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(open_request_target)
-        KV_SERIALIZE(max_opened_conn_count)
-      END_KV_SERIALIZE_MAP()
+      WIRE_BEGIN_MAP(),
+        WIRE_FIELD(open_request_target),
+        WIRE_FIELD(max_opened_conn_count)
+      WIRE_END_MAP()
     };
 
     struct response
     {
-      BEGIN_KV_SERIALIZE_MAP()
-      END_KV_SERIALIZE_MAP()
+      WIRE_BEGIN_MAP()
+      WIRE_END_MAP()
     };
   };
+  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_START_OPEN_CLOSE_TEST::request);
+  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_START_OPEN_CLOSE_TEST::response);
 
   struct CMD_GET_STATISTICS
   {
@@ -268,8 +272,8 @@ namespace net_load_tests
 
     struct request
     {
-      BEGIN_KV_SERIALIZE_MAP()
-      END_KV_SERIALIZE_MAP()
+      WIRE_BEGIN_MAP()
+      WIRE_END_MAP()
     };
 
     struct response
@@ -278,11 +282,11 @@ namespace net_load_tests
       uint64_t new_connection_counter;
       uint64_t close_connection_counter;
 
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(opened_connections_count)
-        KV_SERIALIZE(new_connection_counter)
-        KV_SERIALIZE(close_connection_counter)
-      END_KV_SERIALIZE_MAP()
+      WIRE_BEGIN_MAP(),
+        WIRE_FIELD(opened_connections_count),
+        WIRE_FIELD(new_connection_counter),
+        WIRE_FIELD(close_connection_counter)
+      WIRE_END_MAP()
 
       std::string to_string() const
       {
@@ -294,6 +298,8 @@ namespace net_load_tests
       }
     };
   };
+  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_GET_STATISTICS::request);
+  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_GET_STATISTICS::response);
 
   struct CMD_RESET_STATISTICS
   {
@@ -301,16 +307,18 @@ namespace net_load_tests
 
     struct request
     {
-      BEGIN_KV_SERIALIZE_MAP()
-      END_KV_SERIALIZE_MAP()
+      WIRE_BEGIN_MAP()
+      WIRE_END_MAP()
     };
 
     struct response
     {
-      BEGIN_KV_SERIALIZE_MAP()
-      END_KV_SERIALIZE_MAP()
+      WIRE_BEGIN_MAP()
+      WIRE_END_MAP()
     };
   };
+  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_RESET_STATISTICS::request);
+  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_RESET_STATISTICS::response);
 
   struct CMD_SHUTDOWN
   {
@@ -318,10 +326,11 @@ namespace net_load_tests
 
     struct request
     {
-      BEGIN_KV_SERIALIZE_MAP()
-      END_KV_SERIALIZE_MAP()
+      WIRE_BEGIN_MAP()
+      WIRE_END_MAP()
     };
   };
+  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_SHUTDOWN::request);
 
   struct CMD_SEND_DATA_REQUESTS
   {
@@ -331,11 +340,12 @@ namespace net_load_tests
     {
       uint64_t request_size;
 
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(request_size)
-      END_KV_SERIALIZE_MAP()
+      WIRE_BEGIN_MAP(),
+        WIRE_FIELD(request_size)
+      WIRE_END_MAP()
     };
   };
+  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_SEND_DATA_REQUESTS::request);
 
   struct CMD_DATA_REQUEST
   {
@@ -346,18 +356,21 @@ namespace net_load_tests
       std::string data;
       uint64_t response_size;
 
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(data)
-      END_KV_SERIALIZE_MAP()
+      WIRE_BEGIN_MAP(),
+        WIRE_FIELD(data),
+        WIRE_FIELD(response_size)
+      WIRE_END_MAP()
     };
 
     struct response
     {
       std::string data;
 
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(data)
-      END_KV_SERIALIZE_MAP()
+      WIRE_BEGIN_MAP(),
+        WIRE_FIELD(data)
+      WIRE_END_MAP()
     };
   };
+  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_DATA_REQUEST::request);
+  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_DATA_REQUEST::response);
 }

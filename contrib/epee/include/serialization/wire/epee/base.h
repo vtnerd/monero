@@ -33,13 +33,13 @@
 
 //! Declare functions that convert `type` to/from epee binary bytes
 #define WIRE_EPEE_DECLARE_CONVERSION(type)                              \
-  std::error_code convert_from_epee(epee::span<const std::uint8_t>, type&); \
-  std::error_code convert_to_epee(epee::byte_stream&, const type&)      \
+  std::error_code convert_from_epee(::epee::span<const std::uint8_t>, type&); \
+  std::error_code convert_to_epee(::epee::byte_stream&, const type&)    \
 
 namespace epee { class byte_stream; }
 namespace wire
 {
-  struct epee
+  struct epee_bin
   {
     using input_type = epee_reader;
     using output_type = epee_writer;

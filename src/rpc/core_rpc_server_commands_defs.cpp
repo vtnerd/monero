@@ -43,13 +43,12 @@
 #define RPC_ACCESS_RESPONSE_BASE()                                      \
   RPC_RESPONSE_BASE(), WIRE_FIELD(credits), WIRE_FIELD(top_hash)
 
-
 namespace cryptonote
 {
   namespace
   {
     template<typename F>
-    constexpr std::size_t min_uint64(const F&) noexcept
+    constexpr std::size_t min_uint64() noexcept
     {
       static_assert(std::is_same<F, wire::epee_reader>::value || std::is_same<F, wire::epee_writer>::value, "incorrect for format type");
       return sizeof(std::uint64_t);
@@ -72,7 +71,7 @@ namespace cryptonote
     std::string compress_integer_array(const std::vector<std::uint64_t> &v)
     {
       std::string s;
-      s.resize(v.size() * (sizeof(T) * 8 / 7 + 1));
+      s.resize(v.size() * (sizeof(std::uint64_t) * 8 / 7 + 1));
       char *ptr = (char*)s.data();
       for (const std::uint64_t t: v)
         tools::write_varint(ptr, t);
@@ -91,15 +90,13 @@ namespace cryptonote
         WIRE_FIELD_DEFAULTED(no_miner_tx, false)
       );
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::request, get_blocks_request_map);
 
     template<typename F, typename T>
     void tx_output_indices_map(F& format, T& self)
     {
-      using indices_min = wire::min_element_size<min_uint64(format)>;
+      using indices_min = wire::min_element_size<min_uint64<F>()>;
       wire::object(format, WIRE_FIELD_ARRAY(indices, indices_min));
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::tx_output_indices, tx_output_indices_map);
 
     template<typename F, typename T>
     void block_output_indices_map(F& format, T& self)
@@ -107,7 +104,6 @@ namespace cryptonote
       using max_txes = wire::max_element_count<COMMAND_RPC_GET_BLOCKS_FAST_MAX_TX_COUNT>;
       wire::object(format, WIRE_FIELD_ARRAY(indices, max_txes));
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::block_output_indices, block_output_indices_map);
 
     template<typename F, typename T>
     void get_blocks_response_map(F& format, T& self)
@@ -117,33 +113,29 @@ namespace cryptonote
         RPC_ACCESS_RESPONSE_BASE(),
         WIRE_FIELD_ARRAY(blocks, max_blocks),
         WIRE_FIELD(start_height),
-        WIRE_FIELD(currrent_height),
+        WIRE_FIELD(current_height),
         WIRE_FIELD_ARRAY(output_indices, max_blocks)
       );
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::response, get_blocks_response_map);
 
     template<typename F, typename T>
     void blocks_by_height_request_map(F& format, T& self)
     {
-      using height_min = wire::min_element_size<min_uint64(format)>;
-      wire::object(format, RPC_ACCESS_REQUEST_BASE(), WIRE_FIELD_ARRAY(height, height_min));
+      using height_min = wire::min_element_size<min_uint64<F>()>;
+      wire::object(format, RPC_ACCESS_REQUEST_BASE(), WIRE_FIELD_ARRAY(heights, height_min));
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::request, blocks_by_height_request_map);
 
     template<typename F, typename T>
     void blocks_by_height_response_map(F& format, T& self)
     {
-      wire::object(format, RPC_ACCESS_RESPONSE_BASE(), WIRE_FIELD(blocks));
+      wire::object(format, RPC_ACCESS_RESPONSE_BASE(), WIRE_FIELD_ARRAY(blocks, block_blob_min));
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::response, blocks_by_height_response_map);
 
     template<typename F, typename T>
     void get_hashes_request_map(F& format, T& self)
     {
       wire::object(format, RPC_ACCESS_REQUEST_BASE(), WIRE_FIELD_ARRAY_AS_BLOB(block_ids), WIRE_FIELD(start_height));
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_HASHES_FAST::request, get_hashes_request_map);
 
     template<typename F, typename T>
     void get_hashes_response_map(F& format, T& self)
@@ -155,22 +147,19 @@ namespace cryptonote
         WIRE_FIELD(current_height)
       );
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_HASHES_FAST::response, get_hashes_response_map);
 
     template<typename F, typename T>
     void get_output_indexes_request_map(F& format, T& self)
     {
       wire::object(format, RPC_ACCESS_REQUEST_BASE(), WIRE_FIELD(txid));
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::request, get_output_indexes_request_map);
 
     template<typename F, typename T>
     void get_output_indexes_response_map(F& format, T& self)
     {
-      using index_min = wire::min_element_size<min_uint64(format)>;
+      using index_min = wire::min_element_size<min_uint64<F>()>;
       wire::object(format, RPC_ACCESS_RESPONSE_BASE(), WIRE_FIELD_ARRAY(o_indexes, index_min));
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::response, get_output_indexes_response_map);
 
     template<typename F, typename T>
     void get_outputs_out_map(F& format, T& self)
@@ -178,15 +167,17 @@ namespace cryptonote
       // see get_outputs_request_map if changing fields
       wire::object(format, WIRE_FIELD(amount), WIRE_FIELD(index));
     }
-    WIRE_EPEE_DEFINE_OBJECT(get_outputs_out, get_outputs_out_map);
 
     template<typename F, typename T>
     void get_outputs_request_map(F& format, T& self)
     {
-      using outputs_out_min = wire::min_element_size<min_uint64(format) * 2>;
-      wire::object(format, RPC_ACCESS_REQUEST_BASE(), WIRE_FIELD_ARRAY(outputs, outputs_out_min), WIRE_FIELD_DEFAULTED(get_txid, true));
+      using outputs_out_min = wire::min_element_size<min_uint64<F>() * 2>;
+      wire::object(format,
+        RPC_ACCESS_REQUEST_BASE(),
+        WIRE_FIELD_ARRAY(outputs, outputs_out_min),
+        WIRE_FIELD_DEFAULTED(get_txid, true)
+      );
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUTS_BIN::request, get_outputs_request_map);
 
     template<typename F, typename T>
     void outkey_map(F& format, T& self)
@@ -194,52 +185,49 @@ namespace cryptonote
       // see get_outputs_response_map if changing fields
       wire::object(format, WIRE_FIELD(key), WIRE_FIELD(mask), WIRE_FIELD(unlocked), WIRE_FIELD(height), WIRE_FIELD(txid));
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUTS_BIN::outkey, outkey_map);
 
     template<typename F, typename T>
     void get_outputs_response_map(F& format, T& self)
     {
       static constexpr std::size_t outkey_min_value =
-        sizeof(crypto::public_key) + sizeof(rct::key) + min_uint64(format) + sizeof(crypto::hash);
-      using outkey_min = wire::min_element_size<min_outkey_value>;
-      wire::object(format, RPC_ACCESS_RESPONSE_BASE(), WIRE_FIELD_ARRAY(outs, min_outkey));
+        sizeof(crypto::public_key) + sizeof(rct::key) + min_uint64<F>() + sizeof(crypto::hash);
+      using outkey_min = wire::min_element_size<outkey_min_value>;
+      wire::object(format, RPC_ACCESS_RESPONSE_BASE(), WIRE_FIELD_ARRAY(outs, outkey_min));
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUTS_BIN::response, get_outputs_response_map);
 
     template<typename F, typename T>
     void output_distribution_request_map(F& format, T& self)
     {
-      using amounts_min = wire::min_element_size<min_uint64(format)>;
+      using amounts_min = wire::min_element_size<min_uint64<F>()>;
       wire::object(format,
         WIRE_FIELD_ARRAY(amounts, amounts_min),
-        WIRE_FIELD_DEFAULTED(from_height, 0),
-        WIRE_FIELD_DEFAULTED(to_height, 0),
+        WIRE_FIELD_DEFAULTED(from_height, unsigned(0)),
+        WIRE_FIELD_DEFAULTED(to_height, unsigned(0)),
         WIRE_FIELD_DEFAULTED(cumulative, false),
         WIRE_FIELD_DEFAULTED(binary, true),
         WIRE_FIELD_DEFAULTED(compress, false)
       );
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::request, output_distribution_request_map);
 
     enum class is_blob { false_ = 0, true_ };
     void read_bytes(wire::epee_reader& source, std::pair<std::vector<std::uint64_t>, is_blob>& dest)
     {
       if (source.last_tag() == SERIALIZE_TYPE_STRING)
       {
-        wire::read_as_blob(source, dest.first);
+        wire_read::bytes(source, wire::array_as_blob(std::ref(dest.first)));
         dest.second = is_blob::true_;
       }
       else
       {
-        using element_min = wire::min_element_size<min_uint64(source)>;
-        wire_read::array(source, dest.first, element_min);
+        using element_min = wire::min_element_size<min_uint64<wire::epee_reader>()>;
+        wire_read::array(source, dest.first, element_min{});
         dest.second = is_blob::false_;
       }
     }
     void write_bytes(wire::epee_writer& dest, const std::pair<const std::vector<std::uint64_t>&, is_blob> source)
     {
       if (source.second == is_blob::true_)
-        wire::write_as_blob(dest, source.first);
+        wire_write::bytes(dest, wire::array_as_blob(std::cref(source.first)));
       else
         wire_write::array(dest, source.first);
     }
@@ -257,50 +245,65 @@ namespace cryptonote
         wire::field("base", std::ref(self.data.base))
       );
     }
-    void read_bytes(wire::epee_reader& source, COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::distribution& dest)
-    {
-      boost::optional<std::string> compressed;
-      boost::optional<std::pair<std::vector<std::uint64_t>, is_blob>> binary;
-      output_distribution_map(source, dest, compressed, binary);
-
-      if (compressed && dest.binary && dest.compress)
-        self.data.distribution = decompress_integer_array(*compressed);
-      else if (binary && bool(binary->second) == dest.binary && !dest.compress)
-        self.data.distribution = std::move(binary->first);
-      else
-        WIRE_DLOG_THROW(wire::schema::array, "distribution array sent incorrectly");
-    }
-    void write_bytes(wire::epee_writer& dest, const COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::distribution& source)
-    {
-      boost::optional<std::string> compressed;
-      boost::optional<std::pair<const std::vector<std::uint64_t>&, is_blob>> binary;
-      if (source.binary && source.compress)
-        compressed = compress_integer_array(source.data.distribution);
-      else
-        binary.emplace(source.data.distribution, is_blob(source.binary));
-
-      output_distribution_map(dest, source, compressed, binary);
-    }
 
     template<typename F, typename T>
     void output_distribution_response_map(F& format, T& self)
     {
-      using distributions_max = wire::max_element_count<>;
+      using distributions_max = wire::max_element_count<100>;
       wire::object(format, WIRE_FIELD_ARRAY(distributions, distributions_max));
     }
-    WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::response, output_distribution_response_map);
   } // anonymous
 
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::tx_output_indices, tx_output_indices_map);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::block_output_indices, block_output_indices_map);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::request, get_blocks_request_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_FAST::request);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::response, get_blocks_response_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_FAST::response);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::request, blocks_by_height_request_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::request)
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::response, blocks_by_height_response_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::response);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_HASHES_FAST::request, get_hashes_request_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_HASHES_FAST::request);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_HASHES_FAST::response, get_hashes_response_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_HASHES_FAST::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_TX_GLOBAL_OUTPUT_INDEXES::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_TX_GLOBAL_OUTPUT_INDEXES::response);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::request, get_output_indexes_request_map);
+  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::request);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::response, get_output_indexes_response_map);
+  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::response);
+  WIRE_EPEE_DEFINE_OBJECT(get_outputs_out, get_outputs_out_map);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUTS_BIN::request, get_outputs_request_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUTS_BIN::request);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUTS_BIN::outkey, outkey_map);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUTS_BIN::response, get_outputs_response_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUTS_BIN::response);
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::request, output_distribution_request_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::request);
+  void read_bytes(wire::epee_reader& source, COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::distribution& dest)
+  {
+    boost::optional<std::string> compressed;
+    boost::optional<std::pair<std::vector<std::uint64_t>, is_blob>> binary;
+    output_distribution_map(source, dest, compressed, binary);
+
+    if (compressed && dest.binary && dest.compress)
+      dest.data.distribution = decompress_integer_array(*compressed);
+    else if (binary && bool(binary->second) == dest.binary && !dest.compress)
+      dest.data.distribution = std::move(binary->first);
+    else
+      WIRE_DLOG_THROW(wire::error::schema::array, "distribution array sent incorrectly");
+  }
+  void write_bytes(wire::epee_writer& dest, const COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::distribution& source)
+  {
+    boost::optional<std::string> compressed;
+    boost::optional<std::pair<const std::vector<std::uint64_t>&, is_blob>> binary;
+    if (source.binary && source.compress)
+      compressed = compress_integer_array(source.data.distribution);
+    else
+      binary.emplace(source.data.distribution, is_blob(source.binary));
+
+    output_distribution_map(dest, source, compressed, binary);
+  }
+  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::response, output_distribution_response_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::response);
 } // cryptonote

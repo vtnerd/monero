@@ -100,7 +100,7 @@ namespace wire
   {
     using value_type = typename T::value_type;
     dest.binary({reinterpret_cast<const std::uint8_t*>(source.data()), source.size() * sizeof(value_type)});
-    return dest.data();
+    return source.data();
   }
 #endif // LITTLE ENDIAN
 
@@ -110,13 +110,13 @@ namespace wire
   {
     using value_type = typename T::value_type;
     dest.clear();
-    wire::reserve(dest, bytes.size() / sizeof(value_type));
-    while (!bytes.empty())
+    wire::reserve(dest, source.size() / sizeof(value_type));
+    while (!source.empty())
     {
       dest.emplace_back();
-      std::memcpy(std::addressof(dest.back()), bytes.data(), sizeof(value_type));
+      std::memcpy(std::addressof(dest.back()), source.data(), sizeof(value_type));
       dest.back() = CONVERT_POD(dest.back());
-      bytes.remove_prefix(sizeof(value_type));
+      source.remove_prefix(sizeof(value_type));
     }
   }
 
@@ -127,7 +127,7 @@ namespace wire
     using value_type = typename T::value_type;
     epee::byte_stream bytes{};
     bytes.reserve(sizeof(value_type) * source.size());
-    for (const auto elem : source)
+    for (auto elem : source)
     {
       elem = CONVERT_POD(elem);
       bytes.write(reinterpret_cast<const char*>(std::addressof(elem)), sizeof(elem));
@@ -138,8 +138,7 @@ namespace wire
   template<typename R, typename T>
   inline void read_bytes(R& source, array_as_blob_<T>& dest)
   {
-    using value_type = typename unwrap_reference<T>::type::value_type;
-    static_assert(dest.value_size() != 0, "divide by zero and no progress below");
+    static_assert(array_as_blob_<T>::value_size() != 0, "divide by zero and no progress below");
     epee::byte_slice bytes = source.binary();
     if (bytes.size() % dest.value_size() != 0)
       WIRE_DLOG_THROW_(error::schema::fixed_binary);

@@ -38,7 +38,7 @@
 #include "enums.h"
 #include "misc_log_ex.h"
 #include "serialization/keyvalue_serialization.h"
-#include "serilization/wire/fwd.h"
+#include "serialization/wire/fwd.h"
 #include "int-util.h"
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
@@ -92,8 +92,8 @@ namespace net_utils
 		static constexpr zone get_zone() noexcept { return zone::public_; }
 		static constexpr bool is_blockable() noexcept { return true; }
 
-		static void read_bytes(wire::reader&, ipv4_network_address&);
-		static void write_bytes(wire::writer&, const ipv4_network_address&);
+		void read_bytes(wire::reader&);
+		void write_bytes(wire::writer&) const;
 
 		BEGIN_KV_SERIALIZE_MAP()
 			if (is_store)
@@ -172,7 +172,7 @@ namespace net_utils
 
 	class ipv6_network_address
 	{
-		template<typename F, typename T> serialize_map(F&, T&);
+		template<typename F, typename T> static void serialize_map(F&, T&);
 	protected:
 		boost::asio::ip::address_v6 m_address;
 		uint16_t m_port;
@@ -202,8 +202,8 @@ namespace net_utils
 		static constexpr zone get_zone() noexcept { return zone::public_; }
 		static constexpr bool is_blockable() noexcept { return true; }
 
-		static void read_bytes(wire::reader&, ipv6_network_address&);
-		static void write_bytes(wire::writer&, const ipv6_network_address&);
+		void read_bytes(wire::reader&);
+		void write_bytes(wire::writer&) const;
 
 		static const uint8_t ID = 2;
 		BEGIN_KV_SERIALIZE_MAP()

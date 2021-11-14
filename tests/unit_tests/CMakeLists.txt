@@ -112,6 +112,7 @@ target_link_libraries(unit_tests
     cryptonote_core
     daemon_messages
     daemon_rpc_server
+    epee_wire_epee
     blockchain_db
     lmdb_lib
     rpc

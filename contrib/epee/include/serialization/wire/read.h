@@ -256,6 +256,13 @@ namespace wire
   {
     dest = integer::convert_to<unsigned long long>(source.unsigned_integer());
   }
+
+  //! Use `read_bytes(...)` method if available for `T`.
+  template<typename R, typename T>
+  inline auto read_bytes(R& source, T& dest) -> decltype(dest.read_bytes(source))
+  {
+    return dest.read_bytes(source);
+  }
 } // wire
 
 namespace wire_read
@@ -270,7 +277,7 @@ namespace wire_read
   [[noreturn]] void throw_exception(wire::error::schema code, const char* display, epee::span<char const* const> name_list);
 
   template<typename R, typename T>
-  inline void bytes(R& source, T& dest)
+  inline void bytes(R& source, T&& dest)
   {
     read_bytes(source, dest); // ADL (searches every associated namespace)
   }
@@ -292,19 +299,19 @@ namespace wire_read
     return {};
   }
 
-  template<typename R, typename T, std::size_t M, std::size_t N = -1>
+  template<typename R, typename T, std::size_t M, std::size_t N = std::numeric_limits<std::size_t>::max()>
   inline void array(R& source, T& dest, wire::min_element_size<M> min_element_size, wire::max_element_count<N> max_element_count = {})
   {
     using value_type = typename T::value_type;
     static_assert(!std::is_same<value_type, char>::value, "read array of chars as binary");
     static_assert(!std::is_same<value_type, std::uint8_t>::value, "read array of unsigned chars as binary");
-    static_assert(min_element_size::check<value_type>() || max_element_count::check<value_type>(), "array unpacking memory issues");
+    static_assert(min_element_size.template check<value_type>() || max_element_count.template check<value_type>(), "array unpacking memory issues");
 
     std::size_t count = source.start_array(min_element_size);
 
     // quick check for epee/msgpack formats
     if (max_element_count < count)
-      throw_exception(error::schema::array, "array size outside of max range", nullptr);
+      throw_exception(wire::error::schema::array, "array size outside of max range", nullptr);
 
     dest.clear();
     wire::reserve(dest, count);
@@ -315,7 +322,7 @@ namespace wire_read
     {
       // check for json/cbor formats
       if (source.delimited_arrays() && max_element_count <= dest.size())
-        throw_exception(error::schema::array, "array size outside of max range", nullptr);
+        throw_exception(wire::error::schema::array, "array size outside of max range", nullptr);
 
       dest.emplace_back();
       bytes(source, dest.back());
@@ -323,18 +330,18 @@ namespace wire_read
       more &= bool(count);
 
       if (((start_bytes - source.remaining().size()) / dest.size()) < min_element_size)
-        throw_exception(error::schema::array, "array below min element size constraint", nullptr);
+        throw_exception(wire::error::schema::array, "array below min element size constraint", nullptr);
     }
 
     return source.end_array();
   }
 
-  template<typename R, typename T>
-  inline void reset_field(const R& source, const wire::field_<T, true>&) noexcept
+  template<typename T>
+  inline void reset_field(const wire::field_<T, true>&) noexcept
   {} // no reset, field is required and will be updated during reading
 
-  template<typename R, typename T>
-  inline void reset_field(R& source, wire::field_<T, false>& dest)
+  template<typename T>
+  inline void reset_field(wire::field_<T, false>& dest)
   {
     dest.get_value().reset();
   }
@@ -380,7 +387,7 @@ namespace wire_read
     std::size_t set_mapping(std::size_t index, wire::reader::key_map (&map)[N]) noexcept
     {
       our_index_ = index;
-      map[index].name = head.name;
+      map[index].name = field_.name;
       return index + count();
     }
 
@@ -402,7 +409,7 @@ namespace wire_read
     bool reset_omitted()
     {
       if (!read_)
-        reset_field(source, field_);
+        reset_field(field_);
       return true;
     }
   };
@@ -426,15 +433,16 @@ namespace wire_read
   {
     static constexpr const std::size_t total_subfields = wire::sum(fields.count()...);
     static_assert(total_subfields < 100, "algorithm uses too much stack space and linear searching");
+    static_assert(sizeof...(T) <= total_subfields, "subfield parameter pack size mismatch");
 
     std::size_t state = source.start_object();
     std::size_t required = wire::sum(std::size_t(fields.is_required())...);
 
-    wire::reader::key_map map[total_subfields] = {};
+    wire::reader::key_map map[total_subfields + 1] = {}; // +1 for empty object
     expand_tracker_map(0, map, fields...);
 
     std::size_t next = 0;
-    while (source.key(map, state, next))
+    while (source.key({map, total_subfields}, state, next))
     {
       switch (wire::sum(fields.try_read(source, next)...))
       {
@@ -451,7 +459,7 @@ namespace wire_read
 
     if (required)
     {
-      const char* missing[] = {fields.name_if_missing()...};
+      const char* missing[] = {fields.name_if_missing()..., nullptr};
       throw_exception(wire::error::schema::missing_key, "", missing);
     }
 
@@ -467,6 +475,6 @@ namespace wire
   template<typename... T>
   inline void object(reader& source, T... fields)
   {
-    wire_read::object(source, wire_read::tracker<T>{source, std::move(fields)}...);
+    wire_read::object(source, wire_read::tracker<T>{std::move(fields)}...);
   }
 }

@@ -27,3 +27,4 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 monero_add_library(epee_wire_epee error.cpp read.cpp write.cpp)
+target_link_libraries(epee_wire_epee PUBLIC epee_wire)

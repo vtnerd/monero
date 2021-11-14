@@ -2259,16 +2259,6 @@ namespace cryptonote
       bool cumulative;
       bool binary;
       bool compress;
-
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE_PARENT(rpc_access_request_base)
-        KV_SERIALIZE(amounts)
-        KV_SERIALIZE_OPT(from_height, (uint64_t)0)
-        KV_SERIALIZE_OPT(to_height, (uint64_t)0)
-        KV_SERIALIZE_OPT(cumulative, false)
-        KV_SERIALIZE_OPT(binary, true)
-        KV_SERIALIZE_OPT(compress, false)
-      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
 
@@ -2279,39 +2269,6 @@ namespace cryptonote
       std::string compressed_data;
       bool binary;
       bool compress;
-
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(amount)
-        KV_SERIALIZE_N(data.start_height, "start_height")
-        KV_SERIALIZE(binary)
-        KV_SERIALIZE(compress)
-        if (this_ref.binary)
-        {
-          if (is_store)
-          {
-            if (this_ref.compress)
-            {
-              const_cast<std::string&>(this_ref.compressed_data) = compress_integer_array(this_ref.data.distribution);
-              KV_SERIALIZE(compressed_data)
-            }
-            else
-              KV_SERIALIZE_CONTAINER_POD_AS_BLOB_N(data.distribution, "distribution")
-          }
-          else
-          {
-            if (this_ref.compress)
-            {
-              KV_SERIALIZE(compressed_data)
-              const_cast<std::vector<uint64_t>&>(this_ref.data.distribution) = decompress_integer_array<uint64_t>(this_ref.compressed_data);
-            }
-            else
-              KV_SERIALIZE_CONTAINER_POD_AS_BLOB_N(data.distribution, "distribution")
-          }
-        }
-        else
-          KV_SERIALIZE_N(data.distribution, "distribution")
-        KV_SERIALIZE_N(data.base, "base")
-      END_KV_SERIALIZE_MAP()
     };
 
     struct response_t: public rpc_access_response_base

@@ -241,7 +241,7 @@ namespace nodetool
     typedef epee::misc_utils::struct_init<response_t> response;
   };
   WIRE_EPEE_DECLARE_CONVERSION(COMMAND_PING::request);
-  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_PINE::response);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_PING::response);
 
   
   /************************************************************************/

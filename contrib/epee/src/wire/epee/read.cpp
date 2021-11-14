@@ -25,13 +25,16 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "read.h"
+#include "serialization/wire/epee/read.h"
 
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
 
 #include "serialization/wire/error.h"
+#include "serialization/wire/epee/error.h"
+#include "storages/portable_storage_base.h"
+#include "storages/portable_storage_bin_utils.h"
 
 namespace
 {
@@ -60,7 +63,7 @@ namespace
     default:
       break;
     }
-    WIRE_DLOG_THROW_(error::epee::invalid_tag);
+    WIRE_DLOG_THROW_(wire::error::epee::invalid_tag);
   }
 } // anonymous
 
@@ -84,8 +87,11 @@ namespace wire
 
   std::size_t epee_reader::read_varint()
   {
+    if (remaining_.empty())
+      WIRE_DLOG_THROW(error::epee::not_enough_bytes, "varint tag");
+
     std::size_t out = 0;
-    switch (read_tag() & PORTABLE_RAW_SIZE_MARK_MASK)
+    switch (remaining_[0] & PORTABLE_RAW_SIZE_MARK_MASK)
     {
     case PORTABLE_RAW_SIZE_MARK_BYTE:  out = read<uint8_t>(); break;
     case PORTABLE_RAW_SIZE_MARK_WORD:  out = integer::convert_to<std::size_t>(read<uint16_t>()); break;
@@ -102,7 +108,7 @@ namespace wire
   {
     const std::uint8_t length = read<std::uint8_t>();
     if (remaining_.remove_prefix(length) != length)
-      WIRE_DLOG_THROW_(error::epee::not_enough_bytes, "key name unavailable");
+      WIRE_DLOG_THROW(error::epee::not_enough_bytes, "key name unavailable");
     return {reinterpret_cast<const char*>(remaining_.data()) - length, length};
   }
 
@@ -113,11 +119,11 @@ namespace wire
 
     const std::size_t len = read_varint();
     if (remaining_.remove_prefix(len) != len)
-      WIRE_DLOG_THROW_(error::epee::not_enough_bytes, "not enough space for string");
+      WIRE_DLOG_THROW(error::epee::not_enough_bytes, "not enough space for string");
     return {remaining_.data() - len, len};
   }
 
-  void skip_fixed(const std::size_t count)
+  void epee_reader::skip_fixed(const std::size_t count)
   {
     const std::size_t elem_size = min_wire_size(last_tag_);
     if (remaining_.size() / elem_size < count)
@@ -137,7 +143,7 @@ namespace wire
         skip_fixed(1); // skip a single fixed sized type
         break;
       case SERIALIZE_TYPE_ARRAY:
-        skip_stack_.emplace_back(start_array(), SERIALIZE_TYPE_ARRAY);
+        skip_stack_.emplace_back(start_array(0), SERIALIZE_TYPE_ARRAY);
         break;
       case SERIALIZE_TYPE_OBJECT:
         skip_stack_.emplace_back(start_object(), SERIALIZE_TYPE_OBJECT);
@@ -182,13 +188,13 @@ namespace wire
           }
         }
       }
-    } while (!skip_stack_.empty())
+    } while (!skip_stack_.empty());
   }
 
   epee_reader::epee_reader(const epee::span<const std::uint8_t> source)
     : reader(source),
       skip_stack_(),
-      array_space_(source_.size()),
+      array_space_(source.size()),
       last_tag_(SERIALIZE_TYPE_OBJECT)
   {}
 
@@ -233,13 +239,13 @@ namespace wire
     default:
       break;
     };
-    WIRE_DLOG_THROW_(errorr::schema::integer);
+    WIRE_DLOG_THROW_(error::schema::integer);
   }
 
   double epee_reader::real()
   {
     if (last_tag_ != SERIALIZE_TYPE_DUOBLE)
-      WIRE_DLOG_THROW_(error::schema::real);
+      WIRE_DLOG_THROW_(error::schema::number);
     return read<double>();
   }
 
@@ -251,9 +257,8 @@ namespace wire
 
   epee::byte_slice epee_reader::binary()
   {
-    const auto value = raw(error::schema::binary);
-    const std::size_t begin = value.data() - source_.data();
-    return source_.get_slice(begin, begin + value.size()};
+    // TODO update epee "glue" code to use byte_slice, so that this is a ref-count
+    return epee::byte_slice{{raw(error::schema::binary)}};
   }
 
   void epee_reader::binary(epee::span<std::uint8_t> dest)
@@ -264,7 +269,7 @@ namespace wire
     std::memcpy(dest.data(), value.data(), value.size());
   }
 
-  std::size_t epee_reader::start_array(const std::size_t min_element_size)
+  std::size_t epee_reader::start_array(std::size_t min_element_size)
   {
     // also called from `skip_next`
     increment_depth();
@@ -273,7 +278,7 @@ namespace wire
       last_tag_ = read_tag();
 
     if (!(last_tag_ & SERIALIZE_FLAG_ARRAY))
-      WIRE_DLOG_THROW_(wire::schema::array);
+      WIRE_DLOG_THROW_(error::schema::array);
 
     last_tag_ &= ~SERIALIZE_FLAG_ARRAY;
 
@@ -304,11 +309,12 @@ namespace wire
     return read_varint();
   }
 
-  bool epee_reader::key(const epee::span<const key_map> map, std::size_t& state, std::size_t& index)
+  bool epee_reader::key(const epee::span<const reader::key_map> map, std::size_t& state, std::size_t& index)
   {
     // state is the number of remaining fields on the wire
-    for (; state; --state)
+    while (state)
     {
+      --state;
       const boost::string_ref name = read_name();
       last_tag_ = read_tag();
       for (std::size_t i = 0; i < map.size(); ++i)
@@ -324,4 +330,4 @@ namespace wire
     last_tag_ = SERIALIZE_TYPE_OBJECT;
     return false;
   }
-}
+} // wire

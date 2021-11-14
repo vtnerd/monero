@@ -37,6 +37,7 @@
 #include <iostream>
 #include <cinttypes>
 #include <sodium/crypto_verify_32.h>
+#include <type_traits>
 
 extern "C" {
 #include "crypto/crypto-ops.h"
@@ -53,6 +54,7 @@ extern "C" {
 #include "serialization/debug_archive.h"
 #include "serialization/binary_archive.h"
 #include "serialization/json_archive.h"
+#include "serialization/wire/traits.h"
 
 
 //Define this flag when debugging to get additional info on the console
@@ -687,6 +689,14 @@ inline std::ostream &operator <<(std::ostream &o, const rct::key &v) {
 namespace std
 {
   template<> struct hash<rct::key> { std::size_t operator()(const rct::key &k) const { return reinterpret_cast<const std::size_t&>(k); } };
+}
+
+namespace wire
+{
+  template<>
+  struct is_blob<rct::key>
+    : std::true_type
+  {};
 }
 
 BLOB_SERIALIZER(rct::key);

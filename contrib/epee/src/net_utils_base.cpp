@@ -34,13 +34,17 @@ namespace epee { namespace net_utils
 	bool ipv4_network_address::is_loopback() const { return net_utils::is_ip_loopback(ip()); }
 	bool ipv4_network_address::is_local() const { return net_utils::is_ip_local(ip()); }
 
-	void ipv4_network_address::read_bytes(wire::reader& source, ipv4_network_address& self)
+	void ipv4_network_address::read_bytes(wire::reader& source)
 	{
+		ipv4_network_address& self = *this;
 		wire::object(source, WIRE_FIELD(m_ip), WIRE_FIELD(m_port));
-		self.m_ip = SWAP32LE(self.m_ip);
+		m_ip = SWAP32LE(m_ip);
 	}
-	void ipv4_network_address::write_bytes(wire::writer& dest, const ipv4_network_address& self)
-	{ wire::object(dest, wire::field("m_ip", SWAP32LE(self.m_ip)), WIRE_FIELD_COPY(m_port)); }
+	void ipv4_network_address::write_bytes(wire::writer& dest) const
+	{
+		const ipv4_network_address& self = *this;
+		wire::object(dest, wire::field("m_ip", SWAP32LE(m_ip)), WIRE_FIELD_COPY(m_port));
+	}
 
 
 	template<typename F, typename T>
@@ -60,10 +64,10 @@ namespace epee { namespace net_utils
 	bool ipv6_network_address::is_loopback() const { return m_address.is_loopback(); }
 	bool ipv6_network_address::is_local() const { return m_address.is_link_local(); }
 
-	void ipv6_network_address::read_bytes(wire::reader& source, ipv6_network_address& dest)
-	{ serialize_map(source, dest); }
-	void ipv6_network_address::write_bytes(wire::writer& dest, const ipv6_network_address& source)
-	{ serialize_map(dest, source); }
+	void ipv6_network_address::read_bytes(wire::reader& source)
+	{ serialize_map(source, *this); }
+	void ipv6_network_address::write_bytes(wire::writer& dest) const
+	{ serialize_map(dest, *this); }
 
 	bool ipv4_network_subnet::equal(const ipv4_network_subnet& other) const noexcept
 	{ return is_same_host(other) && m_mask == other.m_mask; }

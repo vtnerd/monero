@@ -35,12 +35,13 @@
 #include "cryptonote_basic/cryptonote_basic.h"
 #include "cryptonote_basic/blobdatatype.h"
 #include "serialization/wire/epee/base.h"
+#include "serialization/wire/traits.h"
 
 namespace cryptonote
 {
-
-
 #define BC_COMMANDS_POOL_BASE 2000
+
+  using block_blob_min = wire::min_element_size<72>;
 
   /************************************************************************/
   /* P2P connection info, serializable to json                            */
@@ -244,6 +245,7 @@ namespace cryptonote
     uint32_t pruning_seed;
   };
   WIRE_EPEE_DECLARE_OBJECT(CORE_SYNC_DATA);
+  WIRE_EPEE_DECLARE_CONVERSION(CORE_SYNC_DATA);
 
   struct NOTIFY_REQUEST_CHAIN
   {

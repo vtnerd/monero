@@ -33,6 +33,7 @@
 #include "byte_slice.h"
 #include "span.h"
 #include "net/levin_base.h"
+#include "serialization/wire/epee/base.h"
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
 #define MONERO_DEFAULT_LOG_CATEGORY "net"
@@ -101,7 +102,7 @@ namespace epee
       const boost::uuids::uuid &conn_id = context.m_connection_id;
       levin::message_writer to_send{16 * 1024};
       std::error_code error{};
-      if (error = wire::epee::to_bytes(to_send.buffer, out_struct))
+      if ((error = wire::epee_bin::to_bytes(to_send.buffer, out_struct)))
       {
 	LOG_ERROR("Failed to convert to epee on command " << command << ": " << error.message());
 	return false;
@@ -115,7 +116,7 @@ namespace epee
         return false;
       }
 
-      if(error = wire::epee::from_bytes(strspan<std::uint8_t>(buff_to_recv), result_struct))
+      if((error = wire::epee_bin::from_bytes(strspan<std::uint8_t>(buff_to_recv), result_struct)))
       {
         on_levin_traffic(context, true, false, true, buff_to_recv.size(), command);
         LOG_ERROR("Failed to convert from epee on command " << command << ": " << error.message());
@@ -130,8 +131,7 @@ namespace epee
     {
       const boost::uuids::uuid &conn_id = context.m_connection_id;
       levin::message_writer to_send{16 * 1024};
-      std::error_code error{};
-      if (error = wire::epee::to_bytes(to_send.buffer, out_struct))
+      if (std::error_code error = wire::epee_bin::to_bytes(to_send.buffer, out_struct))
       {
 	LOG_ERROR("Failed to convert to epee in async_invoke " << command << ": " << error.message());
 	return false;
@@ -148,8 +148,7 @@ namespace epee
           cb(code, result_struct, context);
           return false;
         }
-	std::error_code error{};
-        if (error = wire::epee::from_bytes(buff, result_struct))
+        if (std::error_code error = wire::epee_bin::from_bytes(buff, result_struct))
         {
           on_levin_traffic(context, true, false, true, buff.size(), command);
           LOG_ERROR("Failed to convert from epee on command " << command << ": " << error.message());
@@ -173,8 +172,7 @@ namespace epee
     {
       const boost::uuids::uuid &conn_id = context.m_connection_id;
       levin::message_writer to_send;
-      std::error_code error{};
-      if (error = wire::epee::to_bytes(to_send.buffer, out_struct))
+      if (std::error_code error = wire::epee_bin::to_bytes(to_send.buffer, out_struct))
       {
 	LOG_ERROR("Failed to convert to epee in notify " << command << ": " << error.message());
 	return false;
@@ -194,8 +192,8 @@ namespace epee
     int buff_to_t_adapter(int command, const epee::span<const uint8_t> in_buff, byte_stream& buff_out, callback_t cb, t_context& context )
     {
       std::error_code error{};
-      t_out_type in_struct{};
-      if (error = wire_convert::from_epee(in_buff, in_struct))
+      t_in_type in_struct{};
+      if ((error = wire::epee_bin::from_bytes(in_buff, in_struct)))
       {
         on_levin_traffic(context, false, false, true, in_buff.size(), command);
         LOG_ERROR("Failed to convert from epee in command " << command << ": " << error.message());
@@ -206,7 +204,7 @@ namespace epee
 
       t_out_type out_struct{};
       int res = cb(command, in_struct, out_struct, context);
-      if(error = wire::epee::to_bytes(buff_out, out_struct))
+      if((error = wire::epee_bin::to_bytes(buff_out, out_struct)))
       {
         LOG_ERROR("Failed to convert to epee in command" << command << ": " << error.message());
         return -1;
@@ -218,9 +216,8 @@ namespace epee
     template<class t_owner, class t_in_type, class t_context, class callback_t>
     int buff_to_t_adapter(t_owner* powner, int command, const epee::span<const uint8_t> in_buff, callback_t cb, t_context& context)
     {
-      std::error_code error{};
       t_in_type in_struct{};
-      if(error = wire::epee::from_bytes(in_buff, in_struct))
+      if(std::error_code error = wire::epee_bin::from_bytes(in_buff, in_struct))
       {
         on_levin_traffic(context, false, false, true, in_buff.size(), command);
         LOG_ERROR("Failed to convert to epee in notify " << command << ": " << error.message());

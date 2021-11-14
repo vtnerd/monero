@@ -25,10 +25,11 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "write.h"
+#include "serialization/wire/epee/write.h"
 
 #include <limits>
 #include "serialization/wire/error.h"
+#include "serialization/wire/epee/error.h"
 
 namespace wire
 {
@@ -89,7 +90,7 @@ namespace wire
     bytes_.clear();
     array_count_.reset();
     needs_tag_ = false;
-    return out
+    return out;
   }
 
   epee::byte_slice epee_writer::take_bytes()
@@ -130,7 +131,7 @@ namespace wire
     bytes_.write(source);
   }
 
-  void epee_writer::start_array(const std::size_t count, const type tag)
+  void epee_writer::start_array(const std::size_t count)
   {
     if (array_count_) // array of arrays
       write_tag(SERIALIZE_TYPE_ARRAY);

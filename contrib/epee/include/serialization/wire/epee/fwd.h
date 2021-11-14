@@ -34,7 +34,7 @@
 
 namespace wire
 {
-  struct epee;
+  struct epee_bin;
   class epee_reader;
   class epee_writer;
 }

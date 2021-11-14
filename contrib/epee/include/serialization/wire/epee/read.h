@@ -50,7 +50,7 @@ namespace wire
 
 
     //! Space-check only. \return POD with endianness swapped.
-    template<typename> T read();
+    template<typename T> T read();
 
     //! Space-check only. \return Next type tag.
     std::uint8_t read_tag();
@@ -107,7 +107,7 @@ namespace wire
     std::string string() override final;
 
     //! \throw wire::exception if last tag not a string
-    std::vector<std::uint8_t> binary() override final;
+    epee::byte_slice binary() override final;
 
     //! \throw wire::exception if last tag is not a string that can be read into `dest`.
     void binary(epee::span<std::uint8_t> dest) override final;
@@ -115,7 +115,7 @@ namespace wire
 
     /*! \post Last tag is set to inner type.
         \throw wire::exception if last tag not start of array */
-    std::size_t start_array() override final;
+    std::size_t start_array(std::size_t min_element_size) override final;
 
     //! Sets last tag to array if `count == 0`. \return True if end of array (`count == 0`).
     bool is_array_end(std::size_t count) override final;

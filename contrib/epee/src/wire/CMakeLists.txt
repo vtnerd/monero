@@ -26,6 +26,5 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-add_subdirectory(epee)
 monero_add_library(epee_wire asio.cpp error.cpp read.cpp write.cpp)
-target_link_libraries(epee_wire PUBLIC epee_wire_epee)
+add_subdirectory(epee)

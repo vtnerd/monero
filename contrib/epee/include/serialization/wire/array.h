@@ -91,8 +91,9 @@ namespace wire
   inline void read_bytes(R& source, array_<T, max_element_count<N>>& wrapper)
   {
     using array_type = array_<T, max_element_count<N>>;
-    static_assert(array_type::constraint::check<array_type::value_type>(), "max reserve bytes exceeded for element");
-    wire_read::array(source, wrapper.get_container(), min_element_size<0>{}, array_type::constraint{});
+    using value_type = typename array_type::value_type;
+    static_assert(array_type::constraint::template check<value_type>(), "max reserve bytes exceeded for element");
+    wire_read::array(source, wrapper.get_container(), min_element_size<0>{}, typename array_type::constraint{});
   }
 
   //! Read array with a min element size constraint (constraint is relative to archive size)
@@ -100,8 +101,9 @@ namespace wire
   inline void read_bytes(R& source, array_<T, min_element_size<N>>& wrapper)
   {
     using array_type = array_<T, min_element_size<N>>;
-    static_assert(array_type::constraint::check<array_type::value_type>(), "max compression ratio exceeded for element");
-    wire_read::array(source, wrapper.get_container(), array_type::constraint{});
+    using value_type = typename array_type::value_type;
+    static_assert(array_type::constraint::template check<value_type>(), "max compression ratio exceeded for element");
+    wire_read::array(source, wrapper.get_container(), typename array_type::constraint{});
   }
 
   //! Write array

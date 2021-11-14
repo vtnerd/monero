@@ -27,6 +27,22 @@
 
 #pragma once
 
+//! Declare an enum to be serialized as an integer
+#define WIRE_AS_INTEGER(type_)                                          \
+  static_assert(std::is_enum<type_>(), "AS_INTEGER only enum types");   \
+  template<typename R>                                                  \
+  inline void read_bytes(R& source, type_& dest)                        \
+  {                                                                     \
+    std::underlying_type<type_>::type temp{};                           \
+    read_bytes(source, temp);                                           \
+    dest = type_(temp);                                                 \
+  }                                                                     \
+  template<typename W>                                                  \
+  inline void write_bytes(W& dest, const type_ source)                  \
+  {                                                                     \
+    write_bytes(dest, std::underlying_type<type_>::type(source));       \
+  }
+
 //! Declare functions that list fields in `type` (using virtual interface)
 #define WIRE_DECLARE_OBJECT(type)                       \
   void read_bytes(::wire::reader&, type&);              \

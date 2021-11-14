@@ -1,4 +1,4 @@
-x// Copyright (c) 2021, The Monero Project
+// Copyright (c) 2021, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -31,13 +31,15 @@ x// Copyright (c) 2021, The Monero Project
 #include <boost/utility/string_ref.hpp>
 #include <cstdint>
 #include <type_traits>
-#include <utility
+#include <utility>
 
 #include "byte_stream.h"
 #include "serialization/wire/field.h"
 #include "serialization/wire/traits.h"
 #include "serialization/wire/write.h"
 #include "span.h"
+#include "storages/portable_storage_base.h"
+#include "storages/portable_storage_bin_utils.h"
 
 namespace wire
 {
@@ -49,16 +51,16 @@ namespace wire
     bool needs_tag_; //!< True iff type tag needs to be written
 
     // Convert built-in types to epee binary tag value
-    static constexpr std::uint8_t get_tag(bool) noexcept { return TYPE_SERIALIZE_BOOL; }
-    static constexpr std::uint8_t get_tag(std::int8_t) noexcept { return TYPE_SERIALIZE_INT8; }
-    static constexpr std::uint8_t get_tag(std::int16_t) noexcept { return TYPE_SERIALIZE_INT16; }
-    static constexpr std::uint8_t get_tag(std::int32_t) noexcept { return TYPE_SERIALIZE_INT32; }
-    static constexpr std::uint8_t get_tag(std::int64_t) noexcept { return TYPE_SERIALIZE_INT64; }
-    static constexpr std::uint8_t get_tag(std::uint8_t) noexcept { return TYPE_SERIALIZE_UINT8; }
-    static constexpr std::uint8_t get_tag(std::uint16_t) noexcept { return TYPE_SERIALIZE_UINT16; }
-    static constexpr std::uint8_t get_tag(std::uint32_t) noexcept { return TYPE_SERIALIZE_UINT32; }
-    static constexpr std::uint8_t get_tag(std::uint64_t) noexcept { return TYPE_SERIALIZE_UINT64; }
-    static constexpr std::uint8_t get_tag(double) noexcept { return TYPE_SERIALIZE_DUOBLE; }
+    static constexpr std::uint8_t get_tag(bool) noexcept { return SERIALIZE_TYPE_BOOL; }
+    static constexpr std::uint8_t get_tag(std::int8_t) noexcept { return SERIALIZE_TYPE_INT8; }
+    static constexpr std::uint8_t get_tag(std::int16_t) noexcept { return SERIALIZE_TYPE_INT16; }
+    static constexpr std::uint8_t get_tag(std::int32_t) noexcept { return SERIALIZE_TYPE_INT32; }
+    static constexpr std::uint8_t get_tag(std::int64_t) noexcept { return SERIALIZE_TYPE_INT64; }
+    static constexpr std::uint8_t get_tag(std::uint8_t) noexcept { return SERIALIZE_TYPE_UINT8; }
+    static constexpr std::uint8_t get_tag(std::uint16_t) noexcept { return SERIALIZE_TYPE_UINT16; }
+    static constexpr std::uint8_t get_tag(std::uint32_t) noexcept { return SERIALIZE_TYPE_UINT32; }
+    static constexpr std::uint8_t get_tag(std::uint64_t) noexcept { return SERIALIZE_TYPE_UINT64; }
+    static constexpr std::uint8_t get_tag(double) noexcept { return SERIALIZE_TYPE_DUOBLE; }
 
     template<typename T>
     static constexpr std::uint8_t get_tag(const T&) noexcept
@@ -92,7 +94,7 @@ namespace wire
       if (needs_tag_)
         write_tag(get_tag(value));
       value = CONVERT_POD(value);
-      bytes_.write(reinterpret_cast<const std::uint8_t*>(value), sizeof(value));
+      bytes_.write(reinterpret_cast<const std::uint8_t*>(std::addressof(value)), sizeof(value));
     }
 
     //! 32-bit float not supported by epee format, upgrade
@@ -109,11 +111,11 @@ namespace wire
     void string(boost::string_ref) override final;
     void binary(epee::span<const std::uint8_t> source) override final;
 
-    void start_array(std::size_t, type) override final;
+    void start_array(std::size_t) override final;
     void end_array() override final;
 
     void start_object(std::size_t) override final;
-    void key(boost::string_ref, type) override final;
+    void key(boost::string_ref) override final;
     void end_object() override final;
   };
 

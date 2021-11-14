@@ -33,6 +33,8 @@
 #include <type_traits>
 
 #include "byte_slice.h"
+#include "byte_stream.h"
+#include "serialization/wire/error.h"
 #include "serialization/wire/field.h"
 #include "serialization/wire/traits.h"
 #include "span.h"
@@ -133,6 +135,13 @@ namespace wire
   {
     dest.binary(source);
   }
+
+  //! Use `write_bytes(...)` method if available for `T`.
+  template<typename W, typename T>
+  inline auto write_bytes(W& dest, const T& source) -> decltype(source.write_bytes(dest))
+  {
+    return source.write_bytes(dest);
+  }
 }
 
 namespace wire_write
@@ -183,7 +192,7 @@ namespace wire_write
   template<typename W, typename T>
   inline bool field(W& dest, const wire::field_<T, true> elem)
   {
-    dest.key(name);
+    dest.key(elem.name);
     bytes(dest, elem.get_value());
     return true;
   }
@@ -193,7 +202,7 @@ namespace wire_write
   {
     if (bool(elem.get_value()))
     {
-      dest.key(name);
+      dest.key(elem.name);
       bytes(dest, *elem.get_value());
     }
     return true;
@@ -205,6 +214,7 @@ namespace wire_write
     dest.start_object(wire::sum(std::size_t(wire::available(fields))...));
     const bool dummy[] = {field(dest, std::move(fields))...};
     dest.end_object();
+    (void)dummy;
   }
 } // wire_write
 

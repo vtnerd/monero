@@ -29,7 +29,7 @@
 #include <boost/utility/string_ref.hpp>
 #include <chrono>
 #include <string>
-#include "byte_slice.h"
+#include "byte_stream.h"
 #include "portable_storage_template_helper.h"
 #include "net/http_base.h"
 #include "net/http_server_handlers_map2.h"
@@ -77,7 +77,7 @@ namespace epee
     bool invoke_http_bin(const boost::string_ref uri, const t_request& out_struct, t_response& result_struct, t_transport& transport, std::chrono::milliseconds timeout = std::chrono::seconds(15), const boost::string_ref method = "POST")
     {
       byte_stream req_param;
-      if(wire::epee::to_bytes(req_param, out_struct))
+      if(wire::epee_bin::to_bytes(req_param, out_struct))
         return false;
 
       const http::http_response_info* pri = NULL;
@@ -99,7 +99,7 @@ namespace epee
         return false;
       }
 
-      return !wire::epee::from_bytes(strspan<std::uint8_t>(pri->m_body), result_struct);
+      return !wire::epee_bin::from_bytes(strspan<std::uint8_t>(pri->m_body), result_struct);
     }
 
     template<class t_request, class t_response, class t_transport>
