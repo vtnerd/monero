@@ -30,6 +30,7 @@
 #include <limits>
 #include "serialization/wire/error.h"
 #include "serialization/wire/epee/error.h"
+#include "storages/portable_storage.h"
 
 namespace wire
 {
@@ -79,7 +80,13 @@ namespace wire
 
   epee_writer::epee_writer(epee::byte_stream&& bytes)
     : writer(), bytes_(std::move(bytes)), array_count_(), needs_tag_(false)
-  {}
+  {
+    epee::serialization::storage_block_header sbh{};
+    sbh.m_signature_a = SWAP32LE(PORTABLE_STORAGE_SIGNATUREA);
+    sbh.m_signature_b = SWAP32LE(PORTABLE_STORAGE_SIGNATUREB);
+    sbh.m_ver = PORTABLE_STORAGE_FORMAT_VER;
+    bytes_.write(epee::as_byte_span(sbh));
+  }
 
   epee_writer::~epee_writer() noexcept
   {}
@@ -136,11 +143,14 @@ namespace wire
     if (array_count_) // array of arrays
       write_tag(SERIALIZE_TYPE_ARRAY);
 
-    needs_tag_ = true;
     array_count_.emplace(count);
+    needs_tag_ = true;
   }
   void epee_writer::end_array()
-  {}
+  {
+    if (needs_tag_)
+      write_tag(SERIALIZE_TYPE_UINT8);
+  }
 
   void epee_writer::start_object(const std::size_t count)
   {

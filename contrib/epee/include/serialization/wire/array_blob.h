@@ -43,9 +43,11 @@
 #include "storages/portable_storage_bin_utils.h"
 #include "span.h"
 
-//! A required field, where the array contents are written as a single binary blob
+/*! A required field, where the array contents are written as a single binary
+  blob. All (empty) arrays-as-blobs were "optional" (omitted) historically in
+  epee, so this matches prior behavior. */
 #define WIRE_FIELD_ARRAY_AS_BLOB(name)                                  \
-  ::wire::field( #name , ::wire::array_as_blob(std::ref( self . name )))
+  ::wire::optional_field( #name , ::wire::array_as_blob(std::ref( self . name )))
 
 namespace wire
 {
@@ -75,6 +77,16 @@ namespace wire
 
     constexpr const container_type& get_container() const noexcept { return container; }
     container_type& get_container() noexcept { return container; }
+
+    // concept requirements for optional fields
+
+    explicit operator bool() const noexcept { return !get_container().empty(); }
+    container_type& emplace() noexcept { return get_container(); }
+
+    array_as_blob_& operator*() noexcept { return *this; }
+    const array_as_blob_& operator*() const noexcept { return *this; }
+
+    void reset() { get_container().clear(); }
   };
 
   template<typename T>

@@ -72,6 +72,16 @@ namespace epee
   {
     struct section;
 
+#pragma pack(push)
+#pragma pack(1)
+    struct storage_block_header
+    {
+      uint32_t m_signature_a;
+      uint32_t m_signature_b;
+      uint8_t  m_ver;
+    };
+#pragma pack(pop)
+
     template<typename T> struct entry_container { typedef std::vector<T> type; static void reserve(type &t, size_t n) { t.reserve(n); } };
     template<> struct entry_container<bool> { typedef std::deque<bool> type; static void reserve(type &t, size_t n) {} };
 

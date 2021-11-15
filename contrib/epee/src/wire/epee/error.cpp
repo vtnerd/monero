@@ -37,6 +37,8 @@ namespace error
   {
     switch (value)
     {
+    default:
+      break;
     case epee::invalid_tag:
       return "Found an unknown epee type tag";
     case epee::invalid_varint_type:
@@ -45,8 +47,12 @@ namespace error
       return "Epee writer encountered a name field that was too long";
     case epee::not_enough_bytes:
       return "Invalid epee encoding; not enough bytes";
+    case epee::signature:
+      return "Invalid epee binary header signature";
     case epee::varint_size:
       return "Epee writer encountered a length value that was too big";
+    case epee::version:
+      return "Invalid epee binary version";
     }
 
     return "Unknown epee parser error";

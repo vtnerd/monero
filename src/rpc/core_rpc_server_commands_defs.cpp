@@ -291,15 +291,15 @@ namespace cryptonote
     else if (binary && bool(binary->second) == dest.binary && !dest.compress)
       dest.data.distribution = std::move(binary->first);
     else
-      WIRE_DLOG_THROW(wire::error::schema::array, "distribution array sent incorrectly");
+      dest.data.distribution.clear();
   }
   void write_bytes(wire::epee_writer& dest, const COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::distribution& source)
   {
     boost::optional<std::string> compressed;
     boost::optional<std::pair<const std::vector<std::uint64_t>&, is_blob>> binary;
-    if (source.binary && source.compress)
+    if (source.binary && source.compress && !source.data.distribution.empty())
       compressed = compress_integer_array(source.data.distribution);
-    else
+    else if (!source.data.distribution.empty())
       binary.emplace(source.data.distribution, is_blob(source.binary));
 
     output_distribution_map(dest, source, compressed, binary);

@@ -33,6 +33,7 @@
 
 #include "serialization/wire/error.h"
 #include "serialization/wire/epee/error.h"
+#include "storages/portable_storage.h"
 #include "storages/portable_storage_base.h"
 #include "storages/portable_storage_bin_utils.h"
 
@@ -72,7 +73,7 @@ namespace wire
   template<typename T>
   T epee_reader::read()
   {
-    static_assert(std::is_arithmetic<T>::value, "only arithmetic types allowed");
+    static_assert(std::is_pod<T>::value, "only arithmetic types allowed");
     if (remaining_.remove_prefix(sizeof(T)) != sizeof(T))
       WIRE_DLOG_THROW(error::epee::not_enough_bytes, "fixed size arithmetic of " << sizeof(T) << " bytes");
     T out{};
@@ -196,7 +197,14 @@ namespace wire
       skip_stack_(),
       array_space_(source.size()),
       last_tag_(SERIALIZE_TYPE_OBJECT)
-  {}
+  {
+    const auto sbh = read<epee::serialization::storage_block_header>();
+    if (sbh.m_signature_a != SWAP32LE(PORTABLE_STORAGE_SIGNATUREA) ||
+        sbh.m_signature_b != SWAP32LE(PORTABLE_STORAGE_SIGNATUREB))
+      WIRE_DLOG_THROW_(error::epee::signature);
+    if (sbh.m_ver != PORTABLE_STORAGE_FORMAT_VER)
+      WIRE_DLOG_THROW_(error::epee::version);
+  }
 
   epee_reader::~epee_reader() noexcept
   {}
@@ -315,6 +323,7 @@ namespace wire
     while (state)
     {
       --state;
+
       const boost::string_ref name = read_name();
       last_tag_ = read_tag();
       for (std::size_t i = 0; i < map.size(); ++i)

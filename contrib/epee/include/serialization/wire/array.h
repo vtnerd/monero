@@ -37,9 +37,12 @@
 #include "serialization/wire/traits.h"
 #include "serialization/wire/write.h"
 
-//! A required array field with read constraint. See `array_` for more info.
+/*! An array field with read constraint. See `array_` for more info. All (empty)
+  arrays were "optional" (omitted) historically in epee, so this matches prior
+  behavior. */
 #define WIRE_FIELD_ARRAY(name, read_constraint)         \
-  ::wire::field( #name , ::wire::array< read_constraint >(std::ref( self . name )))
+  ::wire::optional_field( #name , ::wire::array< read_constraint >(std::ref( self . name )))
+
 
 namespace wire
 {
@@ -68,6 +71,16 @@ namespace wire
 
     constexpr const container_type& get_container() const noexcept { return container; }
     container_type& get_container() noexcept { return container; }
+
+    // concept requirements for optional fields
+
+    explicit operator bool() const noexcept { return !get_container().empty(); }
+    container_type& emplace() noexcept { return get_container(); }
+
+    array_& operator*() noexcept { return *this; }
+    const array_& operator*() const noexcept { return *this; }
+
+    void reset() { get_container().clear(); }
   };
 
   //! Treat `value` as an array when reading/writing, and constrain reading with `C`.

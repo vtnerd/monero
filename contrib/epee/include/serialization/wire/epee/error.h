@@ -39,7 +39,9 @@ namespace error
     invalid_varint_type,
     key_size, //!< Output error, field name too long
     not_enough_bytes,
-    varint_size //!< Output error, array/object/string length too long
+    signature,
+    varint_size, //!< Output error, array/object/string length too long
+    version
   };
 
   //! \return Static string describing error `value`.

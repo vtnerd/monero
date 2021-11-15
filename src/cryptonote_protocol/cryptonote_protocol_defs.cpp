@@ -50,35 +50,33 @@ namespace cryptonote
       wire::object(format, WIRE_FIELD(blob), WIRE_FIELD(prunable_hash));
     }
 
-    //! is_pruned ensures unique read/write functions
+    //! `is_pruned` type is a tag for custom serialization
     enum class is_pruned { false_ = 0, true_ };
-    void read_bytes(wire::epee_reader& source, std::tuple<std::vector<tx_blob_entry>&, is_pruned&> dest)
+    void read_bytes(wire::epee_reader& source, std::pair<std::vector<tx_blob_entry>, is_pruned>& dest)
     {
       // read function for `tx_blob_entry` detects whether pruned (object) or !pruned (string)
-      wire_read::array(source, std::get<0>(dest), tx_blob_min{});
-      std::get<1>(dest) = is_pruned(source.last_tag() == SERIALIZE_TYPE_OBJECT);
+      wire_read::array(source, dest.first, tx_blob_min{});
+      dest.second = is_pruned(source.last_tag() == SERIALIZE_TYPE_OBJECT);
     }
-
-    void write_bytes(wire::epee_writer& dest, const std::tuple<const std::vector<tx_blob_entry>&, is_pruned> source)
+    void write_bytes(wire::epee_writer& dest, const std::pair<const std::vector<tx_blob_entry>&, is_pruned> source)
     {
       const auto get_blob = [] (const tx_blob_entry& e) -> const std::string& { return e.blob; };
-      if (bool(std::get<1>(source))) // pruned -> write array of `tx_blob_entry` objects
-        wire_write::array(dest, std::get<0>(source));
+      if (source.second == is_pruned::true_) // write array of `tx_blob_entry` objects
+        wire_write::array(dest, source.first);
       else // !pruned -> write array of string blobs
-        wire_write::array(dest, boost::adaptors::transform(std::get<0>(source), get_blob));
+        wire_write::array(dest, boost::adaptors::transform(source.first, get_blob));
     }
 
-    template<typename F, typename T>
-    void block_complete_entry_map(F& format, T& self)
+    template<typename F, typename T, typename U>
+    void block_complete_entry_map(F& format, T& self, boost::optional<U>& txs)
     {
-      is_pruned result = is_pruned(self.pruned);
       wire::object(format,
         WIRE_FIELD_DEFAULTED(pruned, false),
         WIRE_FIELD(block),
         WIRE_FIELD_DEFAULTED(block_weight, unsigned(0)),
-        wire::field("txs", std::tie(self.txs, result))
+        wire::optional_field("txs", std::ref(txs))
       );
-      if (bool(result) != self.pruned)
+      if (txs && txs->second != is_pruned(self.pruned))
         WIRE_DLOG_THROW(wire::error::schema::object, "Schema mismatch with pruned flag set to " << self.pruned);
     }
 
@@ -181,7 +179,18 @@ namespace cryptonote
   {
     tx_blob_entry_map(dest, source);
   }
-  WIRE_EPEE_DEFINE_OBJECT(block_complete_entry, block_complete_entry_map);
+  void read_bytes(wire::epee_reader& source, block_complete_entry& dest)
+  {
+    boost::optional<std::pair<std::vector<tx_blob_entry>, is_pruned>> txs;
+    block_complete_entry_map(source, dest, txs);
+    if (txs)
+      dest.txs = std::move(txs->first);
+  }
+  void write_bytes(wire::epee_writer& dest, const block_complete_entry& source)
+  {
+    auto txs = boost::make_optional(!source.txs.empty(), std::make_pair(std::ref(source.txs), is_pruned(source.pruned)));
+    block_complete_entry_map(dest, source, txs);
+  }
   WIRE_EPEE_DEFINE_OBJECT(NOTIFY_NEW_BLOCK::request, new_block_map);
   WIRE_EPEE_DEFINE_CONVERSION(NOTIFY_NEW_BLOCK::request);
   WIRE_EPEE_DEFINE_OBJECT(NOTIFY_NEW_TRANSACTIONS::request, new_transactions_map);

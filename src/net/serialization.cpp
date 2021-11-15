@@ -77,7 +77,7 @@ namespace net
     {
       wire::object(dest, wire::field("host", source.host_str()), wire::field("port", source.port()));
     }
-  }
+  } // anonymous
 
   void read_bytes(wire::epee_reader& source, i2p_address& dest)
   {
@@ -141,7 +141,7 @@ namespace net_utils
         WIRE_DLOG_THROW(wire::error::schema::missing_key, "missing m_port");
       return epee::net_utils::ipv6_network_address{*ip, *port};
     }
-  }
+  } // anonymous
 
   //! read/write definitions for `epee::net_utils::address_type`
   WIRE_AS_INTEGER(address_type);
@@ -173,7 +173,6 @@ namespace net_utils
       WIRE_DLOG_THROW(wire::error::schema::enumeration, "Unknown address_type type: " << std::uintmax_t(type));
     }
   }
-    struct foo{};
 
   static void write_bytes(wire::epee_writer& dest, std::pair<const network_address&, address_type> source)
   {
