@@ -146,7 +146,7 @@ using namespace cryptonote;
 #define IGNORE_LONG_PAYMENT_ID_FROM_BLOCK_VERSION 12
 
 #define DEFAULT_UNLOCK_TIME (CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE * DIFFICULTY_TARGET_V2)
-#define RECENT_SPEND_WINDOW (50 * DIFFICULTY_TARGET_V2)
+#define RECENT_SPEND_WINDOW (15 * DIFFICULTY_TARGET_V2)
 
 static const std::string MULTISIG_SIGNATURE_MAGIC = "SigMultisigPkV1";
 static const std::string MULTISIG_EXTRA_INFO_MAGIC = "MultisigxV1";
@@ -314,7 +314,6 @@ void do_prepare_file_names(const std::string& file_path, std::string& keys_file,
 {
   keys_file = file_path;
   wallet_file = file_path;
-  boost::system::error_code e;
   if(string_tools::get_extension(keys_file) == "keys")
   {//provided keys file name
     wallet_file = string_tools::cut_off_extension(wallet_file);
@@ -1024,13 +1023,7 @@ gamma_picker::gamma_picker(const std::vector<uint64_t> &rct_offsets, double shap
   end = rct_offsets.data() + rct_offsets.size() - CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE;
   num_rct_outputs = *(end - 1);
   THROW_WALLET_EXCEPTION_IF(num_rct_outputs == 0, error::wallet_internal_error, "No rct outputs");
-  THROW_WALLET_EXCEPTION_IF(outputs_to_consider == 0, error::wallet_internal_error, "No rct outputs to consider");
-  average_output_time = DIFFICULTY_TARGET_V2 * blocks_to_consider / outputs_to_consider; // this assumes constant target over the whole rct range
-  if (average_output_time == 0) {
-     // TODO: apply this to all cases; do so alongside a hard fork, where all clients will update at the same time, preventing anonymity puddle formation
-    average_output_time = DIFFICULTY_TARGET_V2 * blocks_to_consider / static_cast<double>(outputs_to_consider);
-  }
-  THROW_WALLET_EXCEPTION_IF(average_output_time == 0, error::wallet_internal_error, "Average seconds per output cannot be 0.");
+  average_output_time = DIFFICULTY_TARGET_V2 * blocks_to_consider / static_cast<double>(outputs_to_consider); // this assumes constant target over the whole rct range
 };
 
 gamma_picker::gamma_picker(const std::vector<uint64_t> &rct_offsets): gamma_picker(rct_offsets, GAMMA_SHAPE, GAMMA_SCALE) {}
@@ -1235,8 +1228,6 @@ wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, std
   m_ring_history_saved(false),
   m_ringdb(),
   m_last_block_reward(0),
-  m_encrypt_keys_after_refresh(boost::none),
-  m_decrypt_keys_lockers(0),
   m_unattended(unattended),
   m_devices_registered(false),
   m_device_last_key_image_sync(0),
@@ -1888,8 +1879,7 @@ void wallet2::scan_output(const cryptonote::transaction &tx, bool miner_tx, cons
       boost::optional<epee::wipeable_string> pwd = m_callback->on_get_password(pool ? "output found in pool" : "output received");
       THROW_WALLET_EXCEPTION_IF(!pwd, error::password_needed, tr("Password is needed to compute key image for incoming monero"));
       THROW_WALLET_EXCEPTION_IF(!verify_password(*pwd), error::password_needed, tr("Invalid password: password is needed to compute key image for incoming monero"));
-      decrypt_keys(*pwd);
-      m_encrypt_keys_after_refresh = *pwd;
+      m_encrypt_keys_after_refresh.reset(new wallet_keys_unlocker(*this, m_ask_password == AskPasswordToDecrypt && !m_unattended && !m_watch_only, *pwd));
     }
   }
 
@@ -3021,11 +3011,7 @@ void wallet2::update_pool_state(std::vector<std::tuple<cryptonote::transaction, 
   MTRACE("update_pool_state start");
 
   auto keys_reencryptor = epee::misc_utils::create_scope_leave_handler([&, this]() {
-    if (m_encrypt_keys_after_refresh)
-    {
-      encrypt_keys(*m_encrypt_keys_after_refresh);
-      m_encrypt_keys_after_refresh = boost::none;
-    }
+    m_encrypt_keys_after_refresh.reset();
   });
 
   // get the pool state
@@ -3456,11 +3442,7 @@ void wallet2::refresh(bool trusted_daemon, uint64_t start_height, uint64_t & blo
   start_height = 0;
 
   auto keys_reencryptor = epee::misc_utils::create_scope_leave_handler([&, this]() {
-    if (m_encrypt_keys_after_refresh)
-    {
-      encrypt_keys(*m_encrypt_keys_after_refresh);
-      m_encrypt_keys_after_refresh = boost::none;
-    }
+    m_encrypt_keys_after_refresh.reset();
   });
 
   auto scope_exit_handler_hwdev = epee::misc_utils::create_scope_leave_handler([&](){hwdev.computing_key_images(false);});
@@ -4467,7 +4449,26 @@ bool wallet2::load_keys_buf(const std::string& keys_buf, const epee::wipeable_st
     m_account.set_device(hwdev);
 
     account_public_address device_account_public_address;
-    THROW_WALLET_EXCEPTION_IF(!hwdev.get_public_address(device_account_public_address), error::wallet_internal_error, "Cannot get a device address");
+    bool fetch_device_address = true;
+
+    ::hw::device_cold* dev_cold = nullptr;
+    if (m_key_device_type == hw::device::device_type::TREZOR && (dev_cold = dynamic_cast<::hw::device_cold*>(&hwdev)) != nullptr) {
+      THROW_WALLET_EXCEPTION_IF(!dev_cold->get_public_address_with_no_passphrase(device_account_public_address), error::wallet_internal_error, "Cannot get a device address");
+      if (device_account_public_address == m_account.get_keys().m_account_address) {
+        LOG_PRINT_L0("Wallet opened with an empty passphrase");
+        fetch_device_address = false;
+        dev_cold->set_use_empty_passphrase(true);
+      } else {
+        fetch_device_address = true;
+        LOG_PRINT_L0("Wallet opening with an empty passphrase failed. Retry again: " << fetch_device_address);
+        dev_cold->reset_session();
+      }
+    }
+
+    if (fetch_device_address) {
+      THROW_WALLET_EXCEPTION_IF(!hwdev.get_public_address(device_account_public_address), error::wallet_internal_error, "Cannot get a device address");
+    }
+
     THROW_WALLET_EXCEPTION_IF(device_account_public_address != m_account.get_keys().m_account_address, error::wallet_internal_error, "Device wallet does not match wallet address. If the device uses the passphrase feature, please check whether the passphrase was entered correctly (it may have been misspelled - different passphrases generate different wallets, passphrase is case-sensitive). "
                                                                                                                                      "Device address: " + cryptonote::get_account_address_as_str(m_nettype, false, device_account_public_address) +
                                                                                                                                      ", wallet address: " + m_account.get_public_address_str(m_nettype));
@@ -4581,18 +4582,12 @@ bool wallet2::verify_password(const std::string& keys_file_name, const epee::wip
 
 void wallet2::encrypt_keys(const crypto::chacha_key &key)
 {
-  boost::lock_guard<boost::mutex> lock(m_decrypt_keys_lock);
-  if (--m_decrypt_keys_lockers) // another lock left ?
-    return;
   m_account.encrypt_keys(key);
   m_account.decrypt_viewkey(key);
 }
 
 void wallet2::decrypt_keys(const crypto::chacha_key &key)
 {
-  boost::lock_guard<boost::mutex> lock(m_decrypt_keys_lock);
-  if (m_decrypt_keys_lockers++) // already unlocked ?
-    return;
   m_account.encrypt_viewkey(key);
   m_account.decrypt_keys(key);
 }
@@ -7077,7 +7072,6 @@ bool wallet2::load_tx(const std::string &signed_filename, std::vector<tools::wal
 bool wallet2::parse_tx_from_str(const std::string &signed_tx_st, std::vector<tools::wallet2::pending_tx> &ptx, std::function<bool(const signed_tx_set &)> accept_func)
 {
   std::string s = signed_tx_st;
-  boost::system::error_code errcode;
   signed_tx_set signed_txs;
 
   const size_t magiclen = strlen(SIGNED_TX_PREFIX) - 1;
