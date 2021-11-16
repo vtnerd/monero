@@ -31,14 +31,10 @@
 #pragma once
 
 #include <boost/uuid/uuid.hpp>
-#include <boost/serialization/version.hpp>
 #include "net/net_utils_base.h"
-#include "net/tor_address.h" // needed for serialization
-#include "net/i2p_address.h" // needed for serialization
 #include "misc_language.h"
 #include "string_tools.h"
 #include "time_helper.h"
-#include "serialization/serialization.h"
 #include "serialization/wire/epee/base.h"
 #include "cryptonote_config.h"
 
@@ -72,15 +68,6 @@ namespace nodetool
     uint32_t pruning_seed;
     uint16_t rpc_port;
     uint32_t rpc_credits_per_hash;
-
-    BEGIN_SERIALIZE()
-      FIELD(adr)
-      FIELD(id)
-      VARINT_FIELD(last_seen)
-      VARINT_FIELD(pruning_seed)
-      VARINT_FIELD(rpc_port)
-      VARINT_FIELD(rpc_credits_per_hash)
-    END_SERIALIZE()
   };
   typedef peerlist_entry_base<epee::net_utils::network_address> peerlist_entry;
 
@@ -90,12 +77,6 @@ namespace nodetool
     AddressType adr;
     peerid_type id;
     int64_t first_seen;
-
-    BEGIN_SERIALIZE()
-      FIELD(adr)
-      FIELD(id)
-      VARINT_FIELD(first_seen)
-    END_SERIALIZE()
   };
   typedef anchor_peerlist_entry_base<epee::net_utils::network_address> anchor_peerlist_entry;
 
@@ -105,12 +86,6 @@ namespace nodetool
     AddressType adr;
     peerid_type id;
     bool is_income;
-
-    BEGIN_SERIALIZE()
-      FIELD(adr)
-      FIELD(id)
-      FIELD(is_income)
-    END_SERIALIZE()
   };
   typedef connection_entry_base<epee::net_utils::network_address> connection_entry;
 

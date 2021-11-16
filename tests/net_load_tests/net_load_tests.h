@@ -240,7 +240,6 @@ namespace net_load_tests
       WIRE_END_MAP()
     };
   };
-  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_CLOSE_ALL_CONNECTIONS::request);
 
   struct CMD_START_OPEN_CLOSE_TEST
   {
@@ -263,8 +262,6 @@ namespace net_load_tests
       WIRE_END_MAP()
     };
   };
-  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_START_OPEN_CLOSE_TEST::request);
-  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_START_OPEN_CLOSE_TEST::response);
 
   struct CMD_GET_STATISTICS
   {
@@ -298,8 +295,6 @@ namespace net_load_tests
       }
     };
   };
-  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_GET_STATISTICS::request);
-  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_GET_STATISTICS::response);
 
   struct CMD_RESET_STATISTICS
   {
@@ -317,8 +312,6 @@ namespace net_load_tests
       WIRE_END_MAP()
     };
   };
-  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_RESET_STATISTICS::request);
-  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_RESET_STATISTICS::response);
 
   struct CMD_SHUTDOWN
   {
@@ -330,7 +323,6 @@ namespace net_load_tests
       WIRE_END_MAP()
     };
   };
-  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_SHUTDOWN::request);
 
   struct CMD_SEND_DATA_REQUESTS
   {
@@ -345,7 +337,6 @@ namespace net_load_tests
       WIRE_END_MAP()
     };
   };
-  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_SEND_DATA_REQUESTS::request);
 
   struct CMD_DATA_REQUEST
   {
@@ -371,6 +362,4 @@ namespace net_load_tests
       WIRE_END_MAP()
     };
   };
-  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_DATA_REQUEST::request);
-  WIRE_EPEE_DEFINE_CONVERSION_(inline, CMD_DATA_REQUEST::response);
 }

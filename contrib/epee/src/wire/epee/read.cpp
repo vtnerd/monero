@@ -73,7 +73,7 @@ namespace wire
   template<typename T>
   T epee_reader::read()
   {
-    static_assert(std::is_pod<T>::value, "only arithmetic types allowed");
+    static_assert(std::is_pod<T>::value, "only pod types allowed");
     if (remaining_.remove_prefix(sizeof(T)) != sizeof(T))
       WIRE_DLOG_THROW(error::epee::not_enough_bytes, "fixed size arithmetic of " << sizeof(T) << " bytes");
     T out{};

@@ -26,7 +26,6 @@
 
 #pragma once
 
-#include "portable_storage_template_helper.h"
 #include <boost/utility/string_ref.hpp>
 #include <boost/utility/value_init.hpp>
 #include <functional>

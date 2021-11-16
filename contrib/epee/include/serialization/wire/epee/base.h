@@ -44,16 +44,32 @@ namespace wire
     using input_type = epee_reader;
     using output_type = epee_writer;
 
+    //! Only enabled if `T` has templated method `from_bytes`.
     template<typename T>
-    static std::error_code from_bytes(const epee::span<const std::uint8_t> source, T& dest)
+    static auto from_bytes(const epee::span<const std::uint8_t> source, T& dest) -> decltype(dest.template from_bytes<input_type>(source))
     {
-      return convert_from_epee(source, dest); // ADL (searches every associated namespace)
+      return dest.template from_bytes<input_type>(source);
     }
 
+    //! Only enabled if `T` has templated method `to_bytes`.
     template<typename T>
-    static std::error_code to_bytes(epee::byte_stream& dest, const T& source)
+    static auto to_bytes(epee::byte_stream& dest, const T& source) -> decltype(source.template to_bytes<output_type>(dest))
     {
-      return convert_to_epee(dest, source); // ADL (searches every associated namespace)
+      return source.template to_bytes<output_type>(dest);
+    }
+
+    // Parameters packs have lower precedence; above functions are preferred.
+
+    template<typename... T>
+    static std::error_code from_bytes(const epee::span<const std::uint8_t> source, T&... dest)
+    {
+      return convert_from_epee(source, dest...); // ADL (searches every associated namespace)
+    }
+
+    template<typename... T>
+    static std::error_code to_bytes(epee::byte_stream& dest, const T&... source)
+    {
+      return convert_to_epee(dest, source...); // ADL (searches every associated namespace)
     }
   };
 }

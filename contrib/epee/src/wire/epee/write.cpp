@@ -149,7 +149,7 @@ namespace wire
   void epee_writer::end_array()
   {
     if (needs_tag_)
-      write_tag(SERIALIZE_TYPE_UINT8);
+      write_tag(SERIALIZE_TYPE_OBJECT);
   }
 
   void epee_writer::start_object(const std::size_t count)

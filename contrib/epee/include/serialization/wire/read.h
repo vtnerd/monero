@@ -284,12 +284,13 @@ namespace wire_read
 
   //! Use `source` to store information at `dest`
   template<typename R, typename T>
-  inline std::error_code from_bytes(R&& source, T& dest)
+  inline std::error_code from_bytes(const epee::span<const std::uint8_t> source, T& dest)
   {
     try
     {
-      bytes(source, dest);
-      source.check_complete();
+      R in{source};
+      bytes(in, dest);
+      in.check_complete();
     }
     catch (const wire::exception& e)
     {

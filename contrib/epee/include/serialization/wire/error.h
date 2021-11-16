@@ -124,7 +124,7 @@ namespace wire
       return make_error_code(value);
     }
   };
-}
+} // wire
 
 namespace std
 {
@@ -133,4 +133,3 @@ namespace std
     : true_type
   {};
 }
-

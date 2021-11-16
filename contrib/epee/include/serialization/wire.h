@@ -41,18 +41,26 @@
     map(dest, source);                                         \
   }
 
-//! Define object map inside `struct`/`class` declaration.
-#define WIRE_BEGIN_MAP()                                         \
-  template<typename R>                                           \
-  void read_bytes(R& source)                                     \
-  { wire_map(source, *this); }                                   \
-                                                                 \
-  template<typename W>                                                \
-  void write_bytes(W& dest) const                                     \
-  { wire_map(dest, *this); }                                          \
-                                                                      \
-  template<typename F, typename T>                                    \
-  static void wire_map(F& format, T& self)                            \
+//! Define `from_bytes`, `to_bytes`, `read_bytes`, and `write_bytes` for `this`.
+#define WIRE_BEGIN_MAP()                                                \
+  template<typename R>                                                  \
+  std::error_code from_bytes(const ::epee::span<const std::uint8_t> source) \
+  { return ::wire_read::from_bytes<R>(source, *this); }                 \
+                                                                        \
+  template<typename W>                                                  \
+  std::error_code to_bytes(::epee::byte_stream& dest) const             \
+  { return ::wire_write::to_bytes<W>(dest, *this); }                    \
+                                                                        \
+  template<typename R>                                                  \
+  void read_bytes(R& source)                                            \
+  { wire_map(source, *this); }                                          \
+                                                                        \
+  template<typename W>                                                  \
+  void write_bytes(W& dest) const                                       \
+  { wire_map(dest, *this); }                                            \
+                                                                        \
+  template<typename F, typename T>                                      \
+  static void wire_map(F& format, T& self)                              \
   { ::wire::object(format
 
 
