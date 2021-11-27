@@ -294,6 +294,7 @@ namespace wire_read
     }
     catch (const wire::exception& e)
     {
+        std::cout << "caught " << bool(e.code()) << " " << e.code().message() << std::endl;
       return e.code();
     }
 

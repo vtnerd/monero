@@ -35,7 +35,8 @@ namespace error
 {
   enum class epee : std::uint8_t
   {
-    invalid_tag = 0,
+    none = 0,
+    invalid_tag,
     invalid_varint_type,
     key_size, //!< Output error, field name too long
     not_enough_bytes,

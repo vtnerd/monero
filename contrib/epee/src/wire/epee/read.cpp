@@ -132,64 +132,64 @@ namespace wire
     remaining_.remove_prefix(elem_size * count);
   }
 
+  namespace
+  {
+    void check_array(std::vector<std::pair<std::size_t, std::uint8_t>>& stack)
+    {
+      if (!stack.empty() && stack.back().second & SERIALIZE_FLAG_ARRAY)
+        skip_stack_.back().first = start_array(0);
+    }
+  }
+
   void epee_reader::skip_next()
   {
     skip_stack_.clear();
     skip_stack_.reserve(max_read_depth());
-    do
+    skip_stack_.emplace_back(1, last_tag_);
+    check_array(skip_stack_);
+    while (1)
     {
-      switch (last_tag_)
+      while (!skip_stack_.empty() && !skip_stack_.back().first)
+      {
+        if (skip_stack_.back().second & SERIALIZE_FLAG_ARRAY)
+          end_array();
+        else if (skip_stack_.back().second == SERIALIZE_FLAG_OBJECT)
+          end_object();
+        skip_stack_.pop_back();
+      }
+
+      if (skip_stack_.empty())
+        return;
+
+      switch (skip_stack_.back().second)
       {
       default:
-        skip_fixed(1); // skip a single fixed sized type
+        skip_fixed(skip_stack_.back().first);
+        skip_stack_.back().first = 0;
         break;
+      case SERIALIZE_TYPE_ARRAY | SERIALIZE_FLAG_ARRAY:
       case SERIALIZE_TYPE_ARRAY:
-        skip_stack_.emplace_back(start_array(0), SERIALIZE_TYPE_ARRAY);
+        --skip_stack_.back().first;
+        skip_stack_.emplace_back(0, last_tag_);
+        check_array(skip_stack_);
         break;
-      case SERIALIZE_TYPE_OBJECT:
+      case SERIALIZE_TYPE_OBJECT | SERIALIZE_FLAG_ARRAY:
+        --skip_stack_.back().first;
         skip_stack_.emplace_back(start_object(), SERIALIZE_TYPE_OBJECT);
         break;
+      case SERIALIZE_TYPE_OBJECT:
+        --skip_stack_.back().first;
+        read_name();
+        last_tag_ = read_tag();
+        skip_stack_.emplace_back(1, last_tag_);
+        check_array(skip_stack_);
+        break;
+      case SERIALIZE_TYPE_STRING | SERIALIZE_FLAG_ARRAY:
       case SERIALIZE_TYPE_STRING:
         raw(error::schema::string);
+        --skip_stack_.back().first;
         break;
-      }
-
-      // handle array/object stack
-      if (!skip_stack_.empty())
-      {
-        if (skip_stack_.back().second == SERIALIZE_TYPE_ARRAY)
-        {
-          // skip fixed size types immediately
-          if (last_tag_ != SERIALIZE_TYPE_ARRAY && last_tag_ != SERIALIZE_TYPE_OBJECT && last_tag_ != SERIALIZE_TYPE_STRING)
-          {
-            skip_fixed(skip_stack_.back().first);
-            skip_stack_.back().first = 0;
-          }
-
-          if (!skip_stack_.back().first)
-          {
-            end_array();
-            skip_stack_.pop_back();
-          }
-          else
-            --skip_stack_.back().first;
-        }
-        else if (skip_stack_.back().second == SERIALIZE_TYPE_OBJECT)
-        {
-          if (!skip_stack_.back().first)
-          {
-            end_object();
-            skip_stack_.pop_back();
-          }
-          else
-          {
-            read_name();
-            last_tag_ = read_tag();
-            --skip_stack_.back().first;
-          }
-        }
-      }
-    } while (!skip_stack_.empty());
+    } // while (1)
   }
 
   epee_reader::epee_reader(const epee::span<const std::uint8_t> source)

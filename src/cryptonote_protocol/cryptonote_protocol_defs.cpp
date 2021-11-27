@@ -42,7 +42,7 @@ namespace cryptonote
 {
   namespace
   {
-    using tx_blob_min = wire::min_element_size<41>;
+    using tx_blob_min = wire::min_element_size<42>;
 
     template<typename F, typename T>
     void tx_blob_entry_map(F& format, T& self)

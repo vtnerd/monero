@@ -41,7 +41,7 @@ namespace cryptonote
 {
 #define BC_COMMANDS_POOL_BASE 2000
 
-  using block_blob_min = wire::min_element_size<72>;
+  using block_blob_min = wire::min_element_size<73>;
 
   /************************************************************************/
   /* P2P connection info, serializable to json                            */
