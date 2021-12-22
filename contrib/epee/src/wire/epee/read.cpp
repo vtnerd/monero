@@ -39,9 +39,9 @@
 
 namespace
 {
-  constexpr std::size_t min_array_size = 3; //!< Excluding type tag -> type_tag + varint_tag + 1-byte varint
-  constexpr std::size_t min_object_size = 2;//!< Excluding type tag -> varint_tag + 1-byte varint
-  constexpr std::size_t min_string_size = 2;//!< Excluding type tag -> varint_tag + 1-byte varint
+  constexpr std::size_t min_array_size = 2; //!< Excluding type tag -> type_tag + varint_tag / 1-byte varint
+  constexpr std::size_t min_object_size = 1;//!< Excluding type tag -> varint_tag / 1-byte varint
+  constexpr std::size_t min_string_size = 1;//!< Excluding type tag -> varint_tag / 1-byte varint
 
   std::size_t min_wire_size(const std::uint8_t tag)
   {
@@ -132,29 +132,34 @@ namespace wire
     remaining_.remove_prefix(elem_size * count);
   }
 
-  namespace
-  {
-    void check_array(std::vector<std::pair<std::size_t, std::uint8_t>>& stack)
-    {
-      if (!stack.empty() && stack.back().second & SERIALIZE_FLAG_ARRAY)
-        skip_stack_.back().first = start_array(0);
-    }
-  }
-
   void epee_reader::skip_next()
   {
+    const auto start_tag = [this] (const std::uint8_t tag)
+    {
+      if (tag & SERIALIZE_FLAG_ARRAY)
+        skip_stack_.emplace_back(start_array(0), tag);
+      else if (tag == SERIALIZE_TYPE_OBJECT)
+        skip_stack_.emplace_back(start_object(), tag);
+      else
+        skip_stack_.emplace_back(1, tag);
+    };
     skip_stack_.clear();
     skip_stack_.reserve(max_read_depth());
-    skip_stack_.emplace_back(1, last_tag_);
-    check_array(skip_stack_);
+    start_tag(last_tag_);
     while (1)
     {
       while (!skip_stack_.empty() && !skip_stack_.back().first)
       {
         if (skip_stack_.back().second & SERIALIZE_FLAG_ARRAY)
+        {
           end_array();
-        else if (skip_stack_.back().second == SERIALIZE_FLAG_OBJECT)
+          last_tag_ = SERIALIZE_TYPE_ARRAY;
+        }
+        else if (skip_stack_.back().second == SERIALIZE_TYPE_OBJECT)
+        {
           end_object();
+          last_tag_ = SERIALIZE_TYPE_OBJECT;
+        }
         skip_stack_.pop_back();
       }
 
@@ -170,25 +175,24 @@ namespace wire
       case SERIALIZE_TYPE_ARRAY | SERIALIZE_FLAG_ARRAY:
       case SERIALIZE_TYPE_ARRAY:
         --skip_stack_.back().first;
-        skip_stack_.emplace_back(0, last_tag_);
-        check_array(skip_stack_);
+        start_tag(last_tag_);
         break;
       case SERIALIZE_TYPE_OBJECT | SERIALIZE_FLAG_ARRAY:
         --skip_stack_.back().first;
-        skip_stack_.emplace_back(start_object(), SERIALIZE_TYPE_OBJECT);
+        start_tag(SERIALIZE_TYPE_OBJECT);
         break;
       case SERIALIZE_TYPE_OBJECT:
         --skip_stack_.back().first;
         read_name();
         last_tag_ = read_tag();
-        skip_stack_.emplace_back(1, last_tag_);
-        check_array(skip_stack_);
+        start_tag(last_tag_);
         break;
       case SERIALIZE_TYPE_STRING | SERIALIZE_FLAG_ARRAY:
       case SERIALIZE_TYPE_STRING:
-        raw(error::schema::string);
         --skip_stack_.back().first;
+        raw(error::schema::string);
         break;
+      }
     } // while (1)
   }
 

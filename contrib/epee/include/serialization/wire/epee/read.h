@@ -42,7 +42,7 @@
 namespace wire
 {
   //! Reads Epee binary archives one element at a time for DOMless parsing
-  class epee_reader : public reader
+  class epee_reader final : public reader
   {
     std::vector<std::pair<std::size_t, std::uint8_t>> skip_stack_;
     std::size_t array_space_;//!< Tracks remaining space after "open" arrays
