@@ -1917,6 +1917,43 @@ namespace cryptonote
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
+  bool core_rpc_server::on_calcpow(const COMMAND_RPC_CALCPOW::request& req, COMMAND_RPC_CALCPOW::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
+  {
+    RPC_TRACKER(calcpow);
+
+    blobdata blockblob;
+    if(!string_tools::parse_hexstr_to_binbuff(req.block_blob, blockblob))
+    {
+      error_resp.code = CORE_RPC_ERROR_CODE_WRONG_BLOCKBLOB;
+      error_resp.message = "Wrong block blob";
+      return false;
+    }
+    if(!m_core.check_incoming_block_size(blockblob))
+    {
+      error_resp.code = CORE_RPC_ERROR_CODE_WRONG_BLOCKBLOB_SIZE;
+      error_resp.message = "Block blob size is too big, rejecting block";
+      return false;
+    }
+    crypto::hash seed_hash, pow_hash;
+    std::string buf;
+    if(req.seed_hash.size())
+    {
+      if (!string_tools::parse_hexstr_to_binbuff(req.seed_hash, buf) ||
+        buf.size() != sizeof(crypto::hash))
+      {
+        error_resp.code = CORE_RPC_ERROR_CODE_WRONG_PARAM;
+        error_resp.message = "Wrong seed hash";
+        return false;
+      }
+      buf.copy(reinterpret_cast<char *>(&seed_hash), sizeof(crypto::hash));
+    }
+
+    cryptonote::get_block_longhash(&(m_core.get_blockchain_storage()), blockblob, pow_hash, req.height,
+      req.major_version, req.seed_hash.size() ? &seed_hash : NULL, 0);
+    res = string_tools::pod_to_hex(pow_hash);
+    return true;
+  }
+  //------------------------------------------------------------------------------------------------------------------------------
   bool core_rpc_server::on_add_aux_pow(const COMMAND_RPC_ADD_AUX_POW::request& req, COMMAND_RPC_ADD_AUX_POW::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
   {
     RPC_TRACKER(add_aux_pow);
@@ -2908,7 +2945,7 @@ namespace cryptonote
     {
       if (req.limit_down != -1)
       {
-        res.status = CORE_RPC_ERROR_CODE_WRONG_PARAM;
+        res.status = "Invalid parameter";
         return true;
       }
       epee::net_utils::connection_basic::set_rate_down_limit(nodetool::default_limit_down);
@@ -2922,7 +2959,7 @@ namespace cryptonote
     {
       if (req.limit_up != -1)
       {
-        res.status = CORE_RPC_ERROR_CODE_WRONG_PARAM;
+        res.status = "Invalid parameter";
         return true;
       }
       epee::net_utils::connection_basic::set_rate_up_limit(nodetool::default_limit_up);
@@ -3174,6 +3211,14 @@ namespace cryptonote
     if (use_bootstrap_daemon_if_necessary<COMMAND_RPC_GET_OUTPUT_DISTRIBUTION>(invoke_http_mode::JON_RPC, "get_output_distribution", req, res, r))
       return r;
 
+    const bool restricted = m_restricted && ctx;
+    if (restricted && req.amounts != std::vector<uint64_t>(1, 0))
+    {
+      error_resp.code = CORE_RPC_ERROR_CODE_RESTRICTED;
+      error_resp.message = "Restricted RPC can only get output distribution for rct outputs. Use your own node.";
+      return false;
+    }
+
     size_t n_0 = 0, n_non0 = 0;
     for (uint64_t amount: req.amounts)
       if (amount) ++n_non0; else ++n_0;
@@ -3214,6 +3259,13 @@ namespace cryptonote
     bool r;
     if (use_bootstrap_daemon_if_necessary<COMMAND_RPC_GET_OUTPUT_DISTRIBUTION>(invoke_http_mode::BIN, "/get_output_distribution.bin", req, res, r))
       return r;
+
+    const bool restricted = m_restricted && ctx;
+    if (restricted && req.amounts != std::vector<uint64_t>(1, 0))
+    {
+      res.status = "Restricted RPC can only get output distribution for rct outputs. Use your own node.";
+      return false;
+    }
 
     size_t n_0 = 0, n_non0 = 0;
     for (uint64_t amount: req.amounts)
