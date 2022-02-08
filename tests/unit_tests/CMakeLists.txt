@@ -72,6 +72,7 @@ set(unit_tests_sources
   node_server.cpp
   notify.cpp
   output_distribution.cpp
+  p2p_portable_scheme.cpp
   parse_amount.cpp
   pruning.cpp
   random.cpp
@@ -96,8 +97,7 @@ set(unit_tests_sources
   wipeable_string.cpp
   is_hdd.cpp
   aligned.cpp
-  rpc_version_str.cpp
-  test_epee_bin.cpp
+  rpc_version_str.cpp #test_epee_bin.cpp
   zmq_rpc.cpp)
 
 set(unit_tests_headers
