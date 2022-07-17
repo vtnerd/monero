@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2020, The Monero Project
+// Copyright (c) 2014-2022, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -131,13 +131,6 @@ inline bool do_serialize(Archive &ar, bool &v)
   ar.serialize_blob(&v, sizeof(v));
   return true;
 }
-
-// Never used in the code base
-// #ifndef __GNUC__
-// #ifndef constexpr
-// #define constexpr
-// #endif
-// #endif
 
 /* the following add a trait to a set and define the serialization DSL*/
 

@@ -8,7 +8,7 @@
 // ! (how ever if in some wonderful juristdictions that is not the case, then why not make another sub-class withat that members and licence it as epee part)
 // ! Working on above premise, IF this is valid in your juristdictions, then consider this code as released as:
 
-// Copyright (c) 2014-2020, The Monero Project
+// Copyright (c) 2014-2022, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -106,7 +106,7 @@ class connection_basic { // not-templated base class for rapid developmet of som
 		std::unique_ptr< connection_basic_pimpl > mI; // my Implementation
 
 		// moved here from orginal connecton<> - common member variables that do not depend on template in connection<>
-    volatile uint32_t m_want_close_connection;
+    std::atomic<bool> m_want_close_connection;
     std::atomic<bool> m_was_shutdown;
     critical_section m_send_que_lock;
     std::deque<byte_slice> m_send_que;

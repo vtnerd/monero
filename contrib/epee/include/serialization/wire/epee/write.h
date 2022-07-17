@@ -60,7 +60,7 @@ namespace wire
     static constexpr std::uint8_t get_tag(std::uint16_t) noexcept { return SERIALIZE_TYPE_UINT16; }
     static constexpr std::uint8_t get_tag(std::uint32_t) noexcept { return SERIALIZE_TYPE_UINT32; }
     static constexpr std::uint8_t get_tag(std::uint64_t) noexcept { return SERIALIZE_TYPE_UINT64; }
-    static constexpr std::uint8_t get_tag(double) noexcept { return SERIALIZE_TYPE_DUOBLE; }
+    static constexpr std::uint8_t get_tag(double) noexcept { return SERIALIZE_TYPE_DOUBLE; }
 
     template<typename T>
     static constexpr std::uint8_t get_tag(const T&) noexcept

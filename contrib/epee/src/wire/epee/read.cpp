@@ -50,7 +50,7 @@ namespace
     {
     case SERIALIZE_TYPE_ARRAY:  return min_array_size;
     case SERIALIZE_TYPE_BOOL:   return sizeof(bool);
-    case SERIALIZE_TYPE_DUOBLE: return sizeof(double);
+    case SERIALIZE_TYPE_DOUBLE: return sizeof(double);
     case SERIALIZE_TYPE_INT8:   return sizeof(std::int8_t);
     case SERIALIZE_TYPE_INT16:  return sizeof(std::int64_t);
     case SERIALIZE_TYPE_INT32:  return sizeof(std::int32_t);
@@ -256,7 +256,7 @@ namespace wire
 
   double epee_reader::real()
   {
-    if (last_tag_ != SERIALIZE_TYPE_DUOBLE)
+    if (last_tag_ != SERIALIZE_TYPE_DOUBLE)
       WIRE_DLOG_THROW_(error::schema::number);
     return read<double>();
   }

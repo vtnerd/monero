@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2020, The Monero Project
+# Copyright (c) 2014-2022, The Monero Project
 # 
 # All rights reserved.
 # 
@@ -37,11 +37,9 @@ monero_add_library(epee byte_slice.cpp byte_stream.cpp hex.cpp abstract_http_cli
     wipeable_string.cpp levin_base.cpp memwipe.c connection_basic.cpp network_throttle.cpp network_throttle-detail.cpp mlocker.cpp buffer.cpp net_ssl.cpp
     int-util.cpp portable_storage.cpp
     misc_language.cpp
-    misc_os_dependent.cpp
     file_io_utils.cpp
     net_parse_helpers.cpp
     http_base.cpp
-    tiny_ini.cpp
     ${EPEE_HEADERS_PUBLIC}
     )
 

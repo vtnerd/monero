@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2020, The Monero Project
+// Copyright (c) 2014-2022, The Monero Project
 //
 // All rights reserved.
 //
@@ -70,6 +70,9 @@ const hardfork_t mainnet_hard_forks[] = {
 
   { 13, 2210000, 0, 1598180817 },
   { 14, 2210720, 0, 1598180818 },
+
+  { 15, 8000000, 0, 1608223241 }, // temp so tests test with these consensus rules
+  { 16, 8000001, 0, 1608223242 }, // temp so tests test with these consensus rules
 };
 const size_t num_mainnet_hard_forks = sizeof(mainnet_hard_forks) / sizeof(mainnet_hard_forks[0]);
 const uint64_t mainnet_hard_fork_version_1_till = 1009826;
@@ -95,6 +98,8 @@ const hardfork_t testnet_hard_forks[] = {
   { 12, 1308737, 0, 1569582000 },
   { 13, 1543939, 0, 1599069376 },
   { 14, 1544659, 0, 1599069377 },
+  { 15, 1982800, 0, 1652727000 },
+  { 16, 1983520, 0, 1652813400 },
 };
 const size_t num_testnet_hard_forks = sizeof(testnet_hard_forks) / sizeof(testnet_hard_forks[0]);
 const uint64_t testnet_hard_fork_version_1_till = 624633;

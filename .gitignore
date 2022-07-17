@@ -24,6 +24,12 @@ external/miniupnpc/Makefile
 miniupnpcstrings.h
 version/
 ClangBuildAnalyzerSession.txt
+
+# gitian
+contrib/gitian/builder/
+contrib/gitian/docker/
+contrib/gitian/sigs/
+
 # Created by https://www.gitignore.io
 
 ### C++ ###
@@ -70,6 +76,8 @@ cmake-build-debug/
 # KDE directory preferences
 .directory
 
+### VSCode ###
+.vscode/
 
 ### Eclipse ###
 *.pydevproject
@@ -110,3 +118,5 @@ nbproject
 /testnet
 
 __pycache__/
+*.pyc
+*.log

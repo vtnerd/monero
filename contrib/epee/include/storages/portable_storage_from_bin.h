@@ -157,6 +157,18 @@ namespace epee
       pod_val = CONVERT_POD(pod_val);
     }
     
+    template<>
+    void throwable_buffer_reader::read<bool>(bool& pod_val)
+    {
+      RECURSION_LIMITATION();
+      static_assert(std::is_pod<bool>::value, "POD type expected");
+      static_assert(sizeof(bool) == sizeof(uint8_t), "We really shouldn't use bool directly in serialization code. Replace it with uint8_t if this assert triggers!");
+      uint8_t t;
+      read(&t, sizeof(t));
+      CHECK_AND_ASSERT_THROW_MES(t <= 1, "Invalid bool value " << t);
+      pod_val = (t != 0);
+    }
+    
     template<class t_type>
     t_type throwable_buffer_reader::read()
     {
@@ -208,7 +220,7 @@ namespace epee
       case SERIALIZE_TYPE_UINT32: return read_ae<uint32_t>();
       case SERIALIZE_TYPE_UINT16: return read_ae<uint16_t>();
       case SERIALIZE_TYPE_UINT8:  return read_ae<uint8_t>();
-      case SERIALIZE_TYPE_DUOBLE: return read_ae<double>();
+      case SERIALIZE_TYPE_DOUBLE: return read_ae<double>();
       case SERIALIZE_TYPE_BOOL:   return read_ae<bool>();
       case SERIALIZE_TYPE_STRING: return read_ae<std::string>();
       case SERIALIZE_TYPE_OBJECT: return read_ae<section>();
@@ -299,7 +311,7 @@ namespace epee
       case SERIALIZE_TYPE_UINT32: return read_se<uint32_t>();
       case SERIALIZE_TYPE_UINT16: return read_se<uint16_t>();
       case SERIALIZE_TYPE_UINT8:  return read_se<uint8_t>();
-      case SERIALIZE_TYPE_DUOBLE: return read_se<double>();
+      case SERIALIZE_TYPE_DOUBLE: return read_se<double>();
       case SERIALIZE_TYPE_BOOL:   return read_se<bool>();
       case SERIALIZE_TYPE_STRING: return read_se<std::string>();
       case SERIALIZE_TYPE_OBJECT: return read_se<section>();

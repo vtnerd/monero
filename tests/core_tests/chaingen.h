@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2020, The Monero Project
+// Copyright (c) 2014-2022, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -423,7 +423,8 @@ uint64_t sum_amount(const std::vector<cryptonote::tx_source_entry>& sources);
 
 bool construct_miner_tx_manually(size_t height, uint64_t already_generated_coins,
                                  const cryptonote::account_public_address& miner_address, cryptonote::transaction& tx,
-                                 uint64_t fee, cryptonote::keypair* p_txkey = nullptr);
+                                 uint64_t fee, uint8_t hf_version = 1,
+                                 cryptonote::keypair* p_txkey = nullptr);
 
 bool construct_tx_to_key(const std::vector<test_event_entry>& events, cryptonote::transaction& tx,
                          const cryptonote::block& blk_head, const cryptonote::account_base& from, const var_addr_t& to, uint64_t amount,
@@ -836,7 +837,7 @@ inline bool do_replay_file(const std::string& filename)
     { \
       for (size_t msidx = 0; msidx < total; ++msidx) \
         account[msidx].generate(); \
-      make_multisig_accounts(account, threshold); \
+      CHECK_AND_ASSERT_MES(make_multisig_accounts(account, threshold), false, "Failed to make multisig accounts."); \
     } while(0)
 
 #define MAKE_ACCOUNT(VEC_EVENTS, account) \
@@ -967,11 +968,13 @@ inline bool do_replay_file(const std::string& filename)
     std::list<cryptonote::transaction> SET_NAME; \
     MAKE_TX_MIX_LIST_RCT(VEC_EVENTS, SET_NAME, FROM, TO, AMOUNT, NMIX, HEAD);
 
-#define MAKE_MINER_TX_AND_KEY_MANUALLY(TX, BLK, KEY)                                                      \
+#define MAKE_MINER_TX_AND_KEY_AT_HF_MANUALLY(TX, BLK, HF_VERSION, KEY)                                    \
   transaction TX;                                                                                         \
   if (!construct_miner_tx_manually(get_block_height(BLK) + 1, generator.get_already_generated_coins(BLK), \
-    miner_account.get_keys().m_account_address, TX, 0, KEY))                                              \
+    miner_account.get_keys().m_account_address, TX, 0, HF_VERSION, KEY))                                  \
     return false;
+
+#define MAKE_MINER_TX_AND_KEY_MANUALLY(TX, BLK, KEY) MAKE_MINER_TX_AND_KEY_AT_HF_MANUALLY(TX, BLK, 1, KEY)
 
 #define MAKE_MINER_TX_MANUALLY(TX, BLK) MAKE_MINER_TX_AND_KEY_MANUALLY(TX, BLK, 0)
 

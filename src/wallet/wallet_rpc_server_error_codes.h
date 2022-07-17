@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2020, The Monero Project
+// Copyright (c) 2014-2022, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -78,3 +78,4 @@
 #define WALLET_RPC_ERROR_CODE_ATTRIBUTE_NOT_FOUND    -45
 #define WALLET_RPC_ERROR_CODE_ZERO_AMOUNT            -46
 #define WALLET_RPC_ERROR_CODE_INVALID_SIGNATURE_TYPE -47
+#define WALLET_RPC_ERROR_CODE_DISABLED               -48

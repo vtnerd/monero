@@ -1,6 +1,6 @@
 # Monero
 
-Copyright (c) 2014-2022 The Monero Project.   
+Copyright (c) 2014-2022 The Monero Project.  
 Portions Copyright (c) 2012-2013 The Cryptonote developers.
 
 ## Table of Contents
@@ -33,7 +33,7 @@ Portions Copyright (c) 2012-2013 The Cryptonote developers.
 - Mail: [dev@getmonero.org](mailto:dev@getmonero.org)
 - GitHub: [https://github.com/monero-project/monero](https://github.com/monero-project/monero)
 - IRC: [#monero-dev on Libera](https://web.libera.chat/#monero-dev)
-- It is HIGHLY recommended that you join the #monero-dev IRC channel if you are developing software that uses Monero. Due to the nature of this open source software project, joining this channel and idling is the best way to stay updated on best practices and new developments in the Monero ecosystem. All you need to do is join the IRC channel and idle to stay updated with the latest in Monero development. If you do not, you risk wasting resources on developing integrations that are not compatible with the Monero network. The Monero core team and community continuously make efforts to communicate updates, developments, and documentation via other platforms – but for the best information, you need to talk to other Monero developers, and they are on IRC. #monero-dev is about Monero development, not getting help about using Monero, or help about development of other software, including yours, unless it also pertains to Monero code itself. For these cases, checkout #monero. 
+- It is HIGHLY recommended that you join the #monero-dev IRC channel if you are developing software that uses Monero. Due to the nature of this open source software project, joining this channel and idling is the best way to stay updated on best practices and new developments in the Monero ecosystem. All you need to do is join the IRC channel and idle to stay updated with the latest in Monero development. If you do not, you risk wasting resources on developing integrations that are not compatible with the Monero network. The Monero core team and community continuously make efforts to communicate updates, developments, and documentation via other platforms – but for the best information, you need to talk to other Monero developers, and they are on IRC. #monero-dev is about Monero development, not getting help about using Monero, or help about development of other software, including yours, unless it also pertains to Monero code itself. For these cases, checkout #monero.
 
 ## Vulnerability response
 
@@ -75,13 +75,13 @@ Monero is a private, secure, untraceable, decentralised digital currency. You ar
 
 **Untraceability:** By taking advantage of ring signatures, a special property of a certain type of cryptography, Monero is able to ensure that transactions are not only untraceable but have an optional measure of ambiguity that ensures that transactions cannot easily be tied back to an individual user or computer.
 
-**Decentralization:** The utility of Monero depends on its decentralised peer-to-peer consensus network - anyone should be able to run the monero software, validate the integrity of the blockchain, and participate in all aspects of the monero network using consumer-grade commodity hardware. Decentralization of the monero network is maintained by software development that minimizes the costs of running the monero software and inhibits the proliferation of specialized, non-commodity hardware.  
+**Decentralization:** The utility of Monero depends on its decentralised peer-to-peer consensus network - anyone should be able to run the monero software, validate the integrity of the blockchain, and participate in all aspects of the monero network using consumer-grade commodity hardware. Decentralization of the monero network is maintained by software development that minimizes the costs of running the monero software and inhibits the proliferation of specialized, non-commodity hardware.
 
 ## About this project
 
 This is the core implementation of Monero. It is open source and completely free to use without restrictions, except for those specified in the license agreement below. There are no restrictions on anyone creating an alternative implementation of Monero that uses the protocol and network in a compatible manner.
 
-As with many development projects, the repository on Github is considered to be the "staging" area for the latest changes. Before changes are merged into that branch on the main repository, they are tested by individual developers in their own branches, submitted as a pull request, and then subsequently tested by contributors who focus on testing and code reviews. That having been said, the repository should be carefully considered before using it in a production environment, unless there is a patch in the repository for a particular show-stopping issue you are experiencing. It is generally a better idea to use a tagged release for stability.
+As with many development projects, the repository on GitHub is considered to be the "staging" area for the latest changes. Before changes are merged into that branch on the main repository, they are tested by individual developers in their own branches, submitted as a pull request, and then subsequently tested by contributors who focus on testing and code reviews. That having been said, the repository should be carefully considered before using it in a production environment, unless there is a patch in the repository for a particular show-stopping issue you are experiencing. It is generally a better idea to use a tagged release for stability.
 
 **Anyone is welcome to contribute to Monero's codebase!** If you have a fix or code change, feel free to submit it as a pull request directly to the "master" branch. In cases where the change is relatively small or does not affect other parts of the codebase, it may be merged in immediately by any one of the collaborators. On the other hand, if the change is particularly large or complex, it is expected that it will be discussed at length either well in advance of the pull request being submitted, or even directly on the pull request.
 
@@ -89,9 +89,15 @@ As with many development projects, the repository on Github is considered to be 
 
 Monero is a 100% community-sponsored endeavor. If you want to join our efforts, the easiest thing you can do is support the project financially. Both Monero and Bitcoin donations can be made to **donate.getmonero.org** if using a client that supports the [OpenAlias](https://openalias.org) standard. Alternatively, you can send XMR to the Monero donation address via the `donate` command (type `help` in the command-line wallet for details).
 
-The Monero donation address is: `888tNkZrPN6JsEgekjMnABU4TBzc2Dt29EPAvkRxbANsAnjyPbb3iQ1YBRk1UXcdRsiKc9dhwMVgN5S9cQUiyoogDavup3H` (viewkey: `f359631075708155cc3d92a32b75a7d02a5dcf27756707b47a2b31b21c389501`; base address for restoring with address and viewkey: `44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A`)
+The Monero donation address is:  
+`888tNkZrPN6JsEgekjMnABU4TBzc2Dt29EPAvkRxbANsAnjyPbb3iQ1YBRk1UXcdRsiKc9dhwMVgN5S9cQUiyoogDavup3H`  
+Viewkey:  
+`f359631075708155cc3d92a32b75a7d02a5dcf27756707b47a2b31b21c389501`  
+Base address for restoring with address and viewkey:
+`44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A`  
 
-The Bitcoin donation address is: `1KTexdemPdxSBcG55heUuTjDRYqbC5ZL8H`
+The Bitcoin donation address is:  
+`1KTexdemPdxSBcG55heUuTjDRYqbC5ZL8H`
 
 Core development funding and/or some supporting services are also graciously provided by [sponsors](https://www.getmonero.org/community/sponsorships/):
 
@@ -117,7 +123,7 @@ Monero uses a fixed-schedule software upgrade (hard fork) mechanism to implement
 Dates are provided in the format YYYY-MM-DD.
 
 
-| Software upgrade block height  | Date       | Fork version      | Minimum Monero version | Recommended Monero version | Details                                                                            |  
+| Software upgrade block height  | Date       | Fork version      | Minimum Monero version | Recommended Monero version | Details                                                                            |
 | ------------------------------ | -----------| ----------------- | ---------------------- | -------------------------- | ---------------------------------------------------------------------------------- |
 | 1009827                        | 2016-03-22 | v2                | v0.9.4                 | v0.9.4                     | Allow only >= ringsize 3, blocktime = 120 seconds, fee-free blocksize 60 kb       |
 | 1141317                        | 2016-09-21 | v3                | v0.9.4                 | v0.10.0                    | Splits coinbase into denominations  |
@@ -130,8 +136,8 @@ Dates are provided in the format YYYY-MM-DD.
 | 1788000                        | 2019-03-09 | v10               | v0.14.0.0              | v0.14.1.2                  | New PoW based on Cryptonight-R, new block weight algorithm, slightly more efficient RingCT format
 | 1788720                        | 2019-03-10 | v11               | v0.14.0.0              | v0.14.1.2                  | forbid old RingCT transaction format
 | 1978433                        | 2019-11-30 | v12               | v0.15.0.0              | v0.16.0.0                  | New PoW based on RandomX, only allow >= 2 outputs, change to the block median used to calculate penalty, v1 coinbases are forbidden, rct sigs in coinbase forbidden, 10 block lock time for incoming outputs
-| 2210000                        | 2020-10-17 | v13               | v0.17.0.0              | v0.17.1.1                  | New CLSAG transaction format
-| 2210720                        | 2020-10-18 | v14               | v0.17.1.1              | v0.17.1.7                  | forbid old MLSAG transaction format
+| 2210000                        | 2020-10-17 | v13               | v0.17.0.0              | v0.17.3.2                  | New CLSAG transaction format
+| 2210720                        | 2020-10-18 | v14               | v0.17.1.1              | v0.17.3.2                  | forbid old MLSAG transaction format
 | XXXXXXX                        | XXX-XX-XX | XXX                | vX.XX.X.X              | vX.XX.X.X                  | XXX |
 
 X's indicate that these details have not been determined as of commit date.
@@ -181,7 +187,7 @@ library archives (`.a`).
 | libusb       | ?             | NO       | `libusb-1.0-0-dev`   | `libusb`     | `libusb-devel`     | `libusbx-devel`     | YES      | Hardware wallet |
 | libprotobuf  | ?             | NO       | `libprotobuf-dev`    | `protobuf`   | `protobuf-devel`   | `protobuf-devel`    | YES      | Hardware wallet |
 | protoc       | ?             | NO       | `protobuf-compiler`  | `protobuf`   | `protobuf`         | `protobuf-compiler` | YES      | Hardware wallet |
-| libudev      | ?             | No       | `libudev-dev`        | `systemd`    | `eudev-libudev-devel` | `systemd-devel`  | YES      | Hardware wallet |
+| libudev      | ?             | NO       | `libudev-dev`        | `systemd`    | `eudev-libudev-devel` | `systemd-devel`  | YES      | Hardware wallet |
 
 [1] On Debian/Ubuntu `libgtest-dev` only includes sources and headers. You must
 build the library binary manually. This can be done with the following command `sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake . && sudo make`
@@ -196,30 +202,54 @@ then:
 
 Install all dependencies at once on Debian/Ubuntu:
 
-``` sudo apt update && sudo apt install build-essential cmake pkg-config libssl-dev libzmq3-dev libunbound-dev libsodium-dev libunwind8-dev liblzma-dev libreadline6-dev libldns-dev libexpat1-dev libpgm-dev qttools5-dev-tools libhidapi-dev libusb-1.0-0-dev libprotobuf-dev protobuf-compiler libudev-dev libboost-chrono-dev libboost-date-time-dev libboost-filesystem-dev libboost-locale-dev libboost-program-options-dev libboost-regex-dev libboost-serialization-dev libboost-system-dev libboost-thread-dev ccache doxygen graphviz ```
+```
+sudo apt update && sudo apt install build-essential cmake pkg-config libssl-dev libzmq3-dev libunbound-dev libsodium-dev libunwind8-dev liblzma-dev libreadline6-dev libldns-dev libexpat1-dev libpgm-dev qttools5-dev-tools libhidapi-dev libusb-1.0-0-dev libprotobuf-dev protobuf-compiler libudev-dev libboost-chrono-dev libboost-date-time-dev libboost-filesystem-dev libboost-locale-dev libboost-program-options-dev libboost-regex-dev libboost-serialization-dev libboost-system-dev libboost-thread-dev python3 ccache doxygen graphviz
+```
+
+Install all dependencies at once on Arch:
+```
+sudo pacman -Syu --needed base-devel cmake boost openssl zeromq libpgm unbound libsodium libunwind xz readline ldns expat gtest python3 ccache doxygen graphviz qt5-tools hidapi libusb protobuf systemd
+```
+
+Install all dependencies at once on Fedora:
+```
+sudo dnf install gcc gcc-c++ cmake pkgconf boost-devel openssl-devel zeromq-devel openpgm-devel unbound-devel libsodium-devel libunwind-devel xz-devel readline-devel ldns-devel expat-devel gtest-devel ccache doxygen graphviz qt5-linguist hidapi-devel libusbx-devel protobuf-devel protobuf-compiler systemd-devel
+```
 
 Install all dependencies at once on openSUSE:
 
-``` sudo zypper ref && sudo zypper in cppzmq-devel  ldns-devel libboost_chrono-devel libboost_date_time-devel libboost_filesystem-devel libboost_locale-devel libboost_program_options-devel libboost_regex-devel libboost_serialization-devel libboost_system-devel libboost_thread-devel libexpat-devel libminiupnpc-devel libsodium-devel libunwind-devel unbound-devel  cmake doxygen ccache fdupes gcc-c++ libevent-devel libopenssl-devel pkgconf-pkg-config readline-devel  xz-devel libqt5-qttools-devel patterns-devel-C-C++-devel_C_C++```
+```
+sudo zypper ref && sudo zypper in cppzmq-devel ldns-devel libboost_chrono-devel libboost_date_time-devel libboost_filesystem-devel libboost_locale-devel libboost_program_options-devel libboost_regex-devel libboost_serialization-devel libboost_system-devel libboost_thread-devel libexpat-devel libminiupnpc-devel libsodium-devel libunwind-devel unbound-devel cmake doxygen ccache fdupes gcc-c++ libevent-devel libopenssl-devel pkgconf-pkg-config readline-devel xz-devel libqt5-qttools-devel patterns-devel-C-C++-devel_C_C++
+```
 
 Install all dependencies at once on macOS with the provided Brewfile:
-``` brew update && brew bundle --file=contrib/brew/Brewfile ```
+
+```
+brew update && brew bundle --file=contrib/brew/Brewfile
+```
 
 FreeBSD 12.1 one-liner required to build dependencies:
-```pkg install git gmake cmake pkgconf boost-libs libzmq4 libsodium unbound```
+
+```
+pkg install git gmake cmake pkgconf boost-libs libzmq4 libsodium unbound
+```
 
 ### Cloning the repository
 
 Clone recursively to pull-in needed submodule(s):
 
-`$ git clone --recursive https://github.com/monero-project/monero`
+```
+git clone --recursive https://github.com/monero-project/monero
+```
 
 If you already have a repo cloned, initialize and update:
 
-`$ cd monero && git submodule init && git submodule update`
+```
+cd monero && git submodule init && git submodule update
+```
 
 *Note*: If there are submodule differences between branches, you may need 
-to use ```git submodule sync && git submodule update``` after changing branches
+to use `git submodule sync && git submodule update` after changing branches
 to build successfully.
 
 ### Build instructions
@@ -245,7 +275,7 @@ invokes cmake commands as needed.
 
     *Note*: The instructions above will compile the most stable release of the
     Monero software. If you would like to use and test the most recent software,
-    use ```git checkout master```. The master branch may contain updates that are
+    use `git checkout master`. The master branch may contain updates that are
     both unstable and incompatible with release software, though testing is always
     encouraged.
 
@@ -313,7 +343,7 @@ Tested on a Raspberry Pi Zero with a clean install of minimal Raspbian Stretch (
     ```bash
     git clone https://github.com/monero-project/monero.git
     cd monero
-    git checkout tags/v0.17.1.0
+    git checkout v0.17.3.2
     ```
 
 * Build:
@@ -383,15 +413,15 @@ application.
 
 * Download and install the [MSYS2 installer](https://www.msys2.org), either the 64-bit or the 32-bit package, depending on your system.
 * Open the MSYS shell via the `MSYS2 Shell` shortcut
-* Update packages using pacman:  
+* Update packages using pacman:
 
     ```bash
     pacman -Syu
     ```
 
-* Exit the MSYS shell using Alt+F4  
+* Exit the MSYS shell using Alt+F4
 * Edit the properties for the `MSYS2 Shell` shortcut changing "msys2_shell.bat" to "msys2_shell.cmd -mingw64" for 64-bit builds or "msys2_shell.cmd -mingw32" for 32-bit builds
-* Restart MSYS shell via modified shortcut and update packages again using pacman:  
+* Restart MSYS shell via modified shortcut and update packages again using pacman:
 
     ```bash
     pacman -Syu
@@ -432,10 +462,10 @@ application.
     cd monero
     ```
 
-* If you would like a specific [version/tag](https://github.com/monero-project/monero/tags), do a git checkout for that version. eg. 'v0.17.1.0'. If you don't care about the version and just want binaries from master, skip this step:
+* If you would like a specific [version/tag](https://github.com/monero-project/monero/tags), do a git checkout for that version. eg. 'v0.17.3.2'. If you don't care about the version and just want binaries from master, skip this step:
 
     ```bash
-    git checkout v0.17.1.0
+    git checkout v0.17.3.2
     ```
 
 * If you are on a 64-bit system, run:
@@ -471,7 +501,7 @@ application.
 The project can be built from scratch by following instructions for Linux above(but use `gmake` instead of `make`). 
 If you are running Monero in a jail, you need to add `sysvsem="new"` to your jail configuration, otherwise lmdb will throw the error message: `Failed to open lmdb environment: Function not implemented`.
 
-Monero is also available as a port or package as 'monero-cli`.
+Monero is also available as a port or package as `monero-cli`.
 
 ### On OpenBSD:
 
@@ -572,8 +602,11 @@ Packages are available for
     ```
 More info and versions in the [Debian package tracker](https://tracker.debian.org/pkg/monero).
 
-* Arch Linux (via Community packages):
-    [`monero`](https://www.archlinux.org/packages/community/x86_64/monero/)
+* Arch Linux [(via Community packages)](https://www.archlinux.org/packages/community/x86_64/monero/):
+
+    ```bash
+    sudo pacman -S monero
+    ```
 
 * Void Linux:
 
@@ -597,7 +630,7 @@ More info and versions in the [Debian package tracker](https://tracker.debian.or
     emerge net-p2p/monero
     ```
 
-* macOS (homebrew)
+* macOS [(homebrew)](https://brew.sh/)
     ```bash
     brew install monero
     ```
@@ -619,7 +652,7 @@ More info and versions in the [Debian package tracker](https://tracker.debian.or
     ```
 
 * The build needs 3 GB space.
-* Wait one  hour or more
+* Wait one hour or more
 
 Packaging for your favorite distribution would be a welcome contribution!
 
@@ -712,7 +745,7 @@ DNS_PUBLIC=tcp torsocks ./monerod --p2p-bind-ip 127.0.0.1 --no-igd --rpc-bind-ip
 
 ## Pruning
 
-As of May 2020, the full Monero blockchain file is about 100 GB. One can store a pruned blockchain, which is about 30 GB.
+As of April 2022, the full Monero blockchain file is about 130 GB. One can store a pruned blockchain, which is about 45 GB.
 A pruned blockchain can only serve part of the historical chain data to other peers, but is otherwise identical in
 functionality to the full blockchain.
 To use a pruned blockchain, it is best to start the initial sync with `--prune-blockchain`. However, it is also possible
@@ -724,7 +757,7 @@ For more detailed information see the ['Pruning' entry in the Moneropedia](https
 
 ## Debugging
 
-This section contains general instructions for debugging failed installs or problems encountered with Monero. First, ensure you are running the latest version built from the Github repo.
+This section contains general instructions for debugging failed installs or problems encountered with Monero. First, ensure you are running the latest version built from the GitHub repo.
 
 ### Obtaining stack traces and core dumps on Unix systems
 

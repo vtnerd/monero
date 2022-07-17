@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2020, The Monero Project
+// Copyright (c) 2014-2022, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -125,7 +125,6 @@ namespace cryptonote
     bool set_always_confirm_transfers(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_print_ring_members(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_store_tx_info(const std::vector<std::string> &args = std::vector<std::string>());
-    bool set_default_ring_size(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_auto_refresh(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_refresh_type(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_confirm_missing_payment_id(const std::vector<std::string> &args = std::vector<std::string>());
@@ -148,11 +147,13 @@ namespace cryptonote
     bool set_ignore_outputs_above(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_ignore_outputs_below(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_track_uses(const std::vector<std::string> &args = std::vector<std::string>());
+    bool set_show_wallet_name_when_locked(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_inactivity_lock_timeout(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_setup_background_mining(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_device_name(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_export_format(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_load_deprecated_formats(const std::vector<std::string> &args = std::vector<std::string>());
+    bool set_enable_multisig(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_persistent_rpc_client_id(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_auto_mine_for_rpc_payment_threshold(const std::vector<std::string> &args = std::vector<std::string>());
     bool set_credits_target(const std::vector<std::string> &args = std::vector<std::string>());
@@ -233,7 +234,6 @@ namespace cryptonote
     bool prepare_multisig_main(const std::vector<std::string>& args, bool called_by_mms);
     bool make_multisig(const std::vector<std::string>& args);
     bool make_multisig_main(const std::vector<std::string>& args, bool called_by_mms);
-    bool finalize_multisig(const std::vector<std::string> &args);
     bool exchange_multisig_keys(const std::vector<std::string> &args);
     bool exchange_multisig_keys_main(const std::vector<std::string> &args, bool called_by_mms);
     bool export_multisig(const std::vector<std::string>& args);

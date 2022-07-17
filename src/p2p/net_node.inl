@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2020, The Monero Project
+// Copyright (c) 2014-2022, The Monero Project
 //
 // All rights reserved.
 //
@@ -55,11 +55,11 @@
 #include "math_helper.h"
 #include "misc_log_ex.h"
 #include "p2p_protocol_defs.h"
-#include "net/local_ip.h"
 #include "crypto/crypto.h"
 #include "storages/levin_abstract_invoke2.h"
 #include "cryptonote_core/cryptonote_core.h"
 #include "net/parse.h"
+#include "file_io_utils.h"
 
 #include <miniupnp/miniupnpc/miniupnpc.h>
 #include <miniupnp/miniupnpc/upnpcommands.h>
@@ -539,7 +539,7 @@ namespace nodetool
     if ( !set_max_out_peers(public_zone, command_line::get_arg(vm, arg_out_peers) ) )
       return false;
     else
-      m_payload_handler.set_max_out_peers(public_zone.m_config.m_net_config.max_out_connection_count);
+      m_payload_handler.set_max_out_peers(epee::net_utils::zone::public_, public_zone.m_config.m_net_config.max_out_connection_count);
 
 
     if ( !set_max_in_peers(public_zone, command_line::get_arg(vm, arg_in_peers) ) )
@@ -576,6 +576,8 @@ namespace nodetool
 
       if (!set_max_out_peers(zone, proxy.max_connections))
         return false;
+      else
+        m_payload_handler.set_max_out_peers(proxy.zone, proxy.max_connections);
 
       epee::byte_slice this_noise = nullptr;
       if (proxy.noise)
@@ -717,7 +719,7 @@ namespace nodetool
       full_addrs.insert("176.9.0.187:18080");
       full_addrs.insert("88.198.163.90:18080");
       full_addrs.insert("95.217.25.101:18080");
-      full_addrs.insert("209.250.243.248:18080");
+      full_addrs.insert("136.244.105.131:18080");
       full_addrs.insert("104.238.221.81:18080");
       full_addrs.insert("66.85.74.134:18080");
       full_addrs.insert("88.99.173.38:18080");
@@ -2463,8 +2465,12 @@ namespace nodetool
     const epee::net_utils::zone zone_type = context.m_remote_address.get_zone();
     network_zone& zone = m_network_zones.at(zone_type);
 
+    //will add self to peerlist if in same zone as outgoing later in this function
+    const bool outgoing_to_same_zone = !context.m_is_income && zone.m_our_address.get_zone() == zone_type;
+    const uint32_t max_peerlist_size = P2P_DEFAULT_PEERS_IN_HANDSHAKE - (outgoing_to_same_zone ? 1 : 0);
+
     std::vector<peerlist_entry> local_peerlist_new;
-    zone.m_peerlist.get_peerlist_head(local_peerlist_new, true, P2P_DEFAULT_PEERS_IN_HANDSHAKE);
+    zone.m_peerlist.get_peerlist_head(local_peerlist_new, true, max_peerlist_size);
 
     //only include out peers we did not already send
     rsp.local_peerlist_new.reserve(local_peerlist_new.size());
@@ -2484,7 +2490,7 @@ namespace nodetool
     etc., because someone could give faulty addresses over Tor/I2P to get the
     real peer with that identity banned/blacklisted. */
 
-    if(!context.m_is_income && zone.m_our_address.get_zone() == zone_type)
+    if(outgoing_to_same_zone)
       rsp.local_peerlist_new.push_back(peerlist_entry{zone.m_our_address, zone.m_config.m_peer_id, std::time(nullptr)});
 
     LOG_DEBUG_CC(context, "COMMAND_TIMED_SYNC");
@@ -2759,7 +2765,7 @@ namespace nodetool
       public_zone->second.m_config.m_net_config.max_out_connection_count = count;
       if(current > count)
         public_zone->second.m_net_server.get_config_object().del_out_connections(current - count);
-      m_payload_handler.set_max_out_peers(count);
+      m_payload_handler.set_max_out_peers(epee::net_utils::zone::public_, count);
     }
   }
 
@@ -2888,10 +2894,12 @@ namespace nodetool
   {
     if (m_offline) return true;
     if (!m_exclusive_peers.empty()) return true;
-    if (m_payload_handler.needs_new_sync_connections()) return true;
 
     for (auto& zone : m_network_zones)
     {
+      if (m_payload_handler.needs_new_sync_connections(zone.first))
+        continue;
+
       if (zone.second.m_net_server.is_stop_signal_sent())
         return false;
 

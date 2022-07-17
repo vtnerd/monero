@@ -1,4 +1,5 @@
-# Copyright (c) 2018 The Monero Project
+# Copyright (c) 2018-2022, The Monero Project
+
 # 
 # All rights reserved.
 # 
@@ -489,10 +490,11 @@ class Wallet(object):
         }
         return self.rpc.send_json_rpc_request(is_multisig)
 
-    def prepare_multisig(self):
+    def prepare_multisig(self, enable_multisig_experimental = False):
         prepare_multisig = {
             'method': 'prepare_multisig',
             'params' : {
+                'enable_multisig_experimental': enable_multisig_experimental,
             },
             'jsonrpc': '2.0', 
             'id': '0'
@@ -512,14 +514,12 @@ class Wallet(object):
         }
         return self.rpc.send_json_rpc_request(make_multisig)
 
-    def finalize_multisig(self, multisig_info, password = ''):
+    def finalize_multisig(self):
         finalize_multisig = {
             'method': 'finalize_multisig',
             'params' : {
-                'multisig_info': multisig_info,
-                'password': password,
             },
-            'jsonrpc': '2.0',
+            'jsonrpc': '2.0', 
             'id': '0'
         }
         return self.rpc.send_json_rpc_request(finalize_multisig)

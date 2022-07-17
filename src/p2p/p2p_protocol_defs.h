@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2020, The Monero Project
+// Copyright (c) 2014-2022, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include <iomanip>
 #include <boost/uuid/uuid.hpp>
 #include "net/net_utils_base.h"
 #include "misc_language.h"

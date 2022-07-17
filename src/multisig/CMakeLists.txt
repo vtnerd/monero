@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2020, The Monero Project
+# Copyright (c) 2017-2022, The Monero Project
 #
 # All rights reserved.
 #
@@ -27,12 +27,14 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 set(multisig_sources
-  multisig.cpp)
+  multisig.cpp
+  multisig_account.cpp
+  multisig_account_kex_impl.cpp
+  multisig_kex_msg.cpp)
 
 set(multisig_headers)
 
-set(multisig_private_headers
-  multisig.h)
+monero_find_all_headers(multisig_private_headers "${CMAKE_CURRENT_SOURCE_DIR}")
 
 monero_private_headers(multisig
   ${multisig_private_headers})

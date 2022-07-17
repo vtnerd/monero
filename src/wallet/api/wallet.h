@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2020, The Monero Project
+// Copyright (c) 2014-2022, The Monero Project
 //
 // All rights reserved.
 //
@@ -147,7 +147,6 @@ public:
     std::string getMultisigInfo() const override;
     std::string makeMultisig(const std::vector<std::string>& info, uint32_t threshold) override;
     std::string exchangeMultisigKeys(const std::vector<std::string> &info) override;
-    bool finalizeMultisig(const std::vector<std::string>& extraMultisigInfo) override;
     bool exportMultisigImages(std::string& images) override;
     size_t importMultisigImages(const std::vector<std::string>& images) override;
     bool hasMultisigPartialKeyImages() const override;

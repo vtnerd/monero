@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2020, The Monero Project
+# Copyright (c) 2014-2022, The Monero Project
 #
 # All rights reserved.
 #
@@ -36,6 +36,7 @@ set(unit_tests_sources
   block_reward.cpp
   bootstrap_node_selector.cpp
   bulletproofs.cpp
+  bulletproofs_plus.cpp
   canonical_amounts.cpp
   chacha.cpp
   checkpoints.cpp
@@ -77,6 +78,7 @@ set(unit_tests_sources
   pruning.cpp
   random.cpp
   rolling_median.cpp
+  scaling_2021.cpp
   serialization.cpp
   sha256.cpp
   slow_memmem.cpp
