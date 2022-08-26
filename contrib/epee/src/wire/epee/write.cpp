@@ -111,7 +111,9 @@ namespace wire
   }
   void epee_writer::integer(const std::intmax_t source)
   {
-    write_arithmetic(source);
+    static_assert(std::numeric_limits<std::intmax_t>::min() == std::numeric_limits<std::int64_t>::min(), "unexpected intmax");
+    static_assert(std::numeric_limits<std::intmax_t>::max() == std::numeric_limits<std::int64_t>::max(), "unexpected intmax");
+    write_arithmetic(std::int64_t(source));
   }
   void epee_writer::unsigned_integer(const unsigned source)
   {
@@ -119,7 +121,8 @@ namespace wire
   }
   void epee_writer::unsigned_integer(const std::uintmax_t source)
   {
-    write_arithmetic(source);
+    static_assert(std::numeric_limits<std::uintmax_t>::max() == std::numeric_limits<std::uint64_t>::max(), "unexpected uintmax");
+    write_arithmetic(std::uint64_t(source));
   }
   void epee_writer::real(const double source)
   {
