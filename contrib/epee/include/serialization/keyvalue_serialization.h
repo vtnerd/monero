@@ -26,94 +26,74 @@
 
 #pragma once
 
+#include <system_error>
+#include <tuple>
 #include <type_traits>
-#include <boost/utility/value_init.hpp>
-#include <boost/foreach.hpp>
-#include "misc_log_ex.h"
-#include "keyvalue_serialization_overloads.h"
+#include <utility>
+#include "serialization/wire/fields.h"
+#Include "serialization/wire/wrappers.h"
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
 #define MONERO_DEFAULT_LOG_CATEGORY "serialization"
 
 namespace epee
 {
+  template<typename F, typename... T, std::size_t... I>
+  void unpack_object2(F& format, std::tuple<T...>&& fields, std::index_sequence<I...>)
+  {
+    /* Another ADL call below, delays function lookup until instatiation. This
+       helps with forward declaring in headers. */
+    wire_object(format, std::move(std::get<I>(fields))...);
+  }
+  template<typename F, typename... T>
+  void unpack_object(F& format, std::tuple<T...>&& fields)
+  {
+    ::epee::unpack_object2(format, std::move(fields), std::make_index_sequence<sizeof...(T)>{});
+  }
+    
+    
   /************************************************************************/
   /* Serialize map declarations                                           */
   /************************************************************************/
-#define BEGIN_KV_SERIALIZE_MAP() \
-public: \
-  template<class t_storage> \
-  bool store( t_storage& st, typename t_storage::hsection hparent_section = nullptr) const\
-  {\
-    using type = typename std::remove_const<typename std::remove_reference<decltype(*this)>::type>::type; \
-    auto &self = const_cast<type&>(*this); \
-    return self.template serialize_map<true>(st, hparent_section); \
-  }\
-  template<class t_storage> \
-  bool _load( t_storage& stg, typename t_storage::hsection hparent_section = nullptr)\
-  {\
-    return serialize_map<false>(stg, hparent_section);\
-  }\
-  template<class t_storage> \
-  bool load( t_storage& stg, typename t_storage::hsection hparent_section = nullptr)\
-  {\
-    try{\
-    return serialize_map<false>(stg, hparent_section);\
-    }\
-    catch(const std::exception& err) \
-    { \
-      (void)(err); \
-      LOG_ERROR("Exception on unserializing: " << err.what());\
-      return false; \
-    }\
-  }\
-  /*template<typename T> T& this_type_resolver() { return *this; }*/ \
-  /*using this_type = std::result_of<decltype(this_type_resolver)>::type;*/ \
-  template<bool is_store, class t_storage> \
-  bool serialize_map(t_storage& stg, typename t_storage::hsection hparent_section) \
-  { \
-    decltype(*this) &this_ref = *this; \
-    (void) this_ref; // Suppress unused var warnings. Sometimes this var is used, sometimes not.
+#define BEGIN_KV_SERIALIZE_MAP()                                        \
+  template<typename R>                                                  \
+  std::error_code from_bytes(const ::epee::span<const std::uint8_t> source) \
+  { return ::wire_read::from_bytes<R>(source, *this); }                 \
+                                                                        \
+  std::error_code to_bytes(::epee::byte_stream& dest) const             \
+  { return ::wire_write::to_bytes<W>(dest, *this); }                    \
+                                                                        \
+  template<class F>                                                     \
+  void read_bytes(F& format)                                            \
+  { ::epee::unpack_object(format, get_field_list(format, *this)); }     \
+                                                                        \
+  template<class F>                                                     \
+  void write_bytes(F& format) const                                     \
+  { ::epee::unpack_object(format, get_field_list(format, *this)); }     \
+                                                                        \
+  template<class F, class T>                                            \
+  static auto get_field_list(F& format, T& self)                        \
+  { return std::tuple_cat(
 
 #define KV_SERIALIZE_N(varialble, val_name) \
-  epee::serialization::selector<is_store>::serialize(this_ref.varialble, stg, hparent_section, val_name);
+  std::make_tuple(::wire::field(val_name, std::ref(self.varialble))),
 
 #define KV_SERIALIZE_PARENT(type) \
-  do { \
-    if (!((type*)this)->serialize_map<is_store, t_storage>(stg, hparent_section)) \
-      return false; \
-  } while(0);
-
-  template<typename T> inline void serialize_default(const T &t, T v) { }
-  template<typename T> inline void serialize_default(T &t, T v) { t = v; }
+  type::template get_field_list(format, self),
 
 #define KV_SERIALIZE_OPT_N(variable, val_name, default_value) \
-  do { \
-    if (is_store && this_ref.variable == default_value) \
-      break; \
-    if (!epee::serialization::selector<is_store>::serialize(this_ref.variable, stg, hparent_section, val_name)) \
-      epee::serialize_default(this_ref.variable, default_value); \
-  } while (0);
-
-#define KV_SERIALIZE_VAL_POD_AS_BLOB_FORCE_N(varialble, val_name) \
-  epee::serialization::selector<is_store>::serialize_t_val_as_blob(this_ref.varialble, stg, hparent_section, val_name); 
+  std::make_tuple(::wire::optional_field(val_name, ::wire::defaulted(std::ref(self.variable), default_value))),
 
 #define KV_SERIALIZE_VAL_POD_AS_BLOB_N(varialble, val_name) \
-  static_assert(std::is_pod<decltype(this_ref.varialble)>::value, "t_type must be a POD type."); \
-  KV_SERIALIZE_VAL_POD_AS_BLOB_FORCE_N(varialble, val_name)
+  std::make_tuple(::wire::field(val_name, ::wire::blob(std::ref(self.varialble)))),
 
 #define KV_SERIALIZE_VAL_POD_AS_BLOB_OPT_N(varialble, val_name, default_value) \
-  do { \
-    static_assert(std::is_pod<decltype(this_ref.varialble)>::value, "t_type must be a POD type."); \
-    bool ret = KV_SERIALIZE_VAL_POD_AS_BLOB_FORCE_N(varialble, val_name); \
-    if (!ret) \
-      epee::serialize_default(this_ref.varialble, default_value); \
-  } while(0);
+  std::make_tuple(::wire::field(val_name, ::wire::defaulted(::wire::blob(std::ref(this_ref.varialble)), default_value))),
 
 #define KV_SERIALIZE_CONTAINER_POD_AS_BLOB_N(varialble, val_name) \
-  epee::serialization::selector<is_store>::serialize_stl_container_pod_val_as_blob(this_ref.varialble, stg, hparent_section, val_name);
+  std::make_tuple(::wire::field(val_name, ::wire::array_as_blob(std::ref(self.varialble)))),
 
-#define END_KV_SERIALIZE_MAP() return true;}
+#define END_KV_SERIALIZE_MAP() std::make_tuple());}
 
 #define KV_SERIALIZE(varialble)                           KV_SERIALIZE_N(varialble, #varialble)
 #define KV_SERIALIZE_VAL_POD_AS_BLOB(varialble)           KV_SERIALIZE_VAL_POD_AS_BLOB_N(varialble, #varialble)

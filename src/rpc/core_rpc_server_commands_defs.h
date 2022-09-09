@@ -60,11 +60,23 @@ namespace cryptonote
 #define MAKE_CORE_RPC_VERSION(major,minor) (((major)<<16)|(minor))
 #define CORE_RPC_VERSION MAKE_CORE_RPC_VERSION(CORE_RPC_VERSION_MAJOR, CORE_RPC_VERSION_MINOR)
 
+#define RPC_REQUEST_BASE_FIELDS()
+
+#define RPC_RESPONSE_BASE_FIELDS() \
+    KV_SERIALIZE(status)           \
+    KV_SERIALIZE(untrusted)
+
+#define RPC_ACCESS_REQUEST_BASE_FIELDS() \
+    RPC_REQUEST_BASE_FIELDS()            \
+    KV_SERIALIZE(client)                 \
+
+#define RPC_ACCESS_RESPONSE_BASE_FIELDS() \
+    RPC_RESPONSE_BASE_FIELDS()            \
+    KV_SERIALIZE(credits)                 \
+    KV_SERIALIZE(top_hash)
+    
   struct rpc_request_base
-  {
-    BEGIN_KV_SERIALIZE_MAP()
-    END_KV_SERIALIZE_MAP()
-  };
+  {};
 
   struct rpc_response_base
   {
@@ -72,21 +84,11 @@ namespace cryptonote
     bool untrusted;
 
     rpc_response_base(): untrusted(false) {}
-
-    BEGIN_KV_SERIALIZE_MAP()
-      KV_SERIALIZE(status)
-      KV_SERIALIZE(untrusted)
-    END_KV_SERIALIZE_MAP()
   };
 
   struct rpc_access_request_base: public rpc_request_base
   {
     std::string client;
-
-    BEGIN_KV_SERIALIZE_MAP()
-      KV_SERIALIZE_PARENT(rpc_request_base)
-      KV_SERIALIZE(client)
-    END_KV_SERIALIZE_MAP()
   };
 
   struct rpc_access_response_base: public rpc_response_base
@@ -95,12 +97,6 @@ namespace cryptonote
     std::string top_hash;
 
     rpc_access_response_base(): credits(0) {}
-
-    BEGIN_KV_SERIALIZE_MAP()
-      KV_SERIALIZE_PARENT(rpc_response_base)
-      KV_SERIALIZE(credits)
-      KV_SERIALIZE(top_hash)
-    END_KV_SERIALIZE_MAP()
   };
 
   struct COMMAND_RPC_GET_HEIGHT
@@ -108,7 +104,7 @@ namespace cryptonote
     struct request_t: public rpc_request_base
     {
       BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE_PARENT(rpc_request_base)
+        RPC_REQUEST_BASE_FIELDS()
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
@@ -119,7 +115,7 @@ namespace cryptonote
       std::string hash;
 
       BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE_PARENT(rpc_response_base)
+        RPC_RESPONSE_BASE_FIELDS()
         KV_SERIALIZE(height)
         KV_SERIALIZE(hash)
       END_KV_SERIALIZE_MAP()

@@ -231,4 +231,10 @@ namespace wire
   {
     wire_write::object(dest, std::move(fields)...);
   }
+
+  template<typename... T>
+  inline void wire_object(writer& dest, T... fields)
+  {
+    ::wire::object(dest, std::move(fields));
+  }
 }

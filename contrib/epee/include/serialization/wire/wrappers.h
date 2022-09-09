@@ -1,4 +1,4 @@
-// Copyright (c) 2021, The Monero Project
+// Copyright (c) 2022, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -27,18 +27,10 @@
 
 #pragma once
 
-#include <cstring>
 #include <type_traits>
 #include <utility>
-
-#include "byte_slice.h"
-#include "byte_stream.h"
-#include "serialization/wire/error.h"
 #include "serialization/wire/field.h"
-#include "serialization/wire/read.h"
 #include "serialization/wire/traits.h"
-#include "serialization/wire/write.h"
-#include "span.h"
 
 //
 // A set of "wrappers" that change how a value is read/written
@@ -161,44 +153,6 @@ namespace wire
     return {std::move(value)};
   }
 
-  template<typename R, typename T, typename C>
-  inline void read_reserve(R& source, array_<T, C>& wrapper, const std::size_t count)
-  {
-    wire_read::reserve(source, wrapper.get_container(), count);
-  }
-
-  template<typename R, typename T, typename C>
-  inline void read_reset(R& source, array_<T, C>& wrapper)
-  {
-    wire_read::reset(source, wrapper.get_container());
-  }
-
-  template<typename R, typename T, typename C>
-  inline void read_bytes(const R&, const array_<T, C>&)
-  {
-    // see constraints directly above `array_` definition
-    static_assert(std::is_same<R, void>::value, "array_ must have a read constraint for memory purposes");
-  }
-  template<typename R, typename T, std::size_t N>
-  inline void read_bytes(R& source, array_<T, max_element_count<N>>& wrapper)
-  {
-    using array_type = array_<T, max_element_count<N>>;
-    static_assert(array_type::constraint::check<array_type::value_type>(), "max reserve bytes exceeded for element");
-    wire_read::array(source, wrapper.get_container(), min_element_size<0>{}, array_type::constraint{});
-  }
-  template<typename R, typename T, std::size_t N>
-  inline void read_bytes(R& source, array_<T, min_element_size<N>>& wrapper)
-  {
-    using array_type = array_<T, min_element_size<N>>;
-    static_assert(array_type::constraint::check<array_type::value_type>(), "max compression ratio exceeded for element");
-    wire_read::array(source, wrapper.get_container(), array_type::constraint{});
-  }
-
-  template<typename W, typename T, typename C>
-  inline void write_bytes(W& dest, const array_<T, C>& wrapper)
-  {
-    wire_write::array(dest, wrapper.get_container());
-  }
 
 
   /*! A wrapper that tells `wire::writer`s` and `wire::reader`s to encode a
@@ -234,81 +188,5 @@ namespace wire
   constexpr inline array_as_blob_<T> array_as_blob(T value)
   {
     return {std::move(value)};
-  }
-
-  template<typename R, typename T>
-  inline void read_reset(const R& source, array_as_blob_<T>& wrapper)
-  {
-    wire_read::reset(source, wrapper.get_container());
-  }
-
-#if BYTE_ORDER == LITTLE_ENDIAN
-  // enable optimization if `T` has `resize` and `data()`
-  template<typename T>
-  auto read_as_blob(epee::byte_slice source, T& dest) -> decltype(dest.resize(0), dest.data())
-  {
-    using value_type = typename T::value_type;
-    dest.resize(source.size() / sizeof(value_type));
-    std::memcpy(dest.data(), source.data(), source.size());
-    return dest.data();
-  }
-
-  // enable optimization if `T` has `data()`
-  template<typename W, typename T>
-  auto write_as_blob(W& dest, const T& source) -> decltype(source.data())
-  {
-    using value_type = typename T::value_type;
-    dest.binary({reinterpret_cast<const std::uint8_t*>(source.data()), source.size() * sizeof(value_type)});
-    return dest.data();
-  }
-#endif // LITTLE ENDIAN
-
-  // Parameter packs take lower precedence (above preferred if `T` has extra functions)
-
-  template<typename T, typename... Ignored>
-  void read_as_blob(epee::byte_slice source, T& dest, const Ignored&...)
-  {
-    using value_type = typename T::value_type;
-    dest.clear();
-    wire_read::read_reserve(source, dest, bytes.size() / sizeof(value_type));
-    while (!bytes.empty())
-    {
-      dest.emplace_back();
-      std::memcpy(std::addressof(dest.back()), bytes.data(), sizeof(value_type));
-      dest.back() = CONVERT_POD(dest.back());
-      bytes.remove_prefix(sizeof(value_type));
-    }
-  }
-
-  template<typename W, typename T, typename... Ignored>
-  void write_as_blob(W& dest, const T& source, const Ignored&...)
-  {
-    using value_type = typename T::value_type;
-    epee::byte_stream bytes{};
-    bytes.reserve(sizeof(value_type) * source.size());
-    for (const auto elem : source)
-    {
-      elem = CONVERT_POD(elem);
-      bytes.write(reinterpret_cast<const char*>(std::addressof(elem)), sizeof(elem));
-    }
-
-    dest.binary(epee::to_span(bytes));
-  }
-
-  template<typename R, typename T>
-  void read_bytes(R& source, array_as_blob_<T>& dest)
-  {
-    static_assert(dest.value_size() != 0, "divide by zero and no progress below");
-    epee::byte_slice bytes = source.binary();
-    if (bytes.size() % dest.value_size() != 0)
-      WIRE_DLOG_THROW_(error::schema::fixed_binary);
-
-    read_as_blob(std::move(bytes), dest.get_container());
-  }
-
-  template<typename W, typename T>
-  void write_bytes(W& dest, const array_as_blob_<T>& source)
-  {
-    write_as_blob(dest, source.get_container());
   }
 } // wire

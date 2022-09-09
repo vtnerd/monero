@@ -479,4 +479,10 @@ namespace wire
   {
     wire_read::object(source, wire_read::tracker<T>{std::move(fields)}...);
   }
+
+  template<typename... T>
+  inline void wire_object(reader& source, T... fields)
+  {
+    ::wire::object(source, std::move(fields));
+  }
 }
