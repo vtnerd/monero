@@ -30,11 +30,17 @@
 #include <cstdint>
 #include <type_traits>
 
+#define WIRE_DECLARE_BLOB(type)                 \
+  template<>                                    \
+  struct is_blob<type>                          \
+    : std::true_type                            \
+  {};
+
+#define WIRE_DECLARE_BLOB_NS(type)              \
+  namespace wire { WIRE_DECLARE_BLOB(type) }
+
 namespace wire
 {
-  template<bool C>
-  using enable_if = typename std::enable_if<C>::type;
-
   template<typename T>
   struct unwrap_reference
   {
@@ -47,7 +53,7 @@ namespace wire
     using type = T;
   };
 
-  //! Mark `T` as an array for writing purposes only. See `array_` in `wrappers.h`.
+  //! Mark `T` as an array for writing purposes only. See `array_` in `wrapper/array.h`.
   template<typename T>
   struct is_array : std::false_type
   {};

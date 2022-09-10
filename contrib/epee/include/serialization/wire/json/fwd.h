@@ -1,4 +1,4 @@
-// Copyright (c) 2021, The Monero Project
+// Copyright (c) 2022, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -27,20 +27,15 @@
 
 #pragma once
 
-#include <cstdint>
-#include <list>
-
-#include "serialization/wire/traits.h"
+//! Declare function that list fields `type` (calls de-virtualized)
+#define WIRE_JSON_DECLARE_OBJECT(type)			\
+  void read_bytes(::wire::json_reader&, type&);         \
+  void write_bytes(::wire::json_writer&, const type&)
 
 namespace wire
 {
-  // For easy output
-  template<typename T>
-  struct is_array<std::list<T>>
-    : std::true_type
-  {};
-
-  template<typename R, typename T>
-  inline void read_reserve(const R&, const std::list<T>&, const std::size_t) noexcept
-  {}
+  struct json;
+  class json_reader;
+  class json_writer;
 }
+

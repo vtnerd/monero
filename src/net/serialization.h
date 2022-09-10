@@ -48,7 +48,7 @@ namespace epee
 
     // This prevents implicit conversion of network_address
     template<typename T>
-    inline typename std::enable_if<std::is_same<T, network_address>::value>::type
+    inline std::enable_if_t<std::is_same<T, network_address>::value>
     write_bytes(wire::epee_writer& dest, const T& source)
     {
       write_bytes_explicit(dest, source);

@@ -42,8 +42,6 @@ namespace cryptonote
 {
   namespace
   {
-    using tx_blob_min = wire::min_element_size<42>;
-
     template<typename F, typename T>
     void tx_blob_entry_map(F& format, T& self)
     {
@@ -79,99 +77,15 @@ namespace cryptonote
       if (txs && txs->second != is_pruned(self.pruned))
         WIRE_DLOG_THROW(wire::error::schema::object, "Schema mismatch with pruned flag set to " << self.pruned);
     }
-
-    template<typename F, typename T>
-    void new_block_map(F& format, T& self)
-    {
-      wire::object(format, WIRE_FIELD(b), WIRE_FIELD(current_blockchain_height));
-    }
-
-    template<typename F, typename T>
-    void new_transactions_map(F& format, T& self)
-    {
-      wire::object(format,
-        WIRE_FIELD_ARRAY(txs, tx_blob_min),
-        WIRE_FIELD(_),
-        WIRE_FIELD_DEFAULTED(dandelionpp_fluff, true) // backwards compatible mode is fluff
-      );
-    }
-
-    template<typename F, typename T>
-    void request_get_objects_map(F& format, T& self)
-    {
-      wire::object(format, WIRE_FIELD_ARRAY_AS_BLOB(blocks), WIRE_FIELD_DEFAULTED(prune, false));
-    }
-
-    template<typename F, typename T>
-    void response_get_objects_map(F& format, T& self)
-    {
-      wire::object(format,
-        WIRE_FIELD_ARRAY(blocks, block_blob_min),
-        WIRE_FIELD_ARRAY_AS_BLOB(missed_ids),
-        WIRE_FIELD(current_blockchain_height)
-      );
-    }
-
-    template<typename F, typename T>
-    void core_sync_data_map(F& format, T& self)
-    {
-      wire::object(format,
-        WIRE_FIELD(current_height),
-        WIRE_FIELD(cumulative_difficulty),
-        WIRE_FIELD_DEFAULTED(cumulative_difficulty_top64, unsigned(0)),
-        WIRE_FIELD(top_id),
-        WIRE_FIELD_DEFAULTED(top_version, unsigned(0)),
-        WIRE_FIELD_DEFAULTED(pruning_seed, unsigned(0))
-      );
-    }
-
-    template<typename F, typename T>
-    void request_chain_map(F& format, T& self)
-    {
-      wire::object(format, WIRE_FIELD_ARRAY_AS_BLOB(block_ids), WIRE_FIELD_DEFAULTED(prune, false));
-    }
-
-    template<typename F, typename T>
-    void response_chain_map(F& format, T& self)
-    {
-      wire::object(format,
-        WIRE_FIELD(start_height),
-        WIRE_FIELD(total_height),
-        WIRE_FIELD(cumulative_difficulty),
-        WIRE_FIELD_DEFAULTED(cumulative_difficulty_top64, unsigned(0)),
-        WIRE_FIELD_ARRAY_AS_BLOB(m_block_ids),
-        WIRE_FIELD_ARRAY_AS_BLOB(m_block_weights),
-        WIRE_FIELD(first_block)
-      );
-    }
-
-    template<typename F, typename T>
-    void new_fluffy_blob_map(F& format, T& self)
-    {
-      wire::object(format, WIRE_FIELD(b), WIRE_FIELD(current_blockchain_height));
-    }
-
-    template<typename F, typename T>
-    void fluffy_missing_tx_map(F& format, T& self)
-    {
-      wire::object(format,
-        WIRE_FIELD(block_hash),
-        WIRE_FIELD(current_blockchain_height),
-        WIRE_FIELD_ARRAY_AS_BLOB(missing_tx_indices)
-      );
-    }
-
-    template<typename F, typename T>
-    void txpool_complement_map(F& format, T& self)
-    {
-      wire::object(format, WIRE_FIELD_ARRAY_AS_BLOB(hashes));
-    }
   } // anonymous
 
   void read_bytes(wire::epee_reader& source, tx_blob_entry& dest)
   {
     if (source.last_tag() == SERIALIZE_TYPE_STRING)
+    {
       wire_read::bytes(source, dest.blob);
+      dest.prunable_hash = crypto::null_hash;
+    }
     else
       tx_blob_entry_map(source, dest);
   }
@@ -191,24 +105,14 @@ namespace cryptonote
     auto txs = boost::make_optional(!source.txs.empty(), std::make_pair(std::ref(source.txs), is_pruned(source.pruned)));
     block_complete_entry_map(dest, source, txs);
   }
-  WIRE_EPEE_DEFINE_OBJECT(NOTIFY_NEW_BLOCK::request, new_block_map);
   WIRE_EPEE_DEFINE_CONVERSION(NOTIFY_NEW_BLOCK::request);
-  WIRE_EPEE_DEFINE_OBJECT(NOTIFY_NEW_TRANSACTIONS::request, new_transactions_map);
   WIRE_EPEE_DEFINE_CONVERSION(NOTIFY_NEW_TRANSACTIONS::request)
-  WIRE_EPEE_DEFINE_OBJECT(NOTIFY_REQUEST_GET_OBJECTS::request, request_get_objects_map);
   WIRE_EPEE_DEFINE_CONVERSION(NOTIFY_REQUEST_GET_OBJECTS::request);
-  WIRE_EPEE_DEFINE_OBJECT(NOTIFY_RESPONSE_GET_OBJECTS::request, response_get_objects_map);
   WIRE_EPEE_DEFINE_CONVERSION(NOTIFY_RESPONSE_GET_OBJECTS::request);
-  WIRE_EPEE_DEFINE_OBJECT(CORE_SYNC_DATA, core_sync_data_map);
   WIRE_EPEE_DEFINE_CONVERSION(CORE_SYNC_DATA);
-  WIRE_EPEE_DEFINE_OBJECT(NOTIFY_REQUEST_CHAIN::request, request_chain_map);
   WIRE_EPEE_DEFINE_CONVERSION(NOTIFY_REQUEST_CHAIN::request);
-  WIRE_EPEE_DEFINE_OBJECT(NOTIFY_RESPONSE_CHAIN_ENTRY::request, response_chain_map);
   WIRE_EPEE_DEFINE_CONVERSION(NOTIFY_RESPONSE_CHAIN_ENTRY::request);
-  WIRE_EPEE_DEFINE_OBJECT(NOTIFY_NEW_FLUFFY_BLOCK::request, new_fluffy_blob_map);
-  WIRE_EPEE_DEFINE_OBJECT(NOTIFY_REQUEST_FLUFFY_MISSING_TX::request, fluffy_missing_tx_map);
   WIRE_EPEE_DEFINE_CONVERSION(NOTIFY_NEW_FLUFFY_BLOCK::request);
   WIRE_EPEE_DEFINE_CONVERSION(NOTIFY_REQUEST_FLUFFY_MISSING_TX::request);
-  WIRE_EPEE_DEFINE_OBJECT(NOTIFY_GET_TXPOOL_COMPLEMENT::request, txpool_complement_map);
   WIRE_EPEE_DEFINE_CONVERSION(NOTIFY_GET_TXPOOL_COMPLEMENT::request);
 } // cryptonote

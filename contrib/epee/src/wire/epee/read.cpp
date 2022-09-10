@@ -267,6 +267,15 @@ namespace wire
     return std::string{reinterpret_cast<const char*>(value.data()), value.size()};
   }
 
+  std::size_t epee_reader::string(epee::span<char> dest)
+  {
+    const auto value = raw(error::schema::string);
+    if (dest.size() < value.size())
+      WIRE_DLOG_THROW_(error::schema::string, " no longer than " << dest.size() << " but got " << value.size());
+    std::memcpy(dest.data(), value.data(), value.size());
+    return value.size();
+  }
+
   epee::byte_slice epee_reader::binary()
   {
     // TODO update epee "glue" code to use byte_slice, so that this is a ref-count

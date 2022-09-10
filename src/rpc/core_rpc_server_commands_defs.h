@@ -37,9 +37,7 @@
 #include "cryptonote_basic/difficulty.h"
 #include "crypto/hash.h"
 #include "rpc/rpc_handler.h"
-#include "common/varint.h"
-#include "common/perf_timer.h"
-#include "serialization/wire/epee/base.h"
+#include "storages/portable_storage_template_helper.h"
 
 namespace cryptonote
 {
@@ -48,6 +46,7 @@ namespace cryptonote
 #define CORE_RPC_STATUS_BUSY   "BUSY"
 #define CORE_RPC_STATUS_NOT_MINING "NOT MINING"
 #define CORE_RPC_STATUS_PAYMENT_REQUIRED "PAYMENT REQUIRED"
+
 // When making *any* change here, bump minor
 // If the change is incompatible, then bump major and set minor to 0
 // This ensures CORE_RPC_VERSION always increases, that every change
@@ -60,23 +59,11 @@ namespace cryptonote
 #define MAKE_CORE_RPC_VERSION(major,minor) (((major)<<16)|(minor))
 #define CORE_RPC_VERSION MAKE_CORE_RPC_VERSION(CORE_RPC_VERSION_MAJOR, CORE_RPC_VERSION_MINOR)
 
-#define RPC_REQUEST_BASE_FIELDS()
-
-#define RPC_RESPONSE_BASE_FIELDS() \
-    KV_SERIALIZE(status)           \
-    KV_SERIALIZE(untrusted)
-
-#define RPC_ACCESS_REQUEST_BASE_FIELDS() \
-    RPC_REQUEST_BASE_FIELDS()            \
-    KV_SERIALIZE(client)                 \
-
-#define RPC_ACCESS_RESPONSE_BASE_FIELDS() \
-    RPC_RESPONSE_BASE_FIELDS()            \
-    KV_SERIALIZE(credits)                 \
-    KV_SERIALIZE(top_hash)
-    
   struct rpc_request_base
-  {};
+  {
+    BEGIN_KV_SERIALIZE_MAP()
+    END_KV_SERIALIZE_MAP()
+  };
 
   struct rpc_response_base
   {
@@ -84,11 +71,21 @@ namespace cryptonote
     bool untrusted;
 
     rpc_response_base(): untrusted(false) {}
+
+    BEGIN_KV_SERIALIZE_MAP()
+      KV_SERIALIZE(status)
+      KV_SERIALIZE(untrusted)
+    END_KV_SERIALIZE_MAP()
   };
 
   struct rpc_access_request_base: public rpc_request_base
   {
     std::string client;
+
+    BEGIN_KV_SERIALIZE_MAP()
+      KV_SERIALIZE_PARENT(rpc_request_base)
+      KV_SERIALIZE(client)
+    END_KV_SERIALIZE_MAP()
   };
 
   struct rpc_access_response_base: public rpc_response_base
@@ -97,6 +94,12 @@ namespace cryptonote
     std::string top_hash;
 
     rpc_access_response_base(): credits(0) {}
+
+    BEGIN_KV_SERIALIZE_MAP()
+      KV_SERIALIZE_PARENT(rpc_response_base)
+      KV_SERIALIZE(credits)
+      KV_SERIALIZE(top_hash)
+    END_KV_SERIALIZE_MAP()
   };
 
   struct COMMAND_RPC_GET_HEIGHT
@@ -104,7 +107,7 @@ namespace cryptonote
     struct request_t: public rpc_request_base
     {
       BEGIN_KV_SERIALIZE_MAP()
-        RPC_REQUEST_BASE_FIELDS()
+        KV_SERIALIZE_PARENT(rpc_request_base)
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
@@ -115,13 +118,15 @@ namespace cryptonote
       std::string hash;
 
       BEGIN_KV_SERIALIZE_MAP()
-        RPC_RESPONSE_BASE_FIELDS()
+        KV_SERIALIZE_PARENT(rpc_response_base)
         KV_SERIALIZE(height)
         KV_SERIALIZE(hash)
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_HEIGHT::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_HEIGHT::response);
 
   struct COMMAND_RPC_GET_BLOCKS_FAST
   {
@@ -132,25 +137,49 @@ namespace cryptonote
       uint64_t    start_height;
       bool        prune;
       bool        no_miner_tx;
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_request_base)
+        KV_SERIALIZE_CONTAINER_POD_AS_BLOB(block_ids)
+        KV_SERIALIZE(start_height)
+        KV_SERIALIZE(prune)
+        KV_SERIALIZE_OPT(no_miner_tx, false)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
 
     struct tx_output_indices
     {
       std::vector<uint64_t> indices;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(indices)
+      END_KV_SERIALIZE_MAP()
     };
 
     struct block_output_indices
     {
       std::vector<tx_output_indices> indices;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(indices)
+      END_KV_SERIALIZE_MAP()
     };
 
     struct response_t: public rpc_access_response_base
     {
+      using max_blocks = ::wire::max_element_count<COMMAND_RPC_GET_BLOCKS_FAST_BLOCK_COUNT>;
       std::vector<block_complete_entry> blocks;
       uint64_t    start_height;
       uint64_t    current_height;
       std::vector<block_output_indices> output_indices;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_response_base)
+        KV_SERIALIZE_ARRAY(blocks, max_blocks)
+        KV_SERIALIZE(start_height)
+        KV_SERIALIZE(current_height)
+        KV_SERIALIZE_ARRAY(output_indices, max_blocks)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
@@ -162,12 +191,21 @@ namespace cryptonote
     struct request_t: public rpc_access_request_base
     {
       std::vector<uint64_t> heights;
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_request_base)
+        KV_SERIALIZE(heights)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
 
     struct response_t: public rpc_access_response_base
     {
       std::vector<block_complete_entry> blocks;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_response_base)
+        KV_SERIALIZE(blocks)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
@@ -195,6 +233,9 @@ namespace cryptonote
         };
         typedef epee::misc_utils::struct_init<response_t> response;
     };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_ALT_BLOCKS_HASHES::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_ALT_BLOCKS_HASHES::response);
+  
   struct COMMAND_RPC_GET_HASHES_FAST
   {
 
@@ -202,6 +243,11 @@ namespace cryptonote
     {
       std::list<crypto::hash> block_ids; //*first 10 blocks id goes sequential, next goes in pow(2,n) offset, like 2, 4, 8, 16, 32, 64 and so on, and the last one is always genesis block */
       uint64_t    start_height;
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_request_base)
+        KV_SERIALIZE_CONTAINER_POD_AS_BLOB(block_ids)
+        KV_SERIALIZE(start_height)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
 
@@ -210,6 +256,13 @@ namespace cryptonote
       std::vector<crypto::hash> m_block_ids;
       uint64_t    start_height;
       uint64_t    current_height;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_response_base)
+        KV_SERIALIZE_CONTAINER_POD_AS_BLOB(m_block_ids)
+        KV_SERIALIZE(start_height)
+        KV_SERIALIZE(current_height)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
@@ -245,6 +298,8 @@ namespace cryptonote
       };
       typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SUBMIT_RAW_TX::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SUBMIT_RAW_TX::response);
   //-----------------------------------------------
   struct COMMAND_RPC_GET_TRANSACTIONS
   {
@@ -328,6 +383,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTIONS::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTIONS::response);
 
   //-----------------------------------------------
   struct COMMAND_RPC_IS_KEY_IMAGE_SPENT
@@ -344,7 +401,7 @@ namespace cryptonote
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE_PARENT(rpc_access_request_base)
-        KV_SERIALIZE(key_images)
+        KV_SERIALIZE_ARRAY(key_images, wire::min_element_size<32>)
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
@@ -361,6 +418,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_IS_KEY_IMAGE_SPENT::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_IS_KEY_IMAGE_SPENT::response);
 
   //-----------------------------------------------
   struct COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES
@@ -368,6 +427,10 @@ namespace cryptonote
     struct request_t: public rpc_access_request_base
     {
       crypto::hash txid;
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_request_base)
+        KV_SERIALIZE_VAL_POD_AS_BLOB(txid)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
 
@@ -375,6 +438,11 @@ namespace cryptonote
     struct response_t: public rpc_access_response_base
     {
       std::vector<uint64_t> o_indexes;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_response_base)
+        KV_SERIALIZE(o_indexes)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
@@ -398,6 +466,12 @@ namespace cryptonote
     {
       std::vector<get_outputs_out> outputs;
       bool get_txid;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_request_base)
+        KV_SERIALIZE(outputs)
+        KV_SERIALIZE_OPT(get_txid, true)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
 
@@ -408,11 +482,24 @@ namespace cryptonote
       bool unlocked;
       uint64_t height;
       crypto::hash txid;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_VAL_POD_AS_BLOB(key)
+        KV_SERIALIZE_VAL_POD_AS_BLOB(mask)
+        KV_SERIALIZE(unlocked)
+        KV_SERIALIZE(height)
+        KV_SERIALIZE_VAL_POD_AS_BLOB(txid)
+      END_KV_SERIALIZE_MAP()
     };
 
     struct response_t: public rpc_access_response_base
     {
       std::vector<outkey> outs;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_response_base)
+        KV_SERIALIZE(outs)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
@@ -462,6 +549,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_OUTPUTS::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_OUTPUTS::response);
   //-----------------------------------------------
   struct COMMAND_RPC_SEND_RAW_TX
   {
@@ -512,6 +601,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SEND_RAW_TX::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SEND_RAW_TX::response);
   //-----------------------------------------------
   struct COMMAND_RPC_START_MINING
   {
@@ -540,6 +631,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_START_MINING::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_START_MINING::response);
   //-----------------------------------------------
   struct COMMAND_RPC_GET_INFO
   {
@@ -638,6 +731,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_INFO::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_INFO::response);
 
     
   //-----------------------------------------------
@@ -671,6 +766,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_NET_STATS::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_NET_STATS::response);
 
   //-----------------------------------------------
   struct COMMAND_RPC_STOP_MINING
@@ -692,6 +789,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_STOP_MINING::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_STOP_MINING::response);
 
   //-----------------------------------------------
   struct COMMAND_RPC_MINING_STATUS
@@ -744,6 +843,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_MINING_STATUS::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_MINING_STATUS::response);
 
   //-----------------------------------------------
   struct COMMAND_RPC_SAVE_BC
@@ -765,6 +866,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SAVE_BC::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SAVE_BC::response);
   
   //
   struct COMMAND_RPC_GETBLOCKCOUNT
@@ -782,6 +885,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GETBLOCKCOUNT::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GETBLOCKCOUNT::response);
 
   struct COMMAND_RPC_GETBLOCKHASH
   {
@@ -789,6 +894,8 @@ namespace cryptonote
 
     typedef std::string response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GETBLOCKHASH::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GETBLOCKHASH::response);
 
 
   struct COMMAND_RPC_GETBLOCKTEMPLATE
@@ -843,6 +950,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GETBLOCKTEMPLATE::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GETBLOCKTEMPLATE::response);
 
   struct COMMAND_RPC_GETMINERDATA
   {
@@ -888,11 +997,13 @@ namespace cryptonote
         KV_SERIALIZE(difficulty)
         KV_SERIALIZE(median_weight)
         KV_SERIALIZE(already_generated_coins)
-        KV_SERIALIZE(tx_backlog)
+        KV_SERIALIZE_ARRAY(tx_backlog, wire::min_element_size<32>)
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GETMINERDATA::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GETMINERDATA::response);
 
   struct COMMAND_RPC_CALCPOW
   {
@@ -915,6 +1026,8 @@ namespace cryptonote
 
     typedef std::string response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_CALCPOW::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_CALCPOW::response);
 
   struct COMMAND_RPC_ADD_AUX_POW
   {
@@ -961,6 +1074,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ADD_AUX_POW::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ADD_AUX_POW::response);
 
   struct COMMAND_RPC_SUBMITBLOCK
   {
@@ -974,6 +1089,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_SUBMITBLOCK::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_SUBMITBLOCK::response);
 
   struct COMMAND_RPC_GENERATEBLOCKS
   {
@@ -1058,6 +1175,8 @@ namespace cryptonote
         KV_SERIALIZE(miner_tx_hash)
       END_KV_SERIALIZE_MAP()
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GENERATEBLOCKS::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GENERATEBLOCKS::response);
 
   struct COMMAND_RPC_GET_LAST_BLOCK_HEADER
   {
@@ -1084,6 +1203,8 @@ namespace cryptonote
     typedef epee::misc_utils::struct_init<response_t> response;
 
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_LAST_BLOCK_HEADER::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_LAST_BLOCK_HEADER::response);
   
   struct COMMAND_RPC_GET_BLOCK_HEADER_BY_HASH
   {
@@ -1115,6 +1236,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BLOCK_HEADER_BY_HASH::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BLOCK_HEADER_BY_HASH::response);
 
   struct COMMAND_RPC_GET_BLOCK_HEADER_BY_HEIGHT
   {
@@ -1142,6 +1265,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BLOCK_HEADER_BY_HEIGHT::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BLOCK_HEADER_BY_HEIGHT::response);
 
   struct COMMAND_RPC_GET_BLOCK
   {
@@ -1179,6 +1304,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BLOCK::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BLOCK::response);
 
   struct peer {
     uint64_t id;
@@ -1294,6 +1421,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_PUBLIC_NODES::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_PUBLIC_NODES::response);
 
   struct COMMAND_RPC_SET_LOG_HASH_RATE
   {
@@ -1316,6 +1445,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SET_LOG_HASH_RATE::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SET_LOG_HASH_RATE::response);
 
   struct COMMAND_RPC_SET_LOG_LEVEL
   {
@@ -1338,6 +1469,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SET_LOG_LEVEL::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SET_LOG_LEVEL::response);
 
   struct COMMAND_RPC_SET_LOG_CATEGORIES
   {
@@ -1363,6 +1496,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SET_LOG_CATEGORIES::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SET_LOG_CATEGORIES::response);
 
   struct tx_info
   {
@@ -1437,6 +1572,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTION_POOL::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTION_POOL::response);
 
   struct COMMAND_RPC_GET_TRANSACTION_POOL_HASHES_BIN
   {
@@ -1459,6 +1596,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTION_POOL_HASHES_BIN::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTION_POOL_HASHES_BIN::response);
 
   struct COMMAND_RPC_GET_TRANSACTION_POOL_HASHES
   {
@@ -1481,6 +1620,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTION_POOL_HASHES::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTION_POOL_HASHES::response);
 
   struct tx_backlog_entry
   {
@@ -1510,6 +1651,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTION_POOL_BACKLOG::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTION_POOL_BACKLOG::response);
 
   struct txpool_histo
   {
@@ -1578,6 +1721,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTION_POOL_STATS::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_TRANSACTION_POOL_STATS::response);
 
   struct COMMAND_RPC_GET_CONNECTIONS
   {
@@ -1600,6 +1745,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_CONNECTIONS::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_CONNECTIONS::response);
 
   struct COMMAND_RPC_GET_BLOCK_HEADERS_RANGE
   {
@@ -1629,6 +1776,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BLOCK_HEADER_RANGE::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BLOCK_HEADER_RANGE::response);
 
   struct COMMAND_RPC_SET_BOOTSTRAP_DAEMON
   {
@@ -1658,6 +1807,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SET_BOOTSTRAP_DAEMON::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SET_BOOTSTRAP_DAEMON::response);
 
   struct COMMAND_RPC_STOP_DAEMON
   {
@@ -1677,6 +1828,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_STOP_DAEMON::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_STOP_DAEMON::response);
   
   struct COMMAND_RPC_FAST_EXIT
   {
@@ -1720,6 +1873,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_LIMIT::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_GET_LIMIT::response);
   
   struct COMMAND_RPC_SET_LIMIT
   {
@@ -1747,8 +1902,11 @@ namespace cryptonote
         KV_SERIALIZE(limit_down)
       END_KV_SERIALIZE_MAP()
     };
+    
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SET_LIMIT::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_SET_LIMIT::response);
   
   struct COMMAND_RPC_OUT_PEERS
   {
@@ -1776,6 +1934,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_OUT_PEERS::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_OUT_PEERS::response);
 
   struct COMMAND_RPC_IN_PEERS
   {
@@ -1802,7 +1962,9 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
-    
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_IN_PEERS::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_IN_PEERS::response);
+
   struct COMMAND_RPC_HARD_FORK_INFO
   {
     struct request_t: public rpc_access_request_base
@@ -1841,6 +2003,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_HARD_FORK_INFO::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_HARD_FORK_INFO::response);
 
   struct COMMAND_RPC_GETBANS
   {
@@ -1876,6 +2040,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BANS::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BANS::response);
 
   struct COMMAND_RPC_SETBANS
   {
@@ -1913,6 +2079,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_SET_BANS::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_SET_BANS::response);
 
   struct COMMAND_RPC_BANNED
   {
@@ -1940,6 +2108,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_BANNED::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_BANNED::response);
 
   struct COMMAND_RPC_FLUSH_TRANSACTION_POOL
   {
@@ -1962,6 +2132,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_FLUSH_TRANSACTION_POOL::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_FLUSH_TRANSACTION_POOL::response);
 
   struct COMMAND_RPC_GET_OUTPUT_HISTOGRAM
   {
@@ -2014,6 +2186,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_OUTPUT_HISTOGRAM::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_OUTPUT_HISTOGRAM::response);
 
   struct COMMAND_RPC_GET_VERSION
   {
@@ -2038,6 +2212,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_VERSION::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_VERSION::response);
 
   struct COMMAND_RPC_GET_COINBASE_TX_SUM
   {
@@ -2075,6 +2251,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_COINBASE_TX_SUM::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_COINBASE_TX_SUM::response);
 
   struct COMMAND_RPC_GET_BASE_FEE_ESTIMATE
   {
@@ -2104,6 +2282,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BASE_FEE_ESTIMATE::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_BASE_FEE_ESTIMATE::response);
 
   struct COMMAND_RPC_GET_ALTERNATE_CHAINS
   {
@@ -2149,6 +2329,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_ALTERNATE_CHAINS::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_GET_ALTERNATE_CHAINS::response);
 
   struct COMMAND_RPC_UPDATE
   {
@@ -2186,6 +2368,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_UPDATE::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_UPDATE::response);
 
   struct COMMAND_RPC_RELAY_TX
   {
@@ -2208,6 +2392,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_RELAY_TX::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_RELAY_TX::response);
 
   struct COMMAND_RPC_SYNC_INFO
   {
@@ -2270,6 +2456,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_SYNC_INFO::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_SYNC_INFO::response);
 
   struct COMMAND_RPC_GET_OUTPUT_DISTRIBUTION
   {
@@ -2281,6 +2469,16 @@ namespace cryptonote
       bool cumulative;
       bool binary;
       bool compress;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_request_base)
+        KV_SERIALIZE(amounts)
+        KV_SERIALIZE_OPT(from_height, (uint64_t)0)
+        KV_SERIALIZE_OPT(to_height, (uint64_t)0)
+        KV_SERIALIZE_OPT(cumulative, false)
+        KV_SERIALIZE_OPT(binary, true)
+        KV_SERIALIZE_OPT(compress, false)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
 
@@ -2296,6 +2494,11 @@ namespace cryptonote
     struct response_t: public rpc_access_response_base
     {
       std::vector<distribution> distributions;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE_PARENT(rpc_access_response_base)
+        KV_SERIALIZE(distributions)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
@@ -2337,6 +2540,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ACCESS_INFO::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ACCESS_INFO::response);
 
   struct COMMAND_RPC_ACCESS_SUBMIT_NONCE
   {
@@ -2361,6 +2566,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_SUBMIT_NONCE::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_SUBMIT_NONCE::response);
 
   struct COMMAND_RPC_ACCESS_PAY
   {
@@ -2385,6 +2592,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ACCESS_PAY::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ACCESS_PAY::response);
 
   struct COMMAND_RPC_ACCESS_TRACKING
   {
@@ -2425,6 +2634,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ACCESS_TRACKING::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ACCESS_TRACKING::response);
 
   struct COMMAND_RPC_ACCESS_DATA
   {
@@ -2474,6 +2685,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ACCESS_DATA::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ACCESS_DATA::response);
 
   struct COMMAND_RPC_ACCESS_ACCOUNT
   {
@@ -2501,6 +2714,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ACCESS_ACCOUNT::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_ACCESS_ACOUNT::response);
 
   struct COMMAND_RPC_POP_BLOCKS
   {
@@ -2526,6 +2741,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_POP_BLOCKS::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_RPC_POP_BLOCKS::response);
 
   struct COMMAND_RPC_PRUNE_BLOCKCHAIN
   {
@@ -2553,6 +2770,8 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_PRUNE_BLOCKCHAIN::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_PRUNE_BLOCKCHAIN::response);
 
   struct COMMAND_RPC_FLUSH_CACHE
   {
@@ -2577,5 +2796,6 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
-
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_FLUSH_CACHE::request);
+  WIRE_JSON_DECLARE_CONVERSION(COMMAND_RPC_FLUSH_CACHE::response);
 }

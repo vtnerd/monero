@@ -28,14 +28,10 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
-#include <type_traits>
 #include <utility>
 
 #include "serialization/wire/field.h"
-#include "serialization/wire/read.h"
 #include "serialization/wire/traits.h"
-#include "serialization/wire/write.h"
 
 /*! An array field with read constraint. See `array_` for more info. All (empty)
   arrays were "optional" (omitted) historically in epee, so this matches prior
@@ -49,6 +45,10 @@ namespace wire
   /*! A wrapper that ensures `T` is written as an array, with `C` constraints
     when reading (`max_element_count` or `min_element_size`). `C` can be `void`
     if write-only.
+
+    This wrapper meets the requirements for an optional field; `wire::field`
+    and `wire::optional_field` determine whether an empty array must be
+    encoded on the wire.
 
     `container_type` is `T` with optional `std::reference_wrapper` removed.
     `container_type` concept requirements:
@@ -68,6 +68,8 @@ namespace wire
     using value_type = typename container_type::value_type;
 
     T container;
+
+    static constexpr constraint get_constraint() noexcept { return{}; }
 
     constexpr const container_type& get_container() const noexcept { return container; }
     container_type& get_container() noexcept { return container; }

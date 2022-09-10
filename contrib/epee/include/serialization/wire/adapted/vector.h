@@ -1,5 +1,4 @@
 // Copyright (c) 2021, The Monero Project
-//
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -26,30 +25,19 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "p2p/p2p_protocol_defs.h"
+#pragma once
 
+#include <cstdint>
 #include <type_traits>
+#include <vector>
 
-#include "cryptonote_protocol/cryptonote_protocol_defs.h"
-#include "net/serialization.h"
-#include "serialization/wire/array.h"
-#include "serialization/wire/defaulted.h"
-#include "serialization/wire/epee.h"
 #include "serialization/wire/traits.h"
 
-namespace nodetool
+namespace wire
 {
-  WIRE_EPEE_DEFINE_OBJECT(peerlist_entry, peerlist_entry_map);
-  WIRE_EPEE_DEFINE_OBJECT(anchor_peerlist_entry, anchor_peerlist_entry_map);
-  WIRE_EPEE_DEFINE_OBJECT(connection_entry, connection_entry_map);
-  WIRE_EPEE_DEFINE_OBJECT(network_config, network_config_map);
-  WIRE_EPEE_DEFINE_OBJECT(basic_node_data, basic_node_data_map);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_HANDSHAKE_T<cryptonote::CORE_SYNC_DATA>::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_HANDSHAKE_T<cryptonote::CORE_SYNC_DATA>::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_TIMED_SYNC_T<cryptonote::CORE_SYNC_DATA>::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_TIMED_SYNC_T<cryptonote::CORE_SYNC_DATA>::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_PING::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_PING::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_REQUEST_SUPPORT_FLAGS::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_REQUEST_SUPPORT_FLAGS::response);
-} // nodetool
+  // For easy output
+  template<typename T>
+  struct is_array<std::vector<T>>
+    : std::true_type
+  {};
+}

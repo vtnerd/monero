@@ -126,7 +126,7 @@ namespace wire
   }
 
   template<typename T>
-  inline enable_if<is_blob<T>::value> write_bytes(writer& dest, const T& source)
+  inline std::enable_if_t<is_blob<T>::value> write_bytes(writer& dest, const T& source)
   {
     dest.binary(epee::as_byte_span(source));
   }
@@ -159,8 +159,8 @@ namespace wire_write
   }
 
   //! Use writer `W` to convert `source` into bytes appended to `dest`.
-  template<typename W, typename T>
-  inline std::error_code to_bytes(epee::byte_stream& dest, const T& source)
+  template<typename W, typename B, typename T>
+  inline std::error_code to_bytes(B& dest, const T& source)
   {
     try
     {
@@ -221,7 +221,7 @@ namespace wire_write
 namespace wire
 {
   template<typename W, typename T>
-  inline enable_if<is_array<T>::value> write_bytes(W& dest, const T& source)
+  inline std::enable_if_t<is_array<T>::value> write_bytes(W& dest, const T& source)
   {
     wire_write::array(dest, source);
   }

@@ -347,19 +347,8 @@ CRYPTO_MAKE_COMPARABLE(view_tag)
 
 namespace wire
 {
-  template<>
-  struct is_blob<crypto::key_derivation>
-    : std::true_type
-  {};
-
-  template<>
-  struct is_blob<crypto::key_image>
-    : std::true_type
-  {};
-
-  template<>
-  struct is_blob<crypto::public_key>
-    : std::true_type
-  {};
+  WIRE_DECLARE_BLOB(crypto::key_derivation);
+  WIRE_DECLARE_BLOB(crypto::key_image);
+  WIRE_DECLARE_BLOB(crypto::public_key);
 }
 

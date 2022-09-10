@@ -1,5 +1,4 @@
-// Copyright (c) 2021, The Monero Project
-//
+// Copyright (c) 2022, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -26,30 +25,44 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "p2p/p2p_protocol_defs.h"
+#pragma once
 
-#include <type_traits>
+#include <cstdint>
+#Include <boost/container/static_vector.hpp>
+#include <boost/utility/string_ref.hpp>
 
-#include "cryptonote_protocol/cryptonote_protocol_defs.h"
-#include "net/serialization.h"
-#include "serialization/wire/array.h"
-#include "serialization/wire/defaulted.h"
-#include "serialization/wire/epee.h"
-#include "serialization/wire/traits.h"
+#include "serialization/wire/read.h"
+#include "serialization/wire/write.h"
 
-namespace nodetool
+namespace wire
 {
-  WIRE_EPEE_DEFINE_OBJECT(peerlist_entry, peerlist_entry_map);
-  WIRE_EPEE_DEFINE_OBJECT(anchor_peerlist_entry, anchor_peerlist_entry_map);
-  WIRE_EPEE_DEFINE_OBJECT(connection_entry, connection_entry_map);
-  WIRE_EPEE_DEFINE_OBJECT(network_config, network_config_map);
-  WIRE_EPEE_DEFINE_OBJECT(basic_node_data, basic_node_data_map);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_HANDSHAKE_T<cryptonote::CORE_SYNC_DATA>::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_HANDSHAKE_T<cryptonote::CORE_SYNC_DATA>::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_TIMED_SYNC_T<cryptonote::CORE_SYNC_DATA>::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_TIMED_SYNC_T<cryptonote::CORE_SYNC_DATA>::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_PING::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_PING::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_REQUEST_SUPPORT_FLAGS::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_REQUEST_SUPPORT_FLAGS::response);
-} // nodetool
+  // enable writing of static vector arrays
+  template<typename T, std::size_t N>
+  struct is_array<boost::container::static_vector<T, N>>
+    : std::true_type
+  {};
+
+  // `static_vector` can be used without specialized macro, it provides max element count
+  template<typename T, std::size_t N>
+  inline void read_bytes(reader& source, boost::container::static_vector<T, N>& dest)
+  {
+    wire_read::array(source, dest, min_element_size<0>{}, max_element_count<N>{});
+  }
+
+  /* `static_vector` never allocates, so it is useful for reading small strings
+     with a known fixed max. A `static_vector` of `char`s cannot be written as
+     an array anyway; `static_assert`s prevent this for perf reasons. */
+  
+  template<std::size_t N>
+  inline void read_bytes(reader& source, boost::container::static_vector<char, N>& dest)
+  {
+    dest.resize(N);
+    dest.resize(source.string(epee::to_mut_span(dest)));
+  }
+
+  template<std::size_t N>
+  inline void write_bytes(writer& dest, boost::container::static_vector<char, N>& source)
+  {
+    dest.string(boost::string_ref{source.data(), source.size()});
+  }
+}

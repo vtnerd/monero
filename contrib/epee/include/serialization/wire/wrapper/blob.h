@@ -1,4 +1,4 @@
-// Copyright (c) 2021, The Monero Project
+// Copyright (c) 2022, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -27,23 +27,60 @@
 
 #pragma once
 
-#include <cstdint>
 #include <type_traits>
-#include <vector>
-
+#include <utility>
+#include "serialization/wire/blob.h"
 #include "serialization/wire/traits.h"
+#include "span.h"
+
+//
+// Also see `wire/traits.h` to register a type as a blob (no wrapper needed).
+//
+
+
+/*! A required field, where the wire content is expected to be a binary blob,
+  and the C++ data is a pod type with no padding. */
+#define WIRE_FIELD_BLOB(name)                                  \
+  ::wire::field( #name , ::wire::blob(std::ref( self . name )))
 
 namespace wire
 {
-  // For easy output
+  /*! A wrapper that tells `wire::writer`s` and `wire::reader`s to encode a
+    type as a binary blob.
+
+    `value_type` is `T` with optional `std::reference_wrapper` removed.
+    `value_type` concept requirements:
+      * `epee::has_padding<value_type>()` must return false. */
   template<typename T>
-  struct is_array<std::vector<T>>
-    : std::true_type
-  {};
+  struct blob_
+  {
+    using value_type = typename unwrap_reference<T>::type;
+    static_assert(!epee::has_padding<value_type>(), "expected safe pod type");
+
+    T value;
+
+    //! \return `value` with `std::reference_wrapper` removed.
+    constexpr const container_type& get_value() const noexcept { return value; }
+
+    //! \return `value` with `std::reference_wrapper` removed.
+    container_type& get_value() noexcept { return value; }
+  };
+
+  template<typename T>
+  constexpr inline blob_<T> blob(T value)
+  {
+    return {std::move(value)};
+  }
 
   template<typename R, typename T>
-  inline void read_reset(const R&, std::vector<T>& value)
+  inline void read_bytes(R& source, const blob_<T> dest)
   {
-    value.clear(); // reuse existing memory
+    source.binary(epee::as_mut_byte_span(dest.get_value()));
   }
-}
+
+  template<typename W, typename T>
+  inline void write_bytes(W& dest, blob_<T> source)
+  {
+    dest.binary(epee::as_byte_span(source.get_value()));
+  }
+} // wire

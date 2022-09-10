@@ -120,28 +120,6 @@ namespace net
         return i2p_address{host, porti};
     }
 
-    bool i2p_address::_load(epee::serialization::portable_storage& src, epee::serialization::section* hparent)
-    {
-        i2p_serialized in{};
-        if (in._load(src, hparent) && in.host.size() < sizeof(host_) && (in.host == unknown_host || !host_check(in.host).has_error()))
-        {
-            std::memcpy(host_, in.host.data(), in.host.size());
-            std::memset(host_ + in.host.size(), 0, sizeof(host_) - in.host.size());
-            port_ = in.port;
-            return true;
-        }
-        static_assert(sizeof(unknown_host) <= sizeof(host_), "bad buffer size");
-        std::memcpy(host_, unknown_host, sizeof(unknown_host)); // include null terminator
-        port_ = 0;
-        return false;
-    }
-
-    bool i2p_address::store(epee::serialization::portable_storage& dest, epee::serialization::section* hparent) const
-    {
-        const i2p_serialized out{std::string{host_}, port_};
-        return out.store(dest, hparent);
-    }
-
     i2p_address::i2p_address(const i2p_address& rhs) noexcept
       : port_(rhs.port_)
     {

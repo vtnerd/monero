@@ -28,20 +28,16 @@
 
 #include "core_rpc_server_commands_defs.h"
 
+#include <string>
+#include <vector>
+
+#include "common/varint.h"
 #include "cryptonote_config.h"
 #include "serialization/wire/array.h"
 #include "serialization/wire/array_blob.h"
 #include "serialization/wire/defaulted.h"
 #include "serialization/wire/epee.h"
-
-#define RPC_ACCESS_REQUEST_BASE()               \
-  WIRE_FIELD(client)
-
-#define RPC_RESPONSE_BASE()                     \
-  WIRE_FIELD(status), WIRE_FIELD(untrusted)
-
-#define RPC_ACCESS_RESPONSE_BASE()                                      \
-  RPC_RESPONSE_BASE(), WIRE_FIELD(credits), WIRE_FIELD(top_hash)
+#include "serialization/wire/json.h"
 
 namespace cryptonote
 {
@@ -254,31 +250,16 @@ namespace cryptonote
     }
   } // anonymous
 
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::tx_output_indices, tx_output_indices_map);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::block_output_indices, block_output_indices_map);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::request, get_blocks_request_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_FAST::request);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_FAST::response, get_blocks_response_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_FAST::response);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::request, blocks_by_height_request_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::request)
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::response, blocks_by_height_response_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::response);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_HASHES_FAST::request, get_hashes_request_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_HASHES_FAST::request);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_HASHES_FAST::response, get_hashes_response_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_HASHES_FAST::response);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::request, get_output_indexes_request_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::request);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::response, get_output_indexes_response_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::response);
-  WIRE_EPEE_DEFINE_OBJECT(get_outputs_out, get_outputs_out_map);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUTS_BIN::request, get_outputs_request_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUTS_BIN::request);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUTS_BIN::outkey, outkey_map);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUTS_BIN::response, get_outputs_response_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUTS_BIN::response);
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::request, output_distribution_request_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::request);
   void read_bytes(wire::epee_reader& source, COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::distribution& dest)
   {
@@ -304,6 +285,5 @@ namespace cryptonote
 
     output_distribution_map(dest, source, compressed, binary);
   }
-  WIRE_EPEE_DEFINE_OBJECT(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::response, output_distribution_response_map);
   WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::response);
 } // cryptonote

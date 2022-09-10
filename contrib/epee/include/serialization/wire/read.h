@@ -113,6 +113,12 @@ namespace wire
     //! throw wire::exception if next value not string
     virtual std::string string() = 0;
 
+    /*! Copy upcoming string directly into `dest`.
+      \throw wire::exception if next value not string
+      \throw wire::exception if next string exceeds `dest.size())`
+      \return Number of bytes read into `dest`. */
+    virtual std::size_t string(epee::span<char> dest) = 0;
+
     // ! \throw wire::exception if next value cannot be read as binary
     virtual epee::byte_slice binary() = 0;
 
@@ -178,7 +184,7 @@ namespace wire
   }
 
   template<typename T>
-  inline enable_if<is_blob<T>::value> read_bytes(reader& source, T& dest)
+  inline std::enable_if_t<is_blob<T>::value> read_bytes(reader& source, T& dest)
   {
     source.binary(epee::as_mut_byte_span(dest));
   }
@@ -473,6 +479,16 @@ namespace wire_read
 namespace wire
 {
   // no default for `is_array<T>::value == true` -> require size constraints
+  template<typename R, typename T>
+  inline std::enable_if_t<is_array<T>::value> read_bytes(R& source, T& dest)
+  {
+    using value_type = typename T::value_type;
+    static_assert(std::is_same<value_type, std::remove_reference_t<decltype(dest.back())>>::value, "bad value_type");
+    static_assert(is_blob<value_type>::value || std::is_arithmetic<value_type>::value, "cannot use default constraints");
+    // default constraints only work with blobs and numbers. the default behavior
+    // is to never allow the wire size to be compressed when compared to the integer size.
+    wire_read::array(source, dest, min_element_size<sizeof(value_type)>);
+  }
 
   template<typename... T>
   inline void object(reader& source, T... fields)

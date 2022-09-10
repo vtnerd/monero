@@ -1,4 +1,4 @@
-// Copyright (c) 2021, The Monero Project
+// Copyright (c) 2021-2022, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -27,6 +27,7 @@
 
 #include "serialization.h"
 
+#include <algorithm>
 #include <boost/optional/optional.hpp>
 #include <cstdint>
 #include <functional>
@@ -36,7 +37,8 @@
 #include "net/enums.h"
 #include "net/net_utils_base.h"
 #include "net/tor_address.h"
-#include "serialization/wire/asio.h"
+#include "serialization/wire/adapted/asio.h"
+#include "serialization/wire/adapted/static_vector.h"
 #include "serialization/wire/epee.h"
 #include "serialization/wire/error.h"
 
@@ -44,10 +46,14 @@ namespace net
 {
   namespace
   {
+    constexpr const std::size_t host_buffer_size =
+      std::max(tor_address::buffer_size(), i2p_address.buffer_size());
+    using host_buffer = boost::container::static_vector<char, host_buffer_size>;
+    
     template<typename T>
-    T make_address(const boost::string_ref host, const std::uint16_t port)
+    T make_address(const host_buffer& host, const std::uint16_t port)
     {
-      auto address = T::make(host, port);
+      auto address = T::make({host.data(), host.size()}, port);
       if (!address)
         WIRE_DLOG_THROW(wire::error::schema::string, "Host field is invalid format for " << typeid(T).name() << ": " << address.error().message());
       return *address;
@@ -66,16 +72,15 @@ namespace net
     template<typename T>
     T read_address(wire::epee_reader& source)
     {
-      std::string host{};
+      host_buffer host{};
       std::uint16_t port{};
       wire::object(source, wire::field("host", std::ref(host)), wire::field("port", std::ref(port)));
       return make_address<T>(host, port);
     }
 
-    template<typename T>
-    void write_address(wire::epee_writer& dest, const T& source)
+    void write_address(wire::epee_writer& dest, const boost::string_ref host, const std::uint16_t port)
     {
-      wire::object(dest, wire::field("host", source.host_str()), wire::field("port", source.port()));
+      wire::object(dest, wire::field("host", host), wire::field("port", port));
     }
   } // anonymous
 
@@ -85,7 +90,7 @@ namespace net
   }
   void write_bytes(wire::epee_writer& dest, const i2p_address& source)
   {
-    write_address(dest, source);
+    write_address(dest, source.host_str(), source.port());
   }
 
   void read_bytes(wire::epee_reader& source, tor_address& dest)
@@ -94,7 +99,7 @@ namespace net
   }
   void write_bytes(wire::epee_writer& dest, const tor_address& source)
   {
-    write_address(dest, source);
+    write_address(dest, source.host_str(), source.port());
   }
 } // net
 
@@ -106,7 +111,7 @@ namespace net_utils
   {
     struct address_values
     {
-      boost::optional<std::string> host;
+      boost::optional<host_buffer> host;
       boost::optional<boost::asio::ip::address_v6> addr;
       boost::optional<std::uint32_t> m_ip;
       boost::optional<std::uint16_t> port;

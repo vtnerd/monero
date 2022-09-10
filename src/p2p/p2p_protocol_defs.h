@@ -32,11 +32,14 @@
 
 #include <iomanip>
 #include <boost/uuid/uuid.hpp>
+#include <boost/serialization/version.hpp>
 #include "net/net_utils_base.h"
+#include "net/tor_address.h" // needed for serialization
+#include "net/i2p_address.h" // needed for serialization
+#include "net/serialization.h"
 #include "misc_language.h"
 #include "string_tools.h"
 #include "time_helper.h"
-#include "serialization/wire/epee/base.h"
 #include "cryptonote_config.h"
 
 namespace cryptonote { struct CORE_SYNC_DATA; }
@@ -44,6 +47,7 @@ namespace nodetool
 {
   typedef boost::uuids::uuid uuid;
   typedef uint64_t peerid_type;
+  using peerlist_max = wire::max_element_count<P2P_MAX_PEERS_IN_HANDSHAKE>;
 
   static inline std::string peerid_to_string(peerid_type peer_id)
   {
@@ -58,6 +62,11 @@ namespace nodetool
   {
     uint32_t ip;
     uint32_t port;
+
+    BEGIN_KV_SERIALIZE_MAP()
+      KV_SERIALIZE(ip)
+      KV_SERIALIZE(port)
+    END_KV_SERIALIZE_MAP()
   };
 
   template<typename AddressType>
@@ -69,6 +78,24 @@ namespace nodetool
     uint32_t pruning_seed;
     uint16_t rpc_port;
     uint32_t rpc_credits_per_hash;
+
+    BEGIN_KV_SERIALIZE_MAP()
+      KV_SERIALIZE(adr)
+      KV_SERIALIZE(id)
+      KV_SERIALIZE_OPT(last_seen, (int64_t)0)
+      KV_SERIALIZE_OPT(pruning_seed, (uint32_t)0)
+      KV_SERIALIZE_OPT(rpc_port, (uint16_t)0)
+      KV_SERIALIZE_OPT(rpc_credits_per_hash, (uint32_t)0)
+    END_KV_SERIALIZE_MAP()
+
+    BEGIN_SERIALIZE()
+      FIELD(adr)
+      FIELD(id)
+      VARINT_FIELD(last_seen)
+      VARINT_FIELD(pruning_seed)
+      VARINT_FIELD(rpc_port)
+      VARINT_FIELD(rpc_credits_per_hash)
+    END_SERIALIZE()
   };
   typedef peerlist_entry_base<epee::net_utils::network_address> peerlist_entry;
 
@@ -78,6 +105,18 @@ namespace nodetool
     AddressType adr;
     peerid_type id;
     int64_t first_seen;
+
+    BEGIN_KV_SERIALIZE_MAP()
+      KV_SERIALIZE(adr)
+      KV_SERIALIZE(id)
+      KV_SERIALIZE(first_seen)
+    END_KV_SERIALIZE_MAP()
+
+    BEGIN_SERIALIZE()
+      FIELD(adr)
+      FIELD(id)
+      VARINT_FIELD(first_seen)
+    END_SERIALIZE()
   };
   typedef anchor_peerlist_entry_base<epee::net_utils::network_address> anchor_peerlist_entry;
 
@@ -87,6 +126,18 @@ namespace nodetool
     AddressType adr;
     peerid_type id;
     bool is_income;
+
+    BEGIN_KV_SERIALIZE_MAP()
+      KV_SERIALIZE(adr)
+      KV_SERIALIZE(id)
+      KV_SERIALIZE(is_income)
+    END_KV_SERIALIZE_MAP()
+
+    BEGIN_SERIALIZE()
+      FIELD(adr)
+      FIELD(id)
+      FIELD(is_income)
+    END_SERIALIZE()
   };
   typedef connection_entry_base<epee::net_utils::network_address> connection_entry;
 
@@ -114,6 +165,14 @@ namespace nodetool
 
   struct network_config
   {
+    BEGIN_KV_SERIALIZE_MAP()
+      KV_SERIALIZE(max_out_connection_count)
+      KV_SERIALIZE(max_in_connection_count)
+      KV_SERIALIZE(handshake_interval)
+      KV_SERIALIZE(packet_max_size)
+      KV_SERIALIZE(config_id)
+    END_KV_SERIALIZE_MAP()
+
     uint32_t max_out_connection_count;
     uint32_t max_in_connection_count;
     uint32_t connection_timeout;
@@ -132,6 +191,15 @@ namespace nodetool
     uint32_t rpc_credits_per_hash;
     peerid_type peer_id;
     uint32_t support_flags;
+
+    BEGIN_KV_SERIALIZE_MAP()
+      KV_SERIALIZE_VAL_POD_AS_BLOB(network_id)
+      KV_SERIALIZE(peer_id)
+      KV_SERIALIZE(my_port)
+      KV_SERIALIZE_OPT(rpc_port, (uint16_t)(0))
+      KV_SERIALIZE_OPT(rpc_credits_per_hash, (uint32_t)0)
+      KV_SERIALIZE_OPT(support_flags, (uint32_t)0)
+    END_KV_SERIALIZE_MAP()
   };
   
 
@@ -149,6 +217,11 @@ namespace nodetool
     {
       basic_node_data node_data;
       t_playload_type payload_data;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(node_data)
+        KV_SERIALIZE(payload_data)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
 
@@ -157,6 +230,12 @@ namespace nodetool
       basic_node_data node_data;
       t_playload_type payload_data;
       std::vector<peerlist_entry> local_peerlist_new;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(node_data)
+        KV_SERIALIZE(payload_data)
+        KV_SERIALIZE_ARRAY(local_peerlist_new, peerlist_max)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
@@ -175,6 +254,9 @@ namespace nodetool
     struct request_t
     {
       t_playload_type payload_data;
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(payload_data)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
 
@@ -182,6 +264,11 @@ namespace nodetool
     {
       t_playload_type payload_data;
       std::vector<peerlist_entry> local_peerlist_new;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(payload_data)
+        KV_SERIALIZE_ARRAY(local_peerlist_new, peerlist_max)
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
@@ -206,6 +293,9 @@ namespace nodetool
     struct request_t
     {
       /*actually we don't need to send any real data*/
+
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
 
@@ -213,6 +303,11 @@ namespace nodetool
     {
       std::string status;
       peerid_type peer_id;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(status)
+        KV_SERIALIZE(peer_id)
+      END_KV_SERIALIZE_MAP()    
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
@@ -228,15 +323,22 @@ namespace nodetool
     const static int ID = P2P_COMMANDS_POOL_BASE + 7;
 
     struct request_t
-    {};
+    {
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()    
+    };
     typedef epee::misc_utils::struct_init<request_t> request;
 
     struct response_t
     {
       uint32_t support_flags;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(support_flags)
+      END_KV_SERIALIZE_MAP()    
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
-  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_REQUEST_SUPPORT_FLAGS::request);
+  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_REQUEST_SUPPORT_FLAGS:request);
   WIRE_EPEE_DECLARE_CONVERSION(COMMAND_REQUEST_SUPPORT_FLAGS::response);
 }

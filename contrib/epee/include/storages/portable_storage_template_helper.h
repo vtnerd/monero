@@ -29,9 +29,10 @@
 #include <string>
 
 #include "byte_slice.h"
+#include "byte_stream.h"
 #include "file_io_utils.h"
-#include "serialization/wire/epee.h"
-#include "serialization/wire/json.h"
+#include "serialization/wire/epee/base.h"
+#include "serialization/wire/json/base.h"
 #include "span.h"
 
 namespace epee
@@ -58,17 +59,14 @@ namespace epee
     }
     //-----------------------------------------------------------------------------------------------------------
     template<class t_struct>
-    bool store_t_to_json(t_struct& str_in, std::string& json_buff, size_t indent = 0, bool insert_newlines = true)
+    bool store_t_to_json(t_struct& str_in, std::string& json_buff)
     {
-      return !wire::json::to_bytes(
-      portable_storage ps;
-      str_in.store(ps);
-      ps.dump_as_json(json_buff, indent, insert_newlines);
-      return true;
+      json_buff.clear();
+      return !wire::json::to_bytes(str_in, json_buff);
     }
     //-----------------------------------------------------------------------------------------------------------
     template<class t_struct>
-    std::string store_t_to_json(t_struct& str_in, size_t indent = 0, bool insert_newlines = true)
+    std::string store_t_to_json(t_struct& str_in)
     {
       std::string json_buff;
       store_t_to_json(str_in, json_buff, indent, insert_newlines);

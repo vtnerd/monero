@@ -28,20 +28,11 @@
 #pragma once
 
 #include <cstdint>
-#include <cstring>
-#include <functional>
 #include <type_traits>
 #include <utility>
 
-#include "byte_slice.h"
-#include "byte_stream.h"
-#include "int-util.h"
-#include "serialization/wire/error.h"
 #include "serialization/wire/field.h"
-#include "serialization/wire/read.h"
 #include "serialization/wire/traits.h"
-#include "storages/portable_storage_bin_utils.h"
-#include "span.h"
 
 /*! A required field, where the array contents are written as a single binary
   blob. All (empty) arrays-as-blobs were "optional" (omitted) historically in
@@ -52,8 +43,10 @@
 namespace wire
 {
   /*! A wrapper that tells `wire::writer`s` and `wire::reader`s to encode a
-    container as a single binary blob.
-
+    container as a single binary blob. This wrapper meets the requirements for
+    an optional field; `wire::field` and `wire::optional_field` determine
+    whether an empty array must be encoded on the wire.
+    
     `container_type` is `T` with optional `std::reference_wrapper` removed.
     `container_type` concept requirements:
       * `typedef` `value_type` that specifies inner type.
@@ -95,71 +88,6 @@ namespace wire
     return {std::move(value)};
   }
 
-#if BYTE_ORDER == LITTLE_ENDIAN
-  //! Optimization when `T` has `resize()` and `data()` functions.
-  template<typename T>
-  inline auto read_as_blob(epee::byte_slice source, T& dest) -> decltype(dest.resize(0), dest.data())
-  {
-    using value_type = typename T::value_type;
-    dest.resize(source.size() / sizeof(value_type));
-    std::memcpy(dest.data(), source.data(), source.size());
-    return dest.data();
-  }
+  // `read_bytes` / `write_bytes` in `wire/wrappers_impl.h`
 
-  //! Optimization when `T` has `data() function.
-  template<typename W, typename T>
-  inline auto write_as_blob(W& dest, const T& source) -> decltype(source.data())
-  {
-    using value_type = typename T::value_type;
-    dest.binary({reinterpret_cast<const std::uint8_t*>(source.data()), source.size() * sizeof(value_type)});
-    return source.data();
-  }
-#endif // LITTLE ENDIAN
-
-  //! Default implmenetation when `T` does not have `resize()` and `data()` functions.
-  template<typename T, typename... Ignored>
-  inline void read_as_blob(epee::byte_slice source, T& dest, const Ignored&...)
-  {
-    using value_type = typename T::value_type;
-    dest.clear();
-    wire::reserve(dest, source.size() / sizeof(value_type));
-    while (!source.empty())
-    {
-      dest.emplace_back();
-      std::memcpy(std::addressof(dest.back()), source.data(), sizeof(value_type));
-      dest.back() = CONVERT_POD(dest.back());
-      source.remove_prefix(sizeof(value_type));
-    }
-  }
-
-  //! Default implementation when `T` does not have `data()` function.
-  template<typename W, typename T, typename... Ignored>
-  inline void write_as_blob(W& dest, const T& source, const Ignored&...)
-  {
-    using value_type = typename T::value_type;
-    epee::byte_stream bytes{};
-    bytes.reserve(sizeof(value_type) * source.size());
-    for (auto elem : source)
-    {
-      elem = CONVERT_POD(elem);
-      bytes.write(reinterpret_cast<const char*>(std::addressof(elem)), sizeof(elem));
-    }
-    dest.binary(epee::to_span(bytes));
-  }
-
-  template<typename R, typename T>
-  inline void read_bytes(R& source, array_as_blob_<T>& dest)
-  {
-    static_assert(array_as_blob_<T>::value_size() != 0, "divide by zero and no progress below");
-    epee::byte_slice bytes = source.binary();
-    if (bytes.size() % dest.value_size() != 0)
-      WIRE_DLOG_THROW_(error::schema::fixed_binary);
-    read_as_blob(std::move(bytes), dest.get_container());
-  }
-
-  template<typename W, typename T>
-  inline void write_bytes(W& dest, const array_as_blob_<T>& source)
-  {
-    write_as_blob(dest, source.get_container());
-  }
 } // wire

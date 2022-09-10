@@ -80,6 +80,7 @@ namespace wire
     epee_reader(epee_reader&&) = delete;
     epee_reader(const epee_reader&) = delete;
 
+    
     virtual ~epee_reader() noexcept;
 
     epee_reader& operator=(epee_reader&&) = delete;
@@ -105,6 +106,12 @@ namespace wire
 
     //! \throw wire::exception if last tag not a string
     std::string string() override final;
+
+    /*! Copy upcoming string directly into `dest`.
+      \throw wire::exception if next token not string
+      \throw wire::exception if next string exceeds `dest.size())`
+      \return Number of bytes read into `dest`. */
+    std::size_t string(epee::span<char> dest) override final;
 
     //! \throw wire::exception if last tag not a string
     epee::byte_slice binary() override final;

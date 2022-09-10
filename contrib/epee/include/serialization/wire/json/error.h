@@ -27,46 +27,27 @@
 
 #pragma once
 
-#include <type_traits>
-
-#include "crypto/crypto.h"   // monero/src
-#include "ringct/rctTypes.h" // monero/src
-#include "wire/traits.h"
+#include <rapidjson/error/error.h>
+#include <system_error>
 
 namespace wire
 {
-  template<>
-  struct is_blob<crypto::ec_scalar>
-    : std::true_type
-  {};
+namespace error
+{
+  //! Type wrapper to "grab" rapidjson errors
+  enum class rapidjson_e : int {};
 
-  template<>
-  struct is_blob<crypto::hash>
-    : std::true_type
-  {};
+  //! \return Static string describing error `value`.
+  const char* get_string(rapidjson_e value) noexcept;
 
-  template<>
-  struct is_blob<crypto::key_derivation>
-    : std::true_type
-  {};
+  //! \return Category for rapidjson generated errors.
+  const std::error_category& rapidjson_category() noexcept;
 
-  template<>
-  struct is_blob<crypto::key_image>
-    : std::true_type
-  {};
-
-  template<>
-  struct is_blob<crypto::public_key>
-    : std::true_type
-  {};
-
-  template<>
-  struct is_blob<crypto::signature>
-    : std::true_type
-  {};
-
-  template<>
-  struct is_blob<rct::key>
-    : std::true_type
-  {};
+  //! \return Error code with `value` and `rapidjson_category()`.
+  inline std::error_code make_error_code(rapidjson_e value) noexcept
+  {
+    return std::error_code{int(value), rapidjson_category()};
+  }
 }
+}
+

@@ -45,24 +45,23 @@ namespace epee
        helps with forward declaring in headers. */
     wire_object(format, std::move(std::get<I>(fields))...);
   }
+
   template<typename F, typename... T>
   void unpack_object(F& format, std::tuple<T...>&& fields)
   {
     ::epee::unpack_object2(format, std::move(fields), std::make_index_sequence<sizeof...(T)>{});
   }
-    
+
+  // Macro does not define "root" conversion function,
     
   /************************************************************************/
   /* Serialize map declarations                                           */
+  /* Macro does not define "root" conversion functions `to_bytes` and     */
+  /* `from_bytes` so that expensive template expansion can be done in a   */
+  /* cpp file that uses macros from `wire/epee.h` and `wire/json.h`, etc. */
+  /* This also reduces the number of includes needed in this header.      */
   /************************************************************************/
 #define BEGIN_KV_SERIALIZE_MAP()                                        \
-  template<typename R>                                                  \
-  std::error_code from_bytes(const ::epee::span<const std::uint8_t> source) \
-  { return ::wire_read::from_bytes<R>(source, *this); }                 \
-                                                                        \
-  std::error_code to_bytes(::epee::byte_stream& dest) const             \
-  { return ::wire_write::to_bytes<W>(dest, *this); }                    \
-                                                                        \
   template<class F>                                                     \
   void read_bytes(F& format)                                            \
   { ::epee::unpack_object(format, get_field_list(format, *this)); }     \
@@ -75,8 +74,8 @@ namespace epee
   static auto get_field_list(F& format, T& self)                        \
   { return std::tuple_cat(
 
-#define KV_SERIALIZE_N(varialble, val_name) \
-  std::make_tuple(::wire::field(val_name, std::ref(self.varialble))),
+#define KV_SERIALIZE_N(variable, val_name) \
+  std::make_tuple(::wire::field(val_name, std::ref(self.variable))),
 
 #define KV_SERIALIZE_PARENT(type) \
   type::template get_field_list(format, self),
@@ -84,14 +83,17 @@ namespace epee
 #define KV_SERIALIZE_OPT_N(variable, val_name, default_value) \
   std::make_tuple(::wire::optional_field(val_name, ::wire::defaulted(std::ref(self.variable), default_value))),
 
-#define KV_SERIALIZE_VAL_POD_AS_BLOB_N(varialble, val_name) \
-  std::make_tuple(::wire::field(val_name, ::wire::blob(std::ref(self.varialble)))),
+#define KV_SERIALIZE_VAL_POD_AS_BLOB_N(variable, val_name) \
+  std::make_tuple(::wire::field(val_name, ::wire::blob(std::ref(self.variable)))),
 
-#define KV_SERIALIZE_VAL_POD_AS_BLOB_OPT_N(varialble, val_name, default_value) \
-  std::make_tuple(::wire::field(val_name, ::wire::defaulted(::wire::blob(std::ref(this_ref.varialble)), default_value))),
+#define KV_SERIALIZE_VAL_POD_AS_BLOB_OPT_N(variable, val_name, default_value) \
+  std::make_tuple(::wire::field(val_name, ::wire::defaulted(::wire::blob(std::ref(this_ref.variable)), default_value))),
 
-#define KV_SERIALIZE_CONTAINER_POD_AS_BLOB_N(varialble, val_name) \
-  std::make_tuple(::wire::field(val_name, ::wire::array_as_blob(std::ref(self.varialble)))),
+#define KV_SERIALIZE_CONTAINER_POD_AS_BLOB_N(variable, val_name) \
+  std::make_tuple(::wire::field(val_name, ::wire::array_as_blob(std::ref(self.variable)))),
+
+#define KV_SERIALIZE_ARRAY_N(variable, val_name, constraint) \
+  std::make_tuple(::wire::optional_field(val_name, ::wire::array<constraint>(std::ref(self.variable)))),
 
 #define END_KV_SERIALIZE_MAP() std::make_tuple());}
 
@@ -101,6 +103,7 @@ namespace epee
 #define KV_SERIALIZE_VAL_POD_AS_BLOB_FORCE(varialble)     KV_SERIALIZE_VAL_POD_AS_BLOB_FORCE_N(varialble, #varialble) //skip is_pod compile time check
 #define KV_SERIALIZE_CONTAINER_POD_AS_BLOB(varialble)     KV_SERIALIZE_CONTAINER_POD_AS_BLOB_N(varialble, #varialble)
 #define KV_SERIALIZE_OPT(variable,default_value)          KV_SERIALIZE_OPT_N(variable, #variable, default_value)
+#define KV_SERIALIZE_ARRAY(variable, constraint)          KV_SERIALIZE_ARRAY_N(variable, #variable, constraint)
 
 }
 
