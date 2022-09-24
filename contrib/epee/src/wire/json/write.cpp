@@ -25,12 +25,11 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "write.h"
+#include "serialization/wire/json/write.h"
 
-#include <ostream>
 #include <stdexcept>
 
-#include "hex.h" // monero/contrib/epee/include
+#include "hex.h"
 
 namespace
 {
@@ -40,12 +39,12 @@ namespace
 
 namespace wire
 {
-  void json_writer::do_flush(epee::span<const std::uint8_t>)
+  void json_writer::do_flush(epee::span<const char>)
   {}
 
   void json_writer::check_flush()
   {
-    if (needs_flush_ && (max_buffer < bytes_.size() || bytes_.available() < flush_threshold))
+    if (needs_flush_ && (max_buffer < stream_.buffer_.size() || stream_.buffer_.capacity() - stream_.buffer_.size() < flush_threshold))
       flush();
   }
 
@@ -54,11 +53,12 @@ namespace wire
     if (!formatter_.IsComplete())
       throw std::logic_error{"json_writer::take_json() failed with incomplete JSON tree"};
   }
-  epee::byte_slice json_writer::take_json()
+  std::string json_writer::take_json()
   {
     check_complete();
-    epee::byte_slice out{std::move(bytes_)};
-    formatter_.Reset(bytes_);
+    std::string out{std::move(stream_.buffer_)};
+    stream_.buffer_.clear();
+    formatter_.Reset(stream_);
     return out;
   }
 
@@ -123,13 +123,6 @@ namespace wire
       //}
   }
 
-  void json_writer::enumeration(const std::size_t index, const epee::span<char const* const> enums)
-  {
-    if (enums.size() < index)
-      throw std::logic_error{"Invalid enum/string value"};
-    string({enums[index], std::strlen(enums[index])});
-  }
-
   void json_writer::start_array(std::size_t)
   {
     formatter_.StartArray();
@@ -148,22 +141,13 @@ namespace wire
     formatter_.Key(str.data(), str.size());
     check_flush();
   }
-  void json_writer::key(const std::uintmax_t id)
-  {
-    auto str = json_writer::to_string(id);
-    key(str.data());
-  }
-  void json_writer::key(unsigned, const boost::string_ref str)
-  {
-    key(str);
-  }
   void json_writer::end_object()
   {
     formatter_.EndObject();
   }
 
-  void json_stream_writer::do_flush(epee::span<const std::uint8_t> bytes)
+  void json_stream_writer::do_flush(epee::span<const char> bytes)
   {
-    dest.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+    dest.write(bytes.data(), bytes.size());
   }
 }

@@ -87,6 +87,7 @@ namespace epee
     ~byte_stream() noexcept = default;
     byte_stream& operator=(byte_stream&& rhs) noexcept;
 
+    std::uint8_t* data() noexcept { return buffer_.get(); }
     const std::uint8_t* data() const noexcept { return buffer_.get(); }
     std::uint8_t* tellp() const noexcept { return next_write_; }
     std::size_t available() const noexcept { return end_ - next_write_; }

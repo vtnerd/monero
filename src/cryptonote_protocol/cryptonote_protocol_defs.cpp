@@ -31,11 +31,10 @@
 #include <boost/range/adaptor/transformed.hpp>
 #include <tuple>
 
-#include "serialization/wire/array.h"
-#include "serialization/wire/array_blob.h"
-#include "serialization/wire/defaulted.h"
 #include "serialization/wire/epee.h"
 #include "serialization/wire/traits.h"
+#include "serialization/wire/wrappers.h"
+#include "serialization/wire/wrappers_impl.h"
 #include "storages/portable_storage_base.h"
 
 namespace cryptonote

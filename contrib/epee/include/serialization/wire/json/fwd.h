@@ -28,7 +28,7 @@
 #pragma once
 
 //! Declare function that list fields `type` (calls de-virtualized)
-#define WIRE_JSON_DECLARE_OBJECT(type)			\
+#define WIRE_JSON_DECLARE_OBJECT(type)                  \
   void read_bytes(::wire::json_reader&, type&);         \
   void write_bytes(::wire::json_writer&, const type&)
 
@@ -36,6 +36,7 @@ namespace wire
 {
   struct json;
   class json_reader;
+  struct json_string_writer;
   class json_writer;
 }
 

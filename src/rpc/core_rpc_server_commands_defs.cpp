@@ -1,4 +1,4 @@
-// Copyright (c) 2021, The Monero Project
+// Copyright (c) 2022, The Monero Project
 //
 // All rights reserved.
 //
@@ -33,23 +33,60 @@
 
 #include "common/varint.h"
 #include "cryptonote_config.h"
-#include "serialization/wire/array.h"
-#include "serialization/wire/array_blob.h"
-#include "serialization/wire/defaulted.h"
+#include "serialization/wire/adapted/list.h"
+#include "serialization/wire/adapted/vector.h"
 #include "serialization/wire/epee.h"
 #include "serialization/wire/json.h"
+#include "serialization/wire/wrappers.h"
+#include "serialization/wire/wrappers_impl.h"
 
 namespace cryptonote
 {
+  WIRE_EPEE_DEFINE_COMMAND(COMMAND_RPC_GET_BLOCKS_FAST)
+  WIRE_EPEE_DEFINE_COMMAND(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT)
+  WIRE_EPEE_DEFINE_COMMAND(COMMAND_RPC_GET_HASHES_FAST)
+  WIRE_EPEE_DEFINE_COMMAND(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES)
+  WIRE_EPEE_DEFINE_COMMAND(COMMAND_RPC_GET_OUTPUTS_BIN)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_HEIGHT)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_ALT_BLOCKS_HASHES)
+  WIRE_EPEE_DEFINE_COMMAND(COMMAND_RPC_SUBMIT_RAW_TX)
+
+  std::error_code convert_to_json(std::string& dest, const COMMAND_RPC_SUBMIT_RAW_TX::request& source)
+  { return wire_write::to_bytes<wire::json_string_writer>(dest, source); }
+
+  std::error_code convert_from_json(const epee::span<const char> source, COMMAND_RPC_SUBMIT_RAW_TX::response& dest)
+  { return wire_read::from_bytes<wire::json_reader>(source, dest); }
+
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_TRANSACTIONS)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_IS_KEY_IMAGE_SPENT)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_OUTPUTS)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_SEND_RAW_TX)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_START_MINING)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_INFO)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_NET_STATS)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_STOP_MINING)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_MINING_STATUS)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_SAVE_BC)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GENERATEBLOCKS)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_PEER_LIST)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_PUBLIC_NODES)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_SET_LOG_HASH_RATE)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_SET_LOG_LEVEL)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_SET_LOG_CATEGORIES)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_TRANSACTION_POOL)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_TRANSACTION_POOL_HASHES_BIN)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_TRANSACTION_POOL_HASHES)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_TRANSACTION_POOL_STATS)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_SET_BOOTSTRAP_DAEMON)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_STOP_DAEMON)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_LIMIT)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_SET_LIMIT)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_OUT_PEERS)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_IN_PEERS)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_UPDATE)
+
   namespace
   {
-    template<typename F>
-    constexpr std::size_t min_uint64() noexcept
-    {
-      static_assert(std::is_same<F, wire::epee_reader>::value || std::is_same<F, wire::epee_writer>::value, "incorrect for format type");
-      return sizeof(std::uint64_t);
-    }
-
     std::vector<std::uint64_t> decompress_integer_array(const std::string &s)
     {
       std::vector<std::uint64_t> v;
@@ -75,137 +112,13 @@ namespace cryptonote
       return s;
     }
 
-    template<typename F, typename T>
-    void get_blocks_request_map(F& format, T& self)
-    {
-      wire::object(format,
-        RPC_ACCESS_REQUEST_BASE(),
-        WIRE_FIELD_ARRAY_AS_BLOB(block_ids),
-        WIRE_FIELD(start_height),
-        WIRE_FIELD(prune),
-        WIRE_FIELD_DEFAULTED(no_miner_tx, false)
-      );
-    }
-
-    template<typename F, typename T>
-    void tx_output_indices_map(F& format, T& self)
-    {
-      using indices_min = wire::min_element_size<min_uint64<F>()>;
-      wire::object(format, WIRE_FIELD_ARRAY(indices, indices_min));
-    }
-
-    template<typename F, typename T>
-    void block_output_indices_map(F& format, T& self)
-    {
-      using max_txes = wire::max_element_count<COMMAND_RPC_GET_BLOCKS_FAST_MAX_TX_COUNT>;
-      wire::object(format, WIRE_FIELD_ARRAY(indices, max_txes));
-    }
-
-    template<typename F, typename T>
-    void get_blocks_response_map(F& format, T& self)
-    {
-      using max_blocks = wire::max_element_count<COMMAND_RPC_GET_BLOCKS_FAST_MAX_BLOCK_COUNT>;
-      wire::object(format,
-        RPC_ACCESS_RESPONSE_BASE(),
-        WIRE_FIELD_ARRAY(blocks, max_blocks),
-        WIRE_FIELD(start_height),
-        WIRE_FIELD(current_height),
-        WIRE_FIELD_ARRAY(output_indices, max_blocks)
-      );
-    }
-
-    template<typename F, typename T>
-    void blocks_by_height_request_map(F& format, T& self)
-    {
-      using height_min = wire::min_element_size<min_uint64<F>()>;
-      wire::object(format, RPC_ACCESS_REQUEST_BASE(), WIRE_FIELD_ARRAY(heights, height_min));
-    }
-
-    template<typename F, typename T>
-    void blocks_by_height_response_map(F& format, T& self)
-    {
-      wire::object(format, RPC_ACCESS_RESPONSE_BASE(), WIRE_FIELD_ARRAY(blocks, block_blob_min));
-    }
-
-    template<typename F, typename T>
-    void get_hashes_request_map(F& format, T& self)
-    {
-      wire::object(format, RPC_ACCESS_REQUEST_BASE(), WIRE_FIELD_ARRAY_AS_BLOB(block_ids), WIRE_FIELD(start_height));
-    }
-
-    template<typename F, typename T>
-    void get_hashes_response_map(F& format, T& self)
-    {
-      wire::object(format,
-        RPC_ACCESS_RESPONSE_BASE(),
-        WIRE_FIELD_ARRAY_AS_BLOB(m_block_ids),
-        WIRE_FIELD(start_height),
-        WIRE_FIELD(current_height)
-      );
-    }
-
-    template<typename F, typename T>
-    void get_output_indexes_request_map(F& format, T& self)
-    {
-      wire::object(format, RPC_ACCESS_REQUEST_BASE(), WIRE_FIELD(txid));
-    }
-
-    template<typename F, typename T>
-    void get_output_indexes_response_map(F& format, T& self)
-    {
-      using index_min = wire::min_element_size<min_uint64<F>()>;
-      wire::object(format, RPC_ACCESS_RESPONSE_BASE(), WIRE_FIELD_ARRAY(o_indexes, index_min));
-    }
-
-    template<typename F, typename T>
-    void get_outputs_out_map(F& format, T& self)
-    {
-      // see get_outputs_request_map if changing fields
-      wire::object(format, WIRE_FIELD(amount), WIRE_FIELD(index));
-    }
-
-    template<typename F, typename T>
-    void get_outputs_request_map(F& format, T& self)
-    {
-      using outputs_out_min = wire::min_element_size<min_uint64<F>() * 2>;
-      wire::object(format,
-        RPC_ACCESS_REQUEST_BASE(),
-        WIRE_FIELD_ARRAY(outputs, outputs_out_min),
-        WIRE_FIELD_DEFAULTED(get_txid, true)
-      );
-    }
-
-    template<typename F, typename T>
-    void outkey_map(F& format, T& self)
-    {
-      // see get_outputs_response_map if changing fields
-      wire::object(format, WIRE_FIELD(key), WIRE_FIELD(mask), WIRE_FIELD(unlocked), WIRE_FIELD(height), WIRE_FIELD(txid));
-    }
-
-    template<typename F, typename T>
-    void get_outputs_response_map(F& format, T& self)
-    {
-      static constexpr std::size_t outkey_min_value =
-        sizeof(crypto::public_key) + sizeof(rct::key) + min_uint64<F>() + sizeof(crypto::hash);
-      using outkey_min = wire::min_element_size<outkey_min_value>;
-      wire::object(format, RPC_ACCESS_RESPONSE_BASE(), WIRE_FIELD_ARRAY(outs, outkey_min));
-    }
-
-    template<typename F, typename T>
-    void output_distribution_request_map(F& format, T& self)
-    {
-      using amounts_min = wire::min_element_size<min_uint64<F>()>;
-      wire::object(format,
-        WIRE_FIELD_ARRAY(amounts, amounts_min),
-        WIRE_FIELD_DEFAULTED(from_height, unsigned(0)),
-        WIRE_FIELD_DEFAULTED(to_height, unsigned(0)),
-        WIRE_FIELD_DEFAULTED(cumulative, false),
-        WIRE_FIELD_DEFAULTED(binary, true),
-        WIRE_FIELD_DEFAULTED(compress, false)
-      );
-    }
-
     enum class is_blob { false_ = 0, true_ };
+    void read_bytes(wire::json_reader& source, std::pair<std::vector<std::uint64_t>, is_blob>& dest)
+    {
+      static constexpr const std::size_t ten_million = 10000000;
+      dest.second = is_blob::false_;
+      wire_read::array(source, dest.first, wire::min_element_size<0>{}, wire::max_element_count<ten_million>{});
+    }
     void read_bytes(wire::epee_reader& source, std::pair<std::vector<std::uint64_t>, is_blob>& dest)
     {
       if (source.last_tag() == SERIALIZE_TYPE_STRING)
@@ -215,15 +128,20 @@ namespace cryptonote
       }
       else
       {
-        using element_min = wire::min_element_size<min_uint64<wire::epee_reader>()>;
+        using element_min = wire::min_element_sizeof<std::uint64_t>;
         wire_read::array(source, dest.first, element_min{});
         dest.second = is_blob::false_;
       }
     }
-    void write_bytes(wire::epee_writer& dest, const std::pair<const std::vector<std::uint64_t>&, is_blob> source)
+    template<typename W>
+    void write_bytes(W& dest, const std::pair<const std::vector<std::uint64_t>&, is_blob> source)
     {
       if (source.second == is_blob::true_)
+      {
+        if (!std::is_same<W, wire::epee_writer>())
+          WIRE_DLOG_THROW(wire::error::schema::binary, "Blob format only supported with epee format");
         wire_write::bytes(dest, wire::array_as_blob(std::cref(source.first)));
+      }
       else
         wire_write::array(dest, source.first);
     }
@@ -241,27 +159,10 @@ namespace cryptonote
         wire::field("base", std::ref(self.data.base))
       );
     }
-
-    template<typename F, typename T>
-    void output_distribution_response_map(F& format, T& self)
-    {
-      using distributions_max = wire::max_element_count<100>;
-      wire::object(format, WIRE_FIELD_ARRAY(distributions, distributions_max));
-    }
   } // anonymous
 
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_FAST::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_FAST::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::request)
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_BLOCKS_BY_HEIGHT::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_HASHES_FAST::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_HASHES_FAST::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUTS_BIN::request);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUTS_BIN::response);
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::request);
-  void read_bytes(wire::epee_reader& source, COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::distribution& dest)
+  template<typename R>
+  static void read_bytes(R& source, COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::distribution& dest)
   {
     boost::optional<std::string> compressed;
     boost::optional<std::pair<std::vector<std::uint64_t>, is_blob>> binary;
@@ -274,8 +175,12 @@ namespace cryptonote
     else
       dest.data.distribution.clear();
   }
-  void write_bytes(wire::epee_writer& dest, const COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::distribution& source)
+  template<typename W>
+  static void write_bytes(W& dest, const COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::distribution& source)
   {
+    if (!std::is_same<W, wire::epee_writer>() && (source.binary || source.compress))
+      WIRE_DLOG_THROW(wire::error::schema::binary, "Compressed and binary data only supported with epee format");
+
     boost::optional<std::string> compressed;
     boost::optional<std::pair<const std::vector<std::uint64_t>&, is_blob>> binary;
     if (source.binary && source.compress && !source.data.distribution.empty())
@@ -285,5 +190,53 @@ namespace cryptonote
 
     output_distribution_map(dest, source, compressed, binary);
   }
-  WIRE_EPEE_DEFINE_CONVERSION(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::response);
+  WIRE_EPEE_DEFINE_COMMAND(COMMAND_RPC_GET_OUTPUT_DISTRIBUTION)
+  WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_POP_BLOCKS)
 } // cryptonote
+
+namespace epee { namespace json_rpc
+{
+  // GETBLOCKCOUNT and GETBLOCKHASH now use the same request
+  using simple_static_vector = boost::container::static_vector<uint64_t, 1>;
+  WIRE_JSON_DEFINE_CONVERSION(client_request<simple_static_vector>);
+  WIRE_JSON_DEFINE_CONVERSION(request_specific<simple_static_vector>);
+
+  WIRE_JSON_DEFINE_CONVERSION(response<cryptonote::COMMAND_RPC_GETBLOCKCOUNT::response>)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_INFO)
+  // GETBLOCKHASH::response uses std::string which has default behavior in epee
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GETBLOCKTEMPLATE)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GETMINERDATA)
+  WIRE_JSON_DEFINE_CONVERSION(client_request<cryptonote::COMMAND_RPC_CALCPOW::request>)
+  WIRE_JSON_DEFINE_CONVERSION(request_specific<cryptonote::COMMAND_RPC_CALCPOW::request>)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_ADD_AUX_POW)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_SUBMITBLOCK)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GENERATEBLOCKS)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_LAST_BLOCK_HEADER)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_BLOCK_HEADER_BY_HASH)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_BLOCK_HEADER_BY_HEIGHT)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_BLOCK)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_HARD_FORK_INFO)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GETBANS)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_SETBANS)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_BANNED)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_FLUSH_TRANSACTION_POOL)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_OUTPUT_HISTOGRAM)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_TRANSACTION_POOL_BACKLOG)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_CONNECTIONS)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_BLOCK_HEADERS_RANGE)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_VERSION)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_COINBASE_TX_SUM)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_BASE_FEE_ESTIMATE)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_ALTERNATE_CHAINS)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_RELAY_TX)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_SYNC_INFO)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_GET_OUTPUT_DISTRIBUTION)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_ACCESS_INFO)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_ACCESS_SUBMIT_NONCE)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_ACCESS_PAY)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_ACCESS_TRACKING)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_ACCESS_DATA)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_ACCESS_ACCOUNT)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_PRUNE_BLOCKCHAIN)
+  EPEE_JSONRPC_DEFINE(cryptonote::COMMAND_RPC_FLUSH_CACHE)
+}} // epee // jsonrpc

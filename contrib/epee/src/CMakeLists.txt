@@ -40,6 +40,7 @@ monero_add_library(epee byte_slice.cpp byte_stream.cpp hex.cpp abstract_http_cli
     file_io_utils.cpp
     net_parse_helpers.cpp
     http_base.cpp
+    jsonrpc_structs.cpp
     ${EPEE_HEADERS_PUBLIC}
     )
 
@@ -88,6 +89,7 @@ endif()
 
 target_include_directories(epee
   PUBLIC
+    "external/rapidjson/include"
     "${EPEE_INCLUDE_DIR_BASE}"
     "${OPENSSL_INCLUDE_DIR}")
 

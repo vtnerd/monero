@@ -33,8 +33,10 @@
 #include <type_traits>
 
 #include "byte_slice.h"
+#include "serialization/wire/epee/fwd.h"
 #include "serialization/wire/error.h"
 #include "serialization/wire/field.h"
+#include "serialization/wire/fwd.h"
 #include "serialization/wire/traits.h"
 #include "span.h"
 
@@ -98,6 +100,9 @@ namespace wire
     //! \throw wire::exception if parsing is incomplete.
     virtual void check_complete() const = 0;
 
+    //! \throw wire::exception if array, object, or end of stream.
+    virtual basic_value basic() = 0;
+
     //! \throw wire::exception if next value not a boolean.
     virtual bool boolean() = 0;
 
@@ -116,14 +121,19 @@ namespace wire
     /*! Copy upcoming string directly into `dest`.
       \throw wire::exception if next value not string
       \throw wire::exception if next string exceeds `dest.size())`
+      \throw wire::exception if `exact == true` and next string is not `dest.size()`
       \return Number of bytes read into `dest`. */
-    virtual std::size_t string(epee::span<char> dest) = 0;
+    virtual std::size_t string(epee::span<char> dest, bool exact) = 0;
 
     // ! \throw wire::exception if next value cannot be read as binary
     virtual epee::byte_slice binary() = 0;
 
-    //! \throw wire::exception if next value cannot be read as binary into `dest`.
-    virtual void binary(epee::span<std::uint8_t> dest) = 0;
+    /*! Copy upcoming binary directly into `dest`.
+      \throw wire::exception if next value not binary
+      \throw wire::exception if next binary exceeds `dest.size()`
+      \throw wire::exception if `exact == true` and next string is not `dest.size()`.
+      \return Number of bytes read into `dest`. */
+    virtual std::size_t binary(epee::span<std::uint8_t> dest, const bool exact) = 0;
 
     /*! \param min_element_size of each array element in any format - if known.
           Derived types with explicit element count should verify available
@@ -186,7 +196,7 @@ namespace wire
   template<typename T>
   inline std::enable_if_t<is_blob<T>::value> read_bytes(reader& source, T& dest)
   {
-    source.binary(epee::as_mut_byte_span(dest));
+    source.binary(epee::as_mut_byte_span(dest), /*exact=*/ true);
   }
 
   namespace integer
@@ -224,6 +234,10 @@ namespace wire
   inline void read_bytes(reader& source, char& dest)
   {
     dest = integer::convert_to<char>(source.integer());
+  }
+  inline void read_bytes(reader& source, signed char& dest)
+  {
+    dest = integer::convert_to<signed char>(source.integer());
   }
   inline void read_bytes(reader& source, short& dest)
   {
@@ -289,31 +303,61 @@ namespace wire_read
   }
 
   //! Use `source` to store information at `dest`
-  template<typename R, typename T>
-  inline std::error_code from_bytes(const epee::span<const std::uint8_t> source, T& dest)
+  template<typename R, typename T, typename U>
+  inline std::error_code from_bytes(T&& source, U& dest)
   {
     try
     {
-      R in{source};
+      R in{std::forward<T>(source)};
       bytes(in, dest);
       in.check_complete();
     }
     catch (const wire::exception& e)
     {
-        std::cout << "caught " << bool(e.code()) << " " << e.code().message() << std::endl;
       return e.code();
     }
 
     return {};
   }
 
-  template<typename R, typename T, std::size_t M, std::size_t N = std::numeric_limits<std::size_t>::max()>
-  inline void array(R& source, T& dest, wire::min_element_size<M> min_element_size, wire::max_element_count<N> max_element_count = {})
+  // Trap objects that do not have standard insertion functions
+  template<typename R, typename... T>
+  void array_insert(const R&, const T&...) noexcept
+  {
+    static_assert(std::is_same<R, void>::value, "type T does not have a valid insertion function");
+  }
+
+  // Insert to sorted containers 
+  template<typename R, typename T, typename V = typename T::value_type>
+  inline auto array_insert(R& source, T& dest) -> decltype(dest.emplace_hint(dest.end(), std::declval<V>()), bool(true))
+  {
+    V val{};
+    wire_read::bytes(source, val);
+    dest.emplace_hint(dest.end(), std::move(val));
+    return true;
+  }
+
+  // Insert into unsorted containers
+  template<typename R, typename T>
+  inline auto array_insert(R& source, T& dest) -> decltype(dest.emplace_back(), dest.back(), bool(true))
+  {
+    // more efficient to process the object in-place in many cases
+    dest.emplace_back();
+    wire_read::bytes(source, dest.back());
+    return true;
+  }
+
+  // no compile-time checks for the array constraints
+  template<typename R, typename T>
+  inline void array_unchecked(R& source, T& dest, const std::size_t min_element_size, const std::size_t max_element_count)
   {
     using value_type = typename T::value_type;
     static_assert(!std::is_same<value_type, char>::value, "read array of chars as binary");
     static_assert(!std::is_same<value_type, std::uint8_t>::value, "read array of unsigned chars as binary");
-    static_assert(min_element_size.template check<value_type>() || max_element_count.template check<value_type>(), "array unpacking memory issues");
+    /*    static_assert(
+      std::is_same<value_type, std::remove_reference_t<decltype(dest.back())>>::value,
+      "bad value_type"
+      );*/
 
     std::size_t count = source.start_array(min_element_size);
 
@@ -332,8 +376,7 @@ namespace wire_read
       if (source.delimited_arrays() && max_element_count <= dest.size())
         throw_exception(wire::error::schema::array, "array size outside of max range", nullptr);
 
-      dest.emplace_back();
-      bytes(source, dest.back());
+      wire_read::array_insert(source, dest);
       --count;
       more &= bool(count);
 
@@ -341,12 +384,28 @@ namespace wire_read
         throw_exception(wire::error::schema::array, "array below min element size constraint", nullptr);
     }
 
-    return source.end_array();
+    source.end_array();
+  }
+
+  template<typename R, typename T, std::size_t M, std::size_t N = std::numeric_limits<std::size_t>::max()>
+  inline void array(R& source, T& dest, wire::min_element_size<M> min_element_size, wire::max_element_count<N> max_element_count = {})
+  {
+    using value_type = typename T::value_type;
+    static_assert(
+      min_element_size.template check<value_type>() || max_element_count.template check<value_type>(),
+      "array unpacking memory issues"
+    );
+    // each set of template args generates unique ASM, merge them down
+    array_unchecked(source, dest, min_element_size, max_element_count);
   }
 
   template<typename T>
-  inline void reset_field(const wire::field_<T, true>&) noexcept
-  {} // no reset, field is required and will be updated during reading
+  inline void reset_field(const wire::field_<T, true>& dest)
+  {
+    // array fields are always optional, see `wire/field.h`
+    if (wire::is_array<wire::unwrap_reference_t<T>>::value)
+      wire::clear(dest.get_value());
+  }
 
   template<typename T>
   inline void reset_field(wire::field_<T, false>& dest)
@@ -416,7 +475,7 @@ namespace wire_read
     //! Reset optional fields that were skipped
     bool reset_omitted()
     {
-      if (!read_)
+      if (!is_required() && !read_)
         reset_field(field_);
       return true;
     }
@@ -425,10 +484,8 @@ namespace wire_read
   // `expand_tracker_map` writes all `tracker` types to a table
 
   template<std::size_t N>
-  inline constexpr std::size_t expand_tracker_map(std::size_t index, const wire::reader::key_map (&)[N]) noexcept
-  {
-    return index;
-  }
+  inline void expand_tracker_map(std::size_t index, const wire::reader::key_map (&)[N]) noexcept
+  {}
 
   template<std::size_t N, typename T, typename... U>
   inline void expand_tracker_map(std::size_t index, wire::reader::key_map (&map)[N], tracker<T>& head, tracker<U>&... tail) noexcept
@@ -478,27 +535,28 @@ namespace wire_read
 
 namespace wire
 {
-  // no default for `is_array<T>::value == true` -> require size constraints
   template<typename R, typename T>
   inline std::enable_if_t<is_array<T>::value> read_bytes(R& source, T& dest)
   {
-    using value_type = typename T::value_type;
-    static_assert(std::is_same<value_type, std::remove_reference_t<decltype(dest.back())>>::value, "bad value_type");
-    static_assert(is_blob<value_type>::value || std::is_arithmetic<value_type>::value, "cannot use default constraints");
-    // default constraints only work with blobs and numbers. the default behavior
-    // is to never allow the wire size to be compressed when compared to the integer size.
-    wire_read::array(source, dest, min_element_size<sizeof(value_type)>);
+    static constexpr const std::size_t wire_size =
+      default_min_element_size<R, typename T::value_type>::value;
+    static_assert(
+      wire_size != 0,
+      "no sane default array constraints for the reader / value_type pair"
+    );
+
+    wire_read::array(source, dest, min_element_size<wire_size>{});
   }
 
-  template<typename... T>
-  inline void object(reader& source, T... fields)
+  template<typename R, typename... T>
+  inline std::enable_if_t<std::is_base_of<reader, R>::value> object(R& source, T... fields)
   {
     wire_read::object(source, wire_read::tracker<T>{std::move(fields)}...);
   }
 
-  template<typename... T>
-  inline void wire_object(reader& source, T... fields)
+  template<typename R, typename... T>
+  inline void object_fwd(const std::true_type /*is_read*/, R& source, T&&... fields)
   {
-    ::wire::object(source, std::move(fields));
+    wire::object(source, std::forward<T>(fields)...);
   }
 }

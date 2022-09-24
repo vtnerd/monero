@@ -33,7 +33,6 @@
 #include <type_traits>
 
 #include "byte_slice.h"
-#include "byte_stream.h"
 #include "serialization/wire/error.h"
 #include "serialization/wire/field.h"
 #include "serialization/wire/traits.h"
@@ -159,8 +158,8 @@ namespace wire_write
   }
 
   //! Use writer `W` to convert `source` into bytes appended to `dest`.
-  template<typename W, typename B, typename T>
-  inline std::error_code to_bytes(B& dest, const T& source)
+  template<typename W, typename T, typename U>
+  inline std::error_code to_bytes(T& dest, const U& source)
   {
     try
     {
@@ -172,6 +171,11 @@ namespace wire_write
     {
       dest.clear();
       return e.code();
+    }
+    catch (...)
+    {
+      dest.clear();
+      throw;
     }
     return {};
   }
@@ -190,31 +194,35 @@ namespace wire_write
   }
 
   template<typename W, typename T>
-  inline bool field(W& dest, const wire::field_<T, true> elem)
+  inline bool field(W& dest, const wire::field_<T, true> field)
   {
-    dest.key(elem.name);
-    bytes(dest, elem.get_value());
+    // Arrays always optional, see `wire/field.h`
+    if (wire::available(field))
+    {
+      dest.key(field.name);
+      bytes(dest, field.get_value());
+    }
     return true;
   }
 
   template<typename W, typename T>
-  inline bool field(W& dest, const wire::field_<T, false> elem)
+  inline bool field(W& dest, const wire::field_<T, false> field)
   {
-    if (bool(elem.get_value()))
+    // Arrays always optional, see `wire/field.h`
+    if (wire::available(field))
     {
-      dest.key(elem.name);
-      bytes(dest, *elem.get_value());
+      dest.key(field.name);
+      bytes(dest, *field.get_value());
     }
     return true;
   }
 
   template<typename W, typename... T>
-  inline void object(W& dest, T... fields)
+  inline void object(W& dest, T&&... fields)
   {
     dest.start_object(wire::sum(std::size_t(wire::available(fields))...));
-    const bool dummy[] = {field(dest, std::move(fields))...};
+    wire::sum(field(dest, std::forward<T>(fields))...);
     dest.end_object();
-    (void)dummy;
   }
 } // wire_write
 
@@ -226,15 +234,15 @@ namespace wire
     wire_write::array(dest, source);
   }
 
-  template<typename... T>
-  inline void object(writer& dest, T... fields)
+  template<typename W, typename... T>
+  inline std::enable_if_t<std::is_base_of<writer, W>::value> object(W& dest, T&&... fields)
   {
-    wire_write::object(dest, std::move(fields)...);
+    wire_write::object(dest, std::forward<T>(fields)...);
   }
 
-  template<typename... T>
-  inline void wire_object(writer& dest, T... fields)
+  template<typename W, typename... T>
+  inline void object_fwd(const std::false_type /* is_read */, W& dest, T&&... fields)
   {
-    ::wire::object(dest, std::move(fields));
+    wire::object(dest, std::forward<T>(fields)...);
   }
 }

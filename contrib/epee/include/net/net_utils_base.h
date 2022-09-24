@@ -95,7 +95,7 @@ namespace net_utils
 		void read_bytes(wire::reader&);
 		void write_bytes(wire::writer&) const;
 
-		BEGIN_KV_SERIALIZE_MAP()
+	  /*		BEGIN_KV_SERIALIZE_MAP()
 			if (is_store)
 			{
 				uint32_t ip = SWAP32LE(this_ref.m_ip);
@@ -107,7 +107,7 @@ namespace net_utils
 				const_cast<ipv4_network_address&>(this_ref).m_ip = SWAP32LE(this_ref.m_ip);
 			}
 			KV_SERIALIZE(m_port)
-		END_KV_SERIALIZE_MAP()
+			END_KV_SERIALIZE_MAP()*/
 	};
 
 	inline bool operator==(const ipv4_network_address& lhs, const ipv4_network_address& rhs) noexcept
@@ -206,12 +206,12 @@ namespace net_utils
 		void write_bytes(wire::writer&) const;
 
 		static const uint8_t ID = 2;
-		BEGIN_KV_SERIALIZE_MAP()
+	  /*		BEGIN_KV_SERIALIZE_MAP()
 			boost::asio::ip::address_v6::bytes_type bytes = this_ref.m_address.to_bytes();
 			epee::serialization::selector<is_store>::serialize_t_val_as_blob(bytes, stg, hparent_section, "addr");
 			const_cast<boost::asio::ip::address_v6&>(this_ref.m_address) = boost::asio::ip::address_v6(bytes);
 			KV_SERIALIZE(m_port)
-		END_KV_SERIALIZE_MAP()
+			END_KV_SERIALIZE_MAP()*/
 	};
 
 	inline bool operator==(const ipv6_network_address& lhs, const ipv6_network_address& rhs) noexcept
@@ -291,7 +291,7 @@ namespace net_utils
 				throw std::bad_cast{};
 			return static_cast<implementation<Type_>*>(self_)->value;
 		}
-
+	  /*
 		template<typename T, typename t_storage>
 		bool serialize_addr(std::false_type, t_storage& stg, typename t_storage::hsection hparent)
 		{
@@ -306,7 +306,7 @@ namespace net_utils
 		bool serialize_addr(std::true_type, t_storage& stg, typename t_storage::hsection hparent) const
 		{
 			return epee::serialization::selector<true>::serialize(as<T>(), stg, hparent, "addr");
-		}
+			}*/
 
 	public:
 		network_address() : self(nullptr) {}
@@ -325,7 +325,7 @@ namespace net_utils
 		bool is_blockable() const { return self ? self->is_blockable() : false; }
 		std::uint16_t port() const { return self ? self->port() : 0; }
 		template<typename Type> const Type &as() const { return as_mutable<const Type>(); }
-
+	  /*
 		BEGIN_KV_SERIALIZE_MAP()
 			// need to `#include "net/[i2p|tor]_address.h"` when serializing `network_address`
 			static constexpr std::integral_constant<bool, is_store> is_store_{};
@@ -351,7 +351,7 @@ namespace net_utils
 
 			MERROR("Unsupported network address type: " << (unsigned)type);
 			return false;
-		END_KV_SERIALIZE_MAP()
+			END_KV_SERIALIZE_MAP()*/
 	};
 
 	inline bool operator==(const network_address& lhs, const network_address& rhs)

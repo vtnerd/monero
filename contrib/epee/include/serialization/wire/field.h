@@ -54,9 +54,16 @@ namespace wire
     `write_bytes` function when parsing with a `wire::writer` - see `write.h`
     for more info.
 
+    Any `value_type` where `is_array<value_type> == true`, will automatically
+    be converted to an optional field. The old output engine omitted fields
+    when an array was empty, and the standard input macro would ignore the
+    `false` return for the missing field. For compability reasons, the
+    input/output engine here matches that behavior. See `wire/wrapper/array.h`
+    to enforce a required field with size 0 for empty arrays. Only new fields
+    should use this behavior.
+
     Additional concept requirements for `value_type` when `Required == false`:
-      * must have an `operator*()` function that returns some other type (i.e.
-        `return *this` not allowed)
+      * must have an `operator*()` function.
       * must have a conversion to bool function that returns true when
         `operator*()` is safe to call (and implicitly when the associated field
         should be written as opposed to skipped/omitted).
@@ -87,8 +94,8 @@ namespace wire
   template<typename T, bool Required>
   struct field_
   {
-    using value_type = typename unwrap_reference<T>::type;
-    static constexpr bool is_required() noexcept { return Required; }
+    using value_type = unwrap_reference_t<T>;
+    static constexpr bool is_required() noexcept { return Required && !is_array<value_type>::value; }
     static constexpr std::size_t count() noexcept { return 1; }
 
     const char* name;
@@ -114,12 +121,14 @@ namespace wire
 
 
   template<typename T>
-  inline constexpr bool available(const field_<T, true>&) noexcept
+  inline constexpr bool available(const field_<T, true>& elem)
   {
-    return true;
+    /* The old output engine always skipped fields when it was an empty array,
+       this follows that behavior. See comments for `field_`. */
+    return elem.is_required() || wire::empty(elem.get_value());
   }
   template<typename T>
-  inline bool available(const field_<T, false>& elem)
+  inline constexpr bool available(const field_<T, false>& elem)
   {
     return bool(elem.get_value());
   }
@@ -135,4 +144,7 @@ namespace wire
   {
     return head + sum(tail...);
   }
-}
+
+  template<typename... T>
+  using min_element_sizeof = min_element_size<sum(sizeof(T)...)>;
+} // wire

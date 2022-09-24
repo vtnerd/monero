@@ -28,7 +28,7 @@
 #pragma once
 
 #include <cstdint>
-#Include <boost/container/static_vector.hpp>
+#include <boost/container/static_vector.hpp>
 #include <boost/utility/string_ref.hpp>
 
 #include "serialization/wire/read.h"
@@ -41,28 +41,52 @@ namespace wire
   struct is_array<boost::container::static_vector<T, N>>
     : std::true_type
   {};
+  
+  // `static_vector`s of `char` and `uint8_t` are not arrays
+  template<std::size_t N>
+  struct is_array<boost::container::static_vector<char, N>>
+    : std::false_type
+  {};
+  template<std::size_t N>
+  struct is_array<boost::container::static_vector<std::uint8_t, N>>
+    : std::false_type
+  {};
 
-  // `static_vector` can be used without specialized macro, it provides max element count
-  template<typename T, std::size_t N>
-  inline void read_bytes(reader& source, boost::container::static_vector<T, N>& dest)
+  // `static_vector` can be used without specialized macro for every type, it provides max element count
+  template<typename R, typename T, std::size_t N>
+  inline void read_bytes(R& source, boost::container::static_vector<T, N>& dest)
   {
     wire_read::array(source, dest, min_element_size<0>{}, max_element_count<N>{});
   }
 
-  /* `static_vector` never allocates, so it is useful for reading small strings
-     with a known fixed max. A `static_vector` of `char`s cannot be written as
-     an array anyway; `static_assert`s prevent this for perf reasons. */
-  
-  template<std::size_t N>
-  inline void read_bytes(reader& source, boost::container::static_vector<char, N>& dest)
+  /* `static_vector` never allocates, so it is useful for reading small variable
+     sized strings or binary data with a known fixed max. `char` and
+     `std::uint8_t` are not valid types for arrays in this design anyway
+     (because its clearly less efficient in every encoding scheme).  */
+
+  template<typename R, std::size_t N>
+  inline void read_bytes(R& source, boost::container::static_vector<char, N>& dest)
   {
     dest.resize(N);
-    dest.resize(source.string(epee::to_mut_span(dest)));
+    dest.resize(source.string(epee::to_mut_span(dest), /* exact= */ false));
   }
 
-  template<std::size_t N>
-  inline void write_bytes(writer& dest, boost::container::static_vector<char, N>& source)
+  template<typename W, std::size_t N>
+  inline void write_bytes(W& dest, boost::container::static_vector<char, N>& source)
   {
     dest.string(boost::string_ref{source.data(), source.size()});
+  }
+
+  template<typename R, std::size_t N>
+  inline void read_bytes(R& source, boost::container::static_vector<std::uint8_t, N>& dest)
+  {
+    dest.resize(N);
+    dest.resize(source.binary(epee::to_mut_span(dest), /* exact= */ false));
+  }
+
+  template<typename W, std::size_t N>
+  inline void write_bytes(W& dest, boost::container::static_vector<std::uint8_t, N>& source)
+  {
+    dest.binary(epee::to_span(source));
   }
 }

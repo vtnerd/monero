@@ -27,16 +27,15 @@
 
 #pragma once
 
-#include <cstdint>
 #include <list>
+#include <type_traits>
 
 #include "serialization/wire/traits.h"
 
 namespace wire
 {
-  // For easy output
-  template<typename T>
-  struct is_array<std::list<T>>
+  template<typename T, typename A>
+  struct is_array<std::list<T, A>>
     : std::true_type
   {};
 }

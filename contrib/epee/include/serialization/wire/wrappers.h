@@ -36,4 +36,3 @@
    encoding system how to output an unknown type. Some of the wrappers need to include
    `wire/read.h` or `wire/write.h`, see the associated `_impl` files if you run into
    compilation issues. */
-

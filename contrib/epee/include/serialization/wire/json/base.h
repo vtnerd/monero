@@ -27,14 +27,20 @@
 
 #pragma once
 
+#include <string>
 #include <system_error>
 #include "serialization/wire/json/fwd.h"
 #include "span.h"
 
-//! Declare functions that convert `type` to/from epee binary bytes
-#define WIRE_EPEE_DECLARE_CONVERSION(type)                              \
-  std::error_code convert_from_json(::epee::span<const std::uint8_t>, type&); \
-  std::error_code convert_to_json(::epee::byte_stream&, const type&)    \
+//! Declare functions that convert `type` to/from json bytes
+#define WIRE_JSON_DECLARE_CONVERSION(type)                              \
+  std::error_code convert_from_json(::epee::span<const char>, type&);   \
+  std::error_code convert_to_json(std::string&, const type&)            \
+
+//! Declare functions that convert `type::request` and `type::response` to/from json bytes
+#define WIRE_JSON_DECLARE_COMMAND(type)	       \
+  WIRE_JSON_DECLARE_CONVERSION(type::request); \
+  WIRE_JSON_DECLARE_CONVERSION(type::response)
 
 namespace epee { class byte_stream; }
 namespace wire
@@ -42,18 +48,18 @@ namespace wire
   struct json
   {
     using input_type = json_reader;
-    using output_type = json_writer;
+    using output_type = json_string_writer;
 
     //! Only enabled if `T` has templated method `from_bytes`.
     template<typename T>
-    static auto from_bytes(const epee::span<const std::uint8_t> source, T& dest) -> decltype(dest.template from_bytes<input_type>(source))
+    static auto from_bytes(const epee::span<const char> source, T& dest) -> decltype(dest.template from_bytes<input_type>(source))
     {
       return dest.template from_bytes<input_type>(source);
     }
 
     //! Only enabled if `T` has templated method `to_bytes`.
     template<typename T>
-    static auto to_bytes(epee::byte_stream& dest, const T& source) -> decltype(source.template to_bytes<output_type>(dest))
+    static auto to_bytes(std::string& dest, const T& source) -> decltype(source.template to_bytes<output_type>(dest))
     {
       return source.template to_bytes<output_type>(dest);
     }
@@ -61,13 +67,13 @@ namespace wire
     // Parameters packs have lower precedence; above functions are preferred.
 
     template<typename... T>
-    static std::error_code from_bytes(const epee::span<const std::uint8_t> source, T&... dest)
+    static std::error_code from_bytes(const epee::span<const char> source, T&... dest)
     {
       return convert_from_json(source, dest...); // ADL (searches every associated namespace)
     }
 
     template<typename... T>
-    static std::error_code to_bytes(epee::byte_stream& dest, const T&... source)
+    static std::error_code to_bytes(std::string& dest, const T&... source)
     {
       return convert_to_json(dest, source...); // ADL (searches every associated namespace)
     }

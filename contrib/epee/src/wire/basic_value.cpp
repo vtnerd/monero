@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022, The Monero Project
+// Copyright (c) 2022, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -25,30 +25,26 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#pragma once
+#include "serialization/wire/basic_value.h"
 
-#include "serialization/wire/fwd.h"
-#include "serialization/wire/read.h"
+#include <boost/variant/apply_visitor.hpp>
+#include <stdexcept>
 #include "serialization/wire/write.h"
 
-//! Define functions that list fields in `type` (using virtual interface)
-#define WIRE_DEFINE_OBJECT(type, map)                          \
-  void read_bytes(::wire::reader& source, type& dest)          \
-  {                                                            \
-    map(source, dest);                                         \
-  }                                                            \
-  void write_bytes(::wire::writer& dest, const type& source)   \
-  {                                                            \
-    map(dest, source);                                         \
+namespace wire
+{
+  static void write_bytes(writer& dest, const std::nullptr_t&)
+  {
+    throw std::logic_error{"nullptr output not yet defined for wire::writer"};
   }
 
-//! Define `from_bytes` and `to_bytes` for `this`.
-#define WIRE_DEFINE_CONVERSIONS()                                       \
-  template<typename R, typename T>                                      \
-  std::error_code from_bytes(T&& source)                                \
-  { return ::wire_read::from_bytes<R>(std::forward<T>(source), *this); } \
-                                                                        \
-  template<typename W, typename T>                                      \
-  std::error_code to_bytes(T& dest) const                               \
-  { return ::wire_write::to_bytes<W>(dest, *this); }
+  void basic_value::reset()
+  {
+    value = nullptr;
+  }
 
+  void write_bytes(writer& dest, const basic_value& source)
+  {
+    boost::apply_visitor([&dest] (const auto& val) { wire_write::bytes(dest, val); }, source.value);
+  }
+}

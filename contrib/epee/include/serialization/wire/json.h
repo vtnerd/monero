@@ -27,40 +27,39 @@
 
 #pragma once
 
-#include <cstdint>
-#include "byte_stream.h"
-#include "serialization/wire/epee/base.h"
-#include "serialization/wire/epee/error.h"
-#include "serialization/wire/epee/fwd.h"
-#include "serialization/wire/epee/read.h"
-#include "serialization/wire/epee/write.h"
+#include <string>
+#include "serialization/wire/json/base.h"
+#include "serialization/wire/json/error.h"
+#include "serialization/wire/json/fwd.h"
+#include "serialization/wire/json/read.h"
+#include "serialization/wire/json/write.h"
 #include "serialization/wire/read.h"
 #include "serialization/wire/write.h"
 #include "span.h"
 
 //! Define functions that list fields in `type` (calls de-virtualized)
-#define WIRE_EPEE_DEFINE_OBJECT(type, map)                              \
-  void read_bytes(::wire::epee_reader& source, type& dest)              \
+#define WIRE_JSON_DEFINE_OBJECT(type, map)                              \
+  void read_bytes(::wire::json_reader& source, type& dest)              \
   {                                                                     \
     map(source, dest);                                                  \
   }                                                                     \
-  void write_bytes(::wire::epee_writer& dest, const type& source)       \
+  void write_bytes(::wire::json_writer& dest, const type& source)       \
   {                                                                     \
     map(dest, source);                                                  \
   }
 
-//! Define functions that convert `type` to/from epee binary bytes
-#define WIRE_EPEE_DEFINE_CONVERSION(type)                               \
-  std::error_code convert_from_epee(const ::epee::span<const std::uint8_t> source, type& dest) \
+//! Define functions that convert `type` to/from json bytes
+#define WIRE_JSON_DEFINE_CONVERSION(type)                               \
+  std::error_code convert_from_json(const ::epee::span<const char> source, type& dest) \
   {                                                                     \
-    return ::wire_read::from_bytes<::wire::epee_reader>(source, dest);  \
+    return ::wire_read::from_bytes<::wire::json_reader>(source, dest);  \
   }                                                                     \
-  std::error_code convert_to_epee(::epee::byte_stream& dest, const type& source) \
+  std::error_code convert_to_json(std::string& dest, const type& source)        \
   {                                                                     \
-    return ::wire_write::to_bytes<::wire::epee_writer>(dest, source);   \
+    return ::wire_write::to_bytes<::wire::json_string_writer>(dest, source);   \
   }
 
-//! Define functions that convert `type::command` and `type::response` to/from epee binary bytes
-#define WIRE_EPEE_DEFINE_COMMAND(type)		\
-  WIRE_EPEE_DEFINE_CONVERSION(type::request)	\
-  WIRE_EPEE_DEFINE_CONVERSION(type::response)
+//! Define functions that convert `type::request` and `type::response` to/from json bytes
+#define WIRE_JSON_DEFINE_COMMAND(type)          \
+  WIRE_JSON_DEFINE_CONVERSION(type::request)    \
+  WIRE_JSON_DEFINE_CONVERSION(type::response)

@@ -31,6 +31,7 @@
 #include <limits>
 #include <stdexcept>
 
+#include "serialization/wire/basic_value.h"
 #include "serialization/wire/error.h"
 #include "serialization/wire/epee/error.h"
 #include "storages/portable_storage.h"
@@ -115,7 +116,7 @@ namespace wire
 
   epee::span<const std::uint8_t> epee_reader::raw(error::schema expected)
   {
-    if (last_tag_ != SERIALIZE_TYPE_STRING)
+    if (last_tag() != SERIALIZE_TYPE_STRING)
       WIRE_DLOG_THROW_(expected);
 
     const std::size_t len = read_varint();
@@ -126,7 +127,7 @@ namespace wire
 
   void epee_reader::skip_fixed(const std::size_t count)
   {
-    const std::size_t elem_size = min_wire_size(last_tag_);
+    const std::size_t elem_size = min_wire_size(last_tag());
     if (remaining_.size() / elem_size < count)
       WIRE_DLOG_THROW(error::epee::not_enough_bytes, count << " fixed size arithmetics of size " << elem_size);
     remaining_.remove_prefix(elem_size * count);
@@ -145,7 +146,7 @@ namespace wire
     };
     skip_stack_.clear();
     skip_stack_.reserve(max_read_depth());
-    start_tag(last_tag_);
+    start_tag(last_tag());
     while (1)
     {
       while (!skip_stack_.empty() && !skip_stack_.back().first)
@@ -175,7 +176,7 @@ namespace wire
       case SERIALIZE_TYPE_ARRAY | SERIALIZE_FLAG_ARRAY:
       case SERIALIZE_TYPE_ARRAY:
         --skip_stack_.back().first;
-        start_tag(last_tag_);
+        start_tag(last_tag());
         break;
       case SERIALIZE_TYPE_OBJECT | SERIALIZE_FLAG_ARRAY:
         --skip_stack_.back().first;
@@ -185,7 +186,7 @@ namespace wire
         --skip_stack_.back().first;
         read_name();
         last_tag_ = read_tag();
-        start_tag(last_tag_);
+        start_tag(last_tag());
         break;
       case SERIALIZE_TYPE_STRING | SERIALIZE_FLAG_ARRAY:
       case SERIALIZE_TYPE_STRING:
@@ -216,19 +217,42 @@ namespace wire
   void epee_reader::check_complete() const
   {
     // do not consider extra bytes an error
-    if (depth() || last_tag_ != SERIALIZE_TYPE_OBJECT)
+    if (depth() || last_tag() != SERIALIZE_TYPE_OBJECT)
       throw std::logic_error{"Invalid tree traversal"};
+  }
+
+  basic_value epee_reader::basic()
+  {
+    switch (last_tag())
+    {
+    case SERIALIZE_TYPE_BOOL:   return {boolean()};
+    case SERIALIZE_TYPE_DOUBLE: return {real()};
+    case SERIALIZE_TYPE_STRING: return {string()};
+    case SERIALIZE_TYPE_INT64:
+    case SERIALIZE_TYPE_INT32:
+    case SERIALIZE_TYPE_INT16:
+    case SERIALIZE_TYPE_INT8:
+      return {integer()};
+    case SERIALIZE_TYPE_UINT64:
+    case SERIALIZE_TYPE_UINT32:
+    case SERIALIZE_TYPE_UINT16:
+    case SERIALIZE_TYPE_UINT8:
+      return {unsigned_integer()};
+    default:
+      break;
+    };
+    WIRE_DLOG_THROW(error::schema::number, "expected a boolean, integer, float or string");
   }
 
   bool epee_reader::boolean()
   {
-    if (last_tag_ != SERIALIZE_TYPE_BOOL)
+    if (last_tag() != SERIALIZE_TYPE_BOOL)
       WIRE_DLOG_THROW_(error::schema::boolean);
     return read<bool>();
   }
   std::intmax_t epee_reader::integer()
   {
-    switch (last_tag_)
+    switch (last_tag())
     {
     case SERIALIZE_TYPE_INT64: return read<int64_t>();
     case SERIALIZE_TYPE_INT32: return read<int32_t>();
@@ -242,7 +266,7 @@ namespace wire
 
   std::uintmax_t epee_reader::unsigned_integer()
   {
-    switch (last_tag_)
+    switch (last_tag())
     {
     case SERIALIZE_TYPE_UINT64: return read<uint64_t>();
     case SERIALIZE_TYPE_UINT32: return read<uint32_t>();
@@ -256,7 +280,7 @@ namespace wire
 
   double epee_reader::real()
   {
-    if (last_tag_ != SERIALIZE_TYPE_DOUBLE)
+    if (last_tag() != SERIALIZE_TYPE_DOUBLE)
       WIRE_DLOG_THROW_(error::schema::number);
     return read<double>();
   }
@@ -267,27 +291,21 @@ namespace wire
     return std::string{reinterpret_cast<const char*>(value.data()), value.size()};
   }
 
-  std::size_t epee_reader::string(epee::span<char> dest)
-  {
-    const auto value = raw(error::schema::string);
-    if (dest.size() < value.size())
-      WIRE_DLOG_THROW_(error::schema::string, " no longer than " << dest.size() << " but got " << value.size());
-    std::memcpy(dest.data(), value.data(), value.size());
-    return value.size();
-  }
-
   epee::byte_slice epee_reader::binary()
   {
     // TODO update epee "glue" code to use byte_slice, so that this is a ref-count
     return epee::byte_slice{{raw(error::schema::binary)}};
   }
 
-  void epee_reader::binary(epee::span<std::uint8_t> dest)
+  std::size_t epee_reader::binary(epee::span<std::uint8_t> dest, const bool exact)
   {
     const auto value = raw(error::schema::binary);
-    if (dest.size() != value.size())
-      WIRE_DLOG_THROW(error::schema::fixed_binary, "of size" << dest.size() * 2 << " but got " << value.size());
+    if (!exact && value.size() < dest.size())
+      WIRE_DLOG_THROW(error::schema::binary, "of max size " << dest.size() << " but got " << value.size());
+    if (exact && dest.size() != value.size())
+      WIRE_DLOG_THROW(error::schema::fixed_binary, "of size" << dest.size() << " but got " << value.size());
     std::memcpy(dest.data(), value.data(), value.size());
+    return value.size();
   }
 
   std::size_t epee_reader::start_array(std::size_t min_element_size)
@@ -295,17 +313,17 @@ namespace wire
     // also called from `skip_next`
     increment_depth();
 
-    if (last_tag_ == SERIALIZE_TYPE_ARRAY)
+    if (last_tag() == SERIALIZE_TYPE_ARRAY)
       last_tag_ = read_tag();
 
-    if (!(last_tag_ & SERIALIZE_FLAG_ARRAY))
+    if (!(last_tag() & SERIALIZE_FLAG_ARRAY))
       WIRE_DLOG_THROW_(error::schema::array);
 
     last_tag_ &= ~SERIALIZE_FLAG_ARRAY;
 
     const std::size_t count = read_varint();
     const std::size_t remaining = std::min(array_space_, remaining_.size());
-    min_element_size = std::max(min_wire_size(last_tag_), min_element_size);
+    min_element_size = std::max(min_wire_size(last_tag()), min_element_size);
     if (min_element_size && ((remaining / min_element_size) < count))
       WIRE_DLOG_THROW(error::epee::not_enough_bytes, count << " array elements of at least " << min_element_size << " bytes each exceeds " << remaining << " remaining bytes");
     array_space_ = remaining - (count * min_element_size);
@@ -324,7 +342,7 @@ namespace wire
   {
     // also called from `skip_next`
     increment_depth();
-    if (last_tag_ != SERIALIZE_TYPE_OBJECT)
+    if (last_tag() != SERIALIZE_TYPE_OBJECT)
       WIRE_DLOG_THROW_(error::schema::object);
     last_tag_ = 0;
     return read_varint();

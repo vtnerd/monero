@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022, The Monero Project
+// Copyright (c) 2022, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -25,30 +25,25 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#pragma once
+#include "wallet_light_rpc.h"
 
-#include "serialization/wire/fwd.h"
-#include "serialization/wire/read.h"
-#include "serialization/wire/write.h"
+#include "serialization/wire/adapted/vector.h"
+#include "serialization/wire/json.h"
+#include "serialization/wire/wrappers_impl.h"
 
-//! Define functions that list fields in `type` (using virtual interface)
-#define WIRE_DEFINE_OBJECT(type, map)                          \
-  void read_bytes(::wire::reader& source, type& dest)          \
-  {                                                            \
-    map(source, dest);                                         \
-  }                                                            \
-  void write_bytes(::wire::writer& dest, const type& source)   \
-  {                                                            \
-    map(dest, source);                                         \
-  }
+#define DEFINE_CLIENT_ONLY(command)					\
+  std::error_code convert_to_json(std::string& dest, const command::request& source) \
+  { return wire_write::to_bytes<wire::json_string_writer>(dest, source); } \
+  									\
+  std::error_code convert_from_json(epee::span<const char> source, command::response& dest) \
+  { return wire_read::from_bytes<wire::json_reader>(source, dest); }
 
-//! Define `from_bytes` and `to_bytes` for `this`.
-#define WIRE_DEFINE_CONVERSIONS()                                       \
-  template<typename R, typename T>                                      \
-  std::error_code from_bytes(T&& source)                                \
-  { return ::wire_read::from_bytes<R>(std::forward<T>(source), *this); } \
-                                                                        \
-  template<typename W, typename T>                                      \
-  std::error_code to_bytes(T& dest) const                               \
-  { return ::wire_write::to_bytes<W>(dest, *this); }
-
+namespace tools
+{
+  DEFINE_CLIENT_ONLY(COMMAND_RPC_GET_ADDRESS_TXS)
+  DEFINE_CLIENT_ONLY(COMMAND_RPC_GET_ADDRESS_INFO)
+  DEFINE_CLIENT_ONLY(COMMAND_RPC_GET_UNSPENT_OUTS)
+  DEFINE_CLIENT_ONLY(COMMAND_RPC_LOGIN)
+  DEFINE_CLIENT_ONLY(COMMAND_RPC_IMPORT_WALLET_REQUEST)
+  DEFINE_CLIENT_ONLY(COMMAND_RPC_GET_RANDOM_OUTS)
+}

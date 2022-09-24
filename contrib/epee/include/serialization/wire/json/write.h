@@ -32,49 +32,66 @@
 #include <cstdint>
 #include <limits>
 #include <rapidjson/writer.h>
+#include <string>
 
-#include "byte_stream.h" // monero/contrib/epee/include
-#include "span.h"        // monero/contrib/epee/include
-#include "wire/field.h"
-#include "wire/filters.h"
-#include "wire/json/base.h"
-#include "wire/traits.h"
-#include "wire/write.h"
+#include "serialization/wire/write.h"
+#include "span.h"
 
 namespace wire
 {
   constexpr const std::size_t uint_to_string_size =
     std::numeric_limits<std::uintmax_t>::digits10 + 2;
 
+  struct string_stream
+  {
+    using Ch = char;
+    std::string buffer_;
+
+    void Put(const char c) { buffer_.push_back(c); }
+    static void Flush() noexcept {}
+  };
+
+  //! Compatability/optimization for rapidjson.
+  inline void PutReserve(string_stream& dest, const std::size_t length)
+  {
+    dest.buffer_.reserve(length);
+  }
+
+  //! Compability/optimization for rapidjson.
+  inline void PutN(string_stream& dest, const std::uint8_t ch, const std::size_t count)
+  {
+    dest.buffer_.append(count, ch);
+  }
+
   //! Writes JSON tokens one-at-a-time for DOMless output.
   class json_writer : public writer
   {
-    epee::byte_stream bytes_;
-    rapidjson::Writer<epee::byte_stream> formatter_;
+    string_stream stream_;
+    rapidjson::Writer<string_stream> formatter_;
     bool needs_flush_;
 
-    //! \return True if buffer needs to be cleared
-    virtual void do_flush(epee::span<const uint8_t>);
+    virtual void do_flush(epee::span<const char>);
 
     //! Flush written bytes to `do_flush(...)` if configured
     void check_flush();
 
   protected:
     json_writer(bool needs_flush)
-      : writer(), bytes_(), formatter_(bytes_), needs_flush_(needs_flush)
+      : writer(), stream_{}, formatter_(stream_), needs_flush_(needs_flush)
     {}
 
-    //! \throw std::logic_error if incomplete JSON tree
-    void check_complete();
+    json_writer(std::string&& bytes)
+      : writer(), stream_{std::move(bytes)}, formatter_(stream_), needs_flush_(false)
+    {}
 
     //! \throw std::logic_error if incomplete JSON tree. \return JSON bytes
-    epee::byte_slice take_json();
+    std::string take_json();
 
     //! Flush bytes in local buffer to `do_flush(...)`
     void flush()
     {
-      do_flush({bytes_.data(), bytes_.size()});
-      bytes_ = epee::byte_stream{}; // TODO create .clear() method in monero project
+      do_flush(epee::to_span(stream_.buffer_));
+      stream_.buffer_.clear();
     }
 
   public:
@@ -84,6 +101,9 @@ namespace wire
 
     //! \return Null-terminated buffer containing uint as decimal ascii
     static std::array<char, uint_to_string_size> to_string(std::uintmax_t) noexcept;
+
+    //! \throw std::logic_error if incomplete JSON tree
+    void check_complete();
 
     void integer(int) override final;
     void integer(std::intmax_t) override final;
@@ -96,8 +116,6 @@ namespace wire
     void string(boost::string_ref) override final;
     void binary(epee::span<const std::uint8_t> source) override final;
 
-    void enumeration(std::size_t index, epee::span<char const* const> enums) override final;
-
     void start_array(std::size_t) override final;
     void end_array() override final;
 
@@ -107,14 +125,20 @@ namespace wire
   };
 
   //! Buffers entire JSON message in memory
-  struct json_slice_writer final : json_writer
+  struct json_string_writer final : json_writer
   {
-    explicit json_slice_writer()
-      : json_writer(false)
+    //! Writer json to an empty buffer.
+    explicit json_string_writer()
+      : json_string_writer(std::string{})
+    {}
+
+    //! Append json to existing `buffer`.
+    explicit json_string_writer(std::string&& buffer)
+      : json_writer(std::move(buffer))
     {}
 
     //! \throw std::logic_error if incomplete JSON tree \return JSON bytes
-    epee::byte_slice take_bytes()
+    std::string take_buffer()
     {
       return json_writer::take_json();
     }
@@ -125,7 +149,7 @@ namespace wire
   {
     std::ostream& dest;
 
-    virtual void do_flush(epee::span<const std::uint8_t>) override final;
+    virtual void do_flush(epee::span<const char>) override final;
   public:
     explicit json_stream_writer(std::ostream& dest)
       : json_writer(true), dest(dest)
@@ -138,10 +162,4 @@ namespace wire
       flush();
     }
   };
-
-  template<typename... T>
-  inline void object(json_writer& dest, T... fields)
-  {
-    wire_write::object(dest, std::move(fields)...);
-  }
 }

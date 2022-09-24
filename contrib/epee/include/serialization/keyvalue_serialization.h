@@ -30,26 +30,25 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include "serialization/wire/fields.h"
-#Include "serialization/wire/wrappers.h"
+#include "serialization/wire/field.h"
+#include "serialization/wire/fwd.h"
+#include "serialization/wire/wrappers.h"
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
 #define MONERO_DEFAULT_LOG_CATEGORY "serialization"
 
 namespace epee
 {
-  template<typename F, typename... T, std::size_t... I>
-  void unpack_object2(F& format, std::tuple<T...>&& fields, std::index_sequence<I...>)
+  template<typename B, typename F, typename... T, std::size_t... I>
+  inline void unpack_object2(const B is_read, F& format, std::tuple<T...>&& fields, std::index_sequence<I...>)
   {
-    /* Another ADL call below, delays function lookup until instatiation. This
-       helps with forward declaring in headers. */
-    wire_object(format, std::move(std::get<I>(fields))...);
+    ::wire::object_fwd(is_read, format, std::move(std::get<I>(fields))...);
   }
 
-  template<typename F, typename... T>
-  void unpack_object(F& format, std::tuple<T...>&& fields)
+  template<typename B, typename F, typename... T>
+  inline void unpack_object(const B is_read, F& format, std::tuple<T...>&& fields)
   {
-    ::epee::unpack_object2(format, std::move(fields), std::make_index_sequence<sizeof...(T)>{});
+    ::epee::unpack_object2(is_read, format, std::move(fields), std::make_index_sequence<sizeof...(T)>{});
   }
 
   // Macro does not define "root" conversion function,
@@ -62,13 +61,13 @@ namespace epee
   /* This also reduces the number of includes needed in this header.      */
   /************************************************************************/
 #define BEGIN_KV_SERIALIZE_MAP()                                        \
-  template<class F>                                                     \
-  void read_bytes(F& format)                                            \
-  { ::epee::unpack_object(format, get_field_list(format, *this)); }     \
+  template<class R>                                                     \
+  void read_bytes(R& source)                                            \
+  { ::epee::unpack_object(std::true_type{}, source, get_field_list(source, *this)); } \
                                                                         \
-  template<class F>                                                     \
-  void write_bytes(F& format) const                                     \
-  { ::epee::unpack_object(format, get_field_list(format, *this)); }     \
+  template<class W>                                                     \
+  void write_bytes(W& dest) const                                     \
+  { ::epee::unpack_object(std::false_type{}, dest, get_field_list(dest, *this)); } \
                                                                         \
   template<class F, class T>                                            \
   static auto get_field_list(F& format, T& self)                        \
@@ -87,7 +86,7 @@ namespace epee
   std::make_tuple(::wire::field(val_name, ::wire::blob(std::ref(self.variable)))),
 
 #define KV_SERIALIZE_VAL_POD_AS_BLOB_OPT_N(variable, val_name, default_value) \
-  std::make_tuple(::wire::field(val_name, ::wire::defaulted(::wire::blob(std::ref(this_ref.variable)), default_value))),
+  std::make_tuple(::wire::field(val_name, ::wire::defaulted(::wire::blob(std::ref(self.variable)), default_value))),
 
 #define KV_SERIALIZE_CONTAINER_POD_AS_BLOB_N(variable, val_name) \
   std::make_tuple(::wire::field(val_name, ::wire::array_as_blob(std::ref(self.variable)))),
@@ -100,7 +99,7 @@ namespace epee
 #define KV_SERIALIZE(varialble)                           KV_SERIALIZE_N(varialble, #varialble)
 #define KV_SERIALIZE_VAL_POD_AS_BLOB(varialble)           KV_SERIALIZE_VAL_POD_AS_BLOB_N(varialble, #varialble)
 #define KV_SERIALIZE_VAL_POD_AS_BLOB_OPT(varialble, def)  KV_SERIALIZE_VAL_POD_AS_BLOB_OPT_N(varialble, #varialble, def)
-#define KV_SERIALIZE_VAL_POD_AS_BLOB_FORCE(varialble)     KV_SERIALIZE_VAL_POD_AS_BLOB_FORCE_N(varialble, #varialble) //skip is_pod compile time check
+#define KV_SERIALIZE_VAL_POD_AS_BLOB_FORCE(varialble)     KV_SERIALIZE_VAL_POD_AS_BLOB(varialble) //skip is_pod compile time check
 #define KV_SERIALIZE_CONTAINER_POD_AS_BLOB(varialble)     KV_SERIALIZE_CONTAINER_POD_AS_BLOB_N(varialble, #varialble)
 #define KV_SERIALIZE_OPT(variable,default_value)          KV_SERIALIZE_OPT_N(variable, #variable, default_value)
 #define KV_SERIALIZE_ARRAY(variable, constraint)          KV_SERIALIZE_ARRAY_N(variable, #variable, constraint)

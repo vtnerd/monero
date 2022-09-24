@@ -39,7 +39,7 @@
 #include "string_tools.h"
 #include "net/levin_protocol_handler_async.h"
 #include "net/abstract_tcp_server2.h"
-#include "serialization/wire/epee.h"
+#include "serialization/keyvalue_serialization.h"
 #include "serialization/wire.h"
 
 #include "../unit_tests/unit_tests_utils.h"
@@ -236,8 +236,9 @@ namespace net_load_tests
 
     struct request
     {
-      WIRE_BEGIN_MAP()
-      WIRE_END_MAP()
+      WIRE_DEFINE_CONVERSIONS()
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()
     };
   };
 
@@ -250,16 +251,18 @@ namespace net_load_tests
       uint64_t open_request_target;
       uint64_t max_opened_conn_count;
 
-      WIRE_BEGIN_MAP(),
-        WIRE_FIELD(open_request_target),
-        WIRE_FIELD(max_opened_conn_count)
-      WIRE_END_MAP()
+      WIRE_DEFINE_CONVERSIONS()
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(open_request_target)
+        KV_SERIALIZE(max_opened_conn_count)
+      END_KV_SERIALIZE_MAP()
     };
 
     struct response
     {
-      WIRE_BEGIN_MAP()
-      WIRE_END_MAP()
+      WIRE_DEFINE_CONVERSIONS()
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()
     };
   };
 
@@ -269,8 +272,9 @@ namespace net_load_tests
 
     struct request
     {
-      WIRE_BEGIN_MAP()
-      WIRE_END_MAP()
+      WIRE_DEFINE_CONVERSIONS()
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()
     };
 
     struct response
@@ -279,11 +283,12 @@ namespace net_load_tests
       uint64_t new_connection_counter;
       uint64_t close_connection_counter;
 
-      WIRE_BEGIN_MAP(),
-        WIRE_FIELD(opened_connections_count),
-        WIRE_FIELD(new_connection_counter),
-        WIRE_FIELD(close_connection_counter)
-      WIRE_END_MAP()
+      WIRE_DEFINE_CONVERSIONS()
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(opened_connections_count)
+        KV_SERIALIZE(new_connection_counter)
+        KV_SERIALIZE(close_connection_counter)
+      END_KV_SERIALIZE_MAP()
 
       std::string to_string() const
       {
@@ -302,14 +307,16 @@ namespace net_load_tests
 
     struct request
     {
-      WIRE_BEGIN_MAP()
-      WIRE_END_MAP()
+      WIRE_DEFINE_CONVERSIONS()
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()
     };
 
     struct response
     {
-      WIRE_BEGIN_MAP()
-      WIRE_END_MAP()
+      WIRE_DEFINE_CONVERSIONS()
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()
     };
   };
 
@@ -319,8 +326,9 @@ namespace net_load_tests
 
     struct request
     {
-      WIRE_BEGIN_MAP()
-      WIRE_END_MAP()
+      WIRE_DEFINE_CONVERSIONS()
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()
     };
   };
 
@@ -332,9 +340,10 @@ namespace net_load_tests
     {
       uint64_t request_size;
 
-      WIRE_BEGIN_MAP(),
-        WIRE_FIELD(request_size)
-      WIRE_END_MAP()
+      WIRE_DEFINE_CONVERSIONS()
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(request_size)
+      END_KV_SERIALIZE_MAP()
     };
   };
 
@@ -347,19 +356,20 @@ namespace net_load_tests
       std::string data;
       uint64_t response_size;
 
-      WIRE_BEGIN_MAP(),
-        WIRE_FIELD(data),
-        WIRE_FIELD(response_size)
-      WIRE_END_MAP()
+      WIRE_DEFINE_CONVERSIONS()
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(data)
+      END_KV_SERIALIZE_MAP()
     };
 
     struct response
     {
       std::string data;
 
-      WIRE_BEGIN_MAP(),
-        WIRE_FIELD(data)
-      WIRE_END_MAP()
+      WIRE_DEFINE_CONVERSIONS()
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(data)
+      END_KV_SERIALIZE_MAP()
     };
   };
 }

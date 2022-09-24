@@ -47,7 +47,7 @@ namespace net
   namespace
   {
     constexpr const std::size_t host_buffer_size =
-      std::max(tor_address::buffer_size(), i2p_address.buffer_size());
+      std::max(tor_address::buffer_size(), i2p_address::buffer_size());
     using host_buffer = boost::container::static_vector<char, host_buffer_size>;
     
     template<typename T>
@@ -60,7 +60,7 @@ namespace net
     }
 
     template<typename T>
-    T make_address_fields(const boost::optional<std::string>& host, const boost::optional<std::uint16_t> port)
+    T make_address_fields(const boost::optional<host_buffer>& host, const boost::optional<std::uint16_t> port)
     {
       if (!host)
         WIRE_DLOG_THROW(wire::error::schema::missing_key, "Expected 'host' key for " << typeid(T).name());
@@ -111,7 +111,7 @@ namespace net_utils
   {
     struct address_values
     {
-      boost::optional<host_buffer> host;
+      boost::optional<net::host_buffer> host;
       boost::optional<boost::asio::ip::address_v6> addr;
       boost::optional<std::uint32_t> m_ip;
       boost::optional<std::uint16_t> port;

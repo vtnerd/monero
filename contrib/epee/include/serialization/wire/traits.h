@@ -29,15 +29,16 @@
 
 #include <cstdint>
 #include <type_traits>
+#include "serialization/wire/epee/fwd.h"
 
 #define WIRE_DECLARE_BLOB(type)                 \
   template<>                                    \
   struct is_blob<type>                          \
     : std::true_type                            \
-  {};
+  {}
 
 #define WIRE_DECLARE_BLOB_NS(type)              \
-  namespace wire { WIRE_DECLARE_BLOB(type) }
+  namespace wire { WIRE_DECLARE_BLOB(type); }
 
 namespace wire
 {
@@ -52,6 +53,10 @@ namespace wire
   {
     using type = T;
   };
+
+  template<typename T>
+  using unwrap_reference_t = typename unwrap_reference<T>::type;
+
 
   //! Mark `T` as an array for writing purposes only. See `array_` in `wrapper/array.h`.
   template<typename T>
@@ -75,7 +80,7 @@ namespace wire
     : std::integral_constant<std::size_t, N>
   {
     // The threshold is low - min_element_size is a better constraint metric
-    static constexpr std::size_t max_bytes() noexcept { return 512 * 1024; } // 512 KiB
+    static constexpr std::size_t max_bytes() noexcept { return 512 * 1024 * 1024; } // 512 KiB
 
     //! \return True if `N` C++ objects of type `T` are below `max_bytes()` threshold.
     template<typename T>
@@ -85,7 +90,7 @@ namespace wire
     }
   };
 
-  //! A constraint for `wire_read::array` where each element must be at least `N` bytes (in any archive format).
+  //! A constraint for `wire_read::array` where each element must use at least `N` bytes on the wire.
   template<std::size_t N>
   struct min_element_size
     : std::integral_constant<std::size_t, N>
@@ -96,11 +101,26 @@ namespace wire
     template<typename T>
     static constexpr bool check() noexcept
     {
-      return N ? (sizeof(T) / N) <= max_ratio() : false;
+      return N != 0 ? ((sizeof(T) / N) <= max_ratio()) : false;
     }
   };
 
-  //! If container has no `reserve(0)` function, this empty function is used
+  /*! Trait used in `wire/read.h` for default `min_element_size` behavior based
+    on an array of `T` objects and `R` reader type. This trait can be used
+    instead of the `wire::array(...)` (and associated macros) functionality, as
+    it sets a global value. The last argument is for `enable_if`. */
+  template<typename R, typename T, typename = void>
+  struct default_min_element_size
+    : std::integral_constant<std::size_t, 0>
+  {};
+
+  //! If `T` is a blob, a safe default for all formats is the size of the blob
+  template<typename R, typename T>
+  struct default_min_element_size<R, T, std::enable_if_t<is_blob<T>::value>>
+    : std::integral_constant<std::size_t, sizeof(T)>
+  {};
+
+  //! If container has no `reserve(0)` function, this function is used
   template<typename... T>
   inline void reserve(const T&...) noexcept
   {}
@@ -108,7 +128,25 @@ namespace wire
   //! Container has `reserve(std::size_t)` function, use it
   template<typename T>
   inline auto reserve(T& container, const std::size_t count) -> decltype(container.reserve(count))
-  {
-    return container.reserve(count);
-  }
+  { return container.reserve(count); }
+
+  //! If `T` has no `empty()` function, this function is used
+  template<typename... T>
+  inline constexpr bool empty(const T&...) noexcept
+  { return false; }
+
+  //! `T` has `empty()` function, use it
+  template<typename T>
+  inline auto empty(const T& container) -> decltype(container.empty())
+  { return container.empty(); }
+
+  //! If `T` has no `clear()` function, this function is used
+  template<typename T>
+  inline void clear(const T&...) noexcept
+  {}
+
+  //! `T` has `clear()` function, use it
+  template<typename T>
+  inline auto clear(T& container) -> decltype(container.clear())
+  { return container.clear(); }
 } // wire

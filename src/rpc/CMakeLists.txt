@@ -136,6 +136,7 @@ target_link_libraries(rpc
     common
     cryptonote_core
     cryptonote_protocol
+    epee_wire_json
     net
     version
     ${Boost_REGEX_LIBRARY}

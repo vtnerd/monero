@@ -32,6 +32,7 @@
 
 #include <list>
 #include "serialization/keyvalue_serialization.h"
+#include "serialization/wire/epee/base.h"
 #include "cryptonote_basic/cryptonote_basic.h"
 #include "cryptonote_basic/blobdatatype.h"
 #include "net/serialization.h"
@@ -242,12 +243,13 @@ namespace cryptonote
     BEGIN_KV_SERIALIZE_MAP()
       KV_SERIALIZE(current_height)
       KV_SERIALIZE(cumulative_difficulty)
-      KV_SERIALIZE_OPT(cumulative_difficulty_top64, uint64_(0))
+      KV_SERIALIZE_OPT(cumulative_difficulty_top64, std::uint64_t(0))
       KV_SERIALIZE_VAL_POD_AS_BLOB(top_id)
       KV_SERIALIZE_OPT(top_version, (uint8_t)0)
       KV_SERIALIZE_OPT(pruning_seed, (uint32_t)0)
     END_KV_SERIALIZE_MAP()
   };
+  WIRE_EPEE_DECLARE_CONVERSION(CORE_SYNC_DATA);
 
   struct NOTIFY_REQUEST_CHAIN
   {

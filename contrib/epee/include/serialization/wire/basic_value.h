@@ -1,4 +1,4 @@
-// Copyright (c) 2021, The Monero Project
+// Copyright (c) 2022, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -27,51 +27,43 @@
 
 #pragma once
 
-#include <functional>
-#include <utility>
+#include <boost/variant/variant.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <string>
 
-#include "serialization/wire/field.h"
-#include "serialization/wire/traits.h"
-
-//! An optional field that is omitted when a default value is used
-#define WIRE_FIELD_DEFAULTED(name, default_)                            \
-  ::wire::optional_field( #name , ::wire::defaulted(std::ref( self . name ), default_ ))
+#include "serialization/wire/fwd.h"
 
 namespace wire
 {
-  /*! A wrapper that tells `wire::writer`s to skip field generation when default
-    value, and tells `wire::reader`s to use default value when field not present. */
-  template<typename T, typename U>
-  struct defaulted_
+  /*! Can hold any non-recursive value. Implements optional field concept
+    requirements. If used in a `optional_field`, the `nullptr` type/value
+    determines whether the field name is omitted or present in an object. If used
+    in a `field` (required), the field name is always present in the object, and
+    the value could be `null`/`nil`. */
+  struct basic_value
   {
-    using value_type = typename unwrap_reference<T>::type;
-
-    T value;
-    U default_;
-
-    constexpr const value_type& get_value() const noexcept { return value; }
-    value_type& get_value() noexcept { return value; }
+    using variant_type =
+      boost::variant<std::nullptr_t, bool, std::uintmax_t, std::intmax_t, double, std::string>;
+    
+    variant_type value;
 
     // concept requirements for optional fields
 
-    constexpr explicit operator bool() const { return get_value() != default_; }
-    value_type& emplace() noexcept { return get_value(); }
+    explicit operator bool() const noexcept { return value != variant_type{nullptr}; }
+    basic_value& emplace() noexcept { return *this; }
 
-    constexpr const value_type& operator*() const noexcept { return get_value(); }
-    value_type& operator*() noexcept { return get_value(); }
+    basic_value& operator*() noexcept { return *this; }
+    const basic_value& operator*() const noexcept { return *this; }
 
-    void reset() { get_value() = default_; }
+    void reset();
   };
 
-  //! Links `value` with `default_`.
-  template<typename T, typename U>
-  inline constexpr defaulted_<T, U> defaulted(T value, U default_)
+  template<typename R>
+  inline void read_bytes(R& source, basic_value& dest)
   {
-    return {std::move(value), std::move(default_)};
+    dest = source.basic();
   }
 
-  /* read/write functions not needed since `defaulted_` meets the concept
-     requirements for an optional type (optional fields are handled
-     directly by the generic read/write code because the field name is omitted
-     entirely when the value is "empty"). */
+  void write_bytes(writer& dest, const basic_value& source);
 } // wire

@@ -26,5 +26,5 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-monero_add_library(epee_wire_epee error.cpp read.cpp write.cpp)
-target_link_libraries(epee_wire_epee PUBLIC epee epee_wire)
+monero_add_library(epee_wire_json error.cpp read.cpp write.cpp)
+target_link_libraries(epee_wire_json PUBLIC epee_wire)

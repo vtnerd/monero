@@ -3,7 +3,7 @@
 
 #include <boost/uuid/uuid_io.hpp>
 
-#include "serialization/wire/asio.h"
+#include "serialization/wire/adapted/asio.h"
 #include "serialization/wire.h"
 #include "string_tools.h"
 #include "net/local_ip.h"

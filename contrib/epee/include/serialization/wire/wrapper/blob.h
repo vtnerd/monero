@@ -29,7 +29,7 @@
 
 #include <type_traits>
 #include <utility>
-#include "serialization/wire/blob.h"
+#include "serialization/wire/field.h"
 #include "serialization/wire/traits.h"
 #include "span.h"
 
@@ -46,7 +46,8 @@
 namespace wire
 {
   /*! A wrapper that tells `wire::writer`s` and `wire::reader`s to encode a
-    type as a binary blob.
+    type as a binary blob. If the encoded size on the wire is not exactly the
+    size of the blob, it is considered an error.
 
     `value_type` is `T` with optional `std::reference_wrapper` removed.
     `value_type` concept requirements:
@@ -54,16 +55,16 @@ namespace wire
   template<typename T>
   struct blob_
   {
-    using value_type = typename unwrap_reference<T>::type;
+    using value_type = unwrap_reference_t<T>;
     static_assert(!epee::has_padding<value_type>(), "expected safe pod type");
 
     T value;
 
     //! \return `value` with `std::reference_wrapper` removed.
-    constexpr const container_type& get_value() const noexcept { return value; }
+    constexpr const value_type& get_value() const noexcept { return value; }
 
     //! \return `value` with `std::reference_wrapper` removed.
-    container_type& get_value() noexcept { return value; }
+    value_type& get_value() noexcept { return value; }
   };
 
   template<typename T>
@@ -73,13 +74,13 @@ namespace wire
   }
 
   template<typename R, typename T>
-  inline void read_bytes(R& source, const blob_<T> dest)
+  inline void read_bytes(R& source, blob_<T> dest)
   {
-    source.binary(epee::as_mut_byte_span(dest.get_value()));
+    source.binary(epee::as_mut_byte_span(dest.get_value()), /*exact=*/ true);
   }
 
   template<typename W, typename T>
-  inline void write_bytes(W& dest, blob_<T> source)
+  inline void write_bytes(W& dest, const blob_<T> source)
   {
     dest.binary(epee::as_byte_span(source.get_value()));
   }

@@ -46,7 +46,7 @@ namespace wire
     container as a single binary blob. This wrapper meets the requirements for
     an optional field; `wire::field` and `wire::optional_field` determine
     whether an empty array must be encoded on the wire.
-    
+
     `container_type` is `T` with optional `std::reference_wrapper` removed.
     `container_type` concept requirements:
       * `typedef` `value_type` that specifies inner type.
@@ -61,7 +61,7 @@ namespace wire
   template<typename T>
   struct array_as_blob_
   {
-    using container_type = typename unwrap_reference<T>::type;
+    using container_type = unwrap_reference_t<T>;
     using value_type = typename container_type::value_type;
     static constexpr std::size_t value_size() noexcept { return sizeof(value_type); }
     static_assert(std::is_pod<value_type>::value, "container value must be POD");

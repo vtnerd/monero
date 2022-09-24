@@ -752,13 +752,8 @@ namespace std
   template<> struct hash<rct::key> { std::size_t operator()(const rct::key &k) const { return reinterpret_cast<const std::size_t&>(k); } };
 }
 
-namespace wire
-{
-  template<>
-  struct is_blob<rct::key>
-    : std::true_type
-  {};
-}
+
+WIRE_DECLARE_BLOB_NS(rct::key);
 
 BLOB_SERIALIZER(rct::key);
 BLOB_SERIALIZER(rct::key64);

@@ -25,7 +25,7 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "serialization/wire/asio.h"
+#include "serialization/wire/adapted/asio.h"
 
 #include "serialization/wire.h"
 #include "span.h"
@@ -35,7 +35,7 @@ namespace wire
   void read_bytes(reader& source, boost::asio::ip::address_v6& dest)
   {
     boost::asio::ip::address_v6::bytes_type value{};
-    source.binary(epee::to_mut_span(value));
+    source.binary(epee::to_mut_span(value), true);
     dest = boost::asio::ip::address_v6(value);
   }
 

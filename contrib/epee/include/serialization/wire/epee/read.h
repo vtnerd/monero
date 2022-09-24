@@ -34,13 +34,19 @@
 #include <utility>
 #include <vector>
 
-#include "serialization/wire/field.h"
+#include "serialization/wire/fwd.h"
 #include "serialization/wire/read.h"
 #include "serialization/wire/traits.h"
 #include "span.h"
 
 namespace wire
 {
+  //! If `T` is an arithmetic value in epee array, enforce sizeof min wire size
+  template<typename T>
+  struct default_min_element_size<epee_reader, T, std::enable_if_t<std::is_arithmetic<T>::value>>
+    : std::integral_constant<std::size_t, sizeof(T)>
+  {};
+  
   //! Reads Epee binary archives one element at a time for DOMless parsing
   class epee_reader final : public reader
   {
@@ -80,7 +86,6 @@ namespace wire
     epee_reader(epee_reader&&) = delete;
     epee_reader(const epee_reader&) = delete;
 
-    
     virtual ~epee_reader() noexcept;
 
     epee_reader& operator=(epee_reader&&) = delete;
@@ -91,6 +96,9 @@ namespace wire
 
     //! \throw wire::exception if epee parsing is incomplete.
     void check_complete() const override final;
+
+    //! \throw wire::exception if array, object, or end of stream.
+    basic_value basic() override final;
 
     //! \throw wire::exception if last tag not a boolean.
     bool boolean() override final;
@@ -107,17 +115,22 @@ namespace wire
     //! \throw wire::exception if last tag not a string
     std::string string() override final;
 
-    /*! Copy upcoming string directly into `dest`.
-      \throw wire::exception if next token not string
-      \throw wire::exception if next string exceeds `dest.size())`
-      \return Number of bytes read into `dest`. */
-    std::size_t string(epee::span<char> dest) override final;
+    //! See `binary(dest, exact)`
+    std::size_t string(epee::span<char> dest, const bool exact) override final
+    {
+      return binary({reinterpret_cast<std::uint8_t*>(dest.data()), dest.size()}, exact);
+    }
 
     //! \throw wire::exception if last tag not a string
     epee::byte_slice binary() override final;
 
-    //! \throw wire::exception if last tag is not a string that can be read into `dest`.
-    void binary(epee::span<std::uint8_t> dest) override final;
+    /*! Copy upcoming string directly into `dest`. epee format does not
+      distinguish between binary and string data.
+      \throw wire::exception if next token not string
+      \throw wire::exception if next string exceeds `dest.size()`
+      \throw wire::exception if `exact == true` and next string is not `dest.size()`
+      \return Number of bytes read into `dest`. */
+    std::size_t binary(epee::span<std::uint8_t> dest, bool exact) override final;
 
 
     /*! \post Last tag is set to inner type.
@@ -138,16 +151,4 @@ namespace wire
         \return True if another value to read. */
     bool key(epee::span<const key_map> map, std::size_t&, std::size_t& index) override final;
   };
-
-  template<typename... T>
-  inline void object(epee_reader& source, T... fields)
-  {
-    wire_read::object(source, wire_read::tracker<T>{std::move(fields)}...);
-  }
-
-  template<typename... T>
-  inline void wire_object(epee_reader& source, T... fields)
-  {
-    ::wire::object(source, std::move(fields));
-  }
 } // wire

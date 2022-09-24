@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <system_error>
 #include "serialization/wire/epee/fwd.h"
 #include "span.h"
@@ -35,6 +36,12 @@
 #define WIRE_EPEE_DECLARE_CONVERSION(type)                              \
   std::error_code convert_from_epee(::epee::span<const std::uint8_t>, type&); \
   std::error_code convert_to_epee(::epee::byte_stream&, const type&)    \
+
+
+//! Declare functions that convert `command::request` and `command::response` to/from epee binary bytes
+#define WIRE_EPEE_DECLARE_COMMAND(type)         \
+  WIRE_EPEE_DECLARE_CONVERSION(type::request);  \
+  WIRE_EPEE_DECLARE_CONVERSION(type::response)
 
 namespace epee { class byte_stream; }
 namespace wire

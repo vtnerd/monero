@@ -41,11 +41,12 @@ namespace epee
 
   namespace serialization
   {
+    void dump_error(const char* format, const char* name, const std::error_code& error);
     //-----------------------------------------------------------------------------------------------------------
     template<class t_struct>
     bool load_t_from_json(t_struct& out, const std::string& json_buff)
     {
-      return !wire::json::from_bytes(strspan<std::uint8_t>(json_buff), out);
+      return !wire::json::from_bytes(to_span(json_buff), out);
     }
     //-----------------------------------------------------------------------------------------------------------
     template<class t_struct>
@@ -62,14 +63,14 @@ namespace epee
     bool store_t_to_json(t_struct& str_in, std::string& json_buff)
     {
       json_buff.clear();
-      return !wire::json::to_bytes(str_in, json_buff);
+      return !wire::json::to_bytes(json_buff, str_in);
     }
     //-----------------------------------------------------------------------------------------------------------
     template<class t_struct>
     std::string store_t_to_json(t_struct& str_in)
     {
       std::string json_buff;
-      store_t_to_json(str_in, json_buff, indent, insert_newlines);
+      store_t_to_json(str_in, json_buff); //, indent, insert_newlines);
       return json_buff;
     }
     //-----------------------------------------------------------------------------------------------------------

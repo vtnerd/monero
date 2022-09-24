@@ -29,8 +29,12 @@
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
 #pragma once
+#include <string>
+#include <system_error>
 #include "cryptonote_basic/cryptonote_basic.h"
 #include "crypto/hash.h"
+#include "serialization/keyvalue_serialization.h"
+#include "span.h"
 
 namespace tools
 {
@@ -50,6 +54,9 @@ namespace tools
       typedef epee::misc_utils::struct_init<request_t> request;
       
       struct spent_output {
+        using min_wire_size =
+          wire::min_element_sizeof<crypto::key_image, crypto::public_key>;
+
         uint64_t amount;
         std::string key_image;
         std::string tx_pub_key;
@@ -89,7 +96,7 @@ namespace tools
           KV_SERIALIZE(total_sent)
           KV_SERIALIZE(unlock_time)
           KV_SERIALIZE(height)
-          KV_SERIALIZE(spent_outputs)
+          KV_SERIALIZE_ARRAY(spent_outputs, spent_output::min_wire_size)
           KV_SERIALIZE(payment_id)
           KV_SERIALIZE(coinbase)
           KV_SERIALIZE(mempool)
@@ -112,7 +119,7 @@ namespace tools
           KV_SERIALIZE(total_received)
           KV_SERIALIZE(total_received_unlocked)
           KV_SERIALIZE(scanned_height)
-          KV_SERIALIZE(transactions)
+          KV_SERIALIZE_ARRAY(transactions, wire::max_element_count<2048>)
           KV_SERIALIZE(blockchain_height)
           KV_SERIALIZE(scanned_block_height)
           KV_SERIALIZE(status)
@@ -120,6 +127,8 @@ namespace tools
       };
       typedef epee::misc_utils::struct_init<response_t> response;
   };
+  std::error_code convert_to_json(std::string& dest, const COMMAND_RPC_GET_ADDRESS_TXS::request& source);
+  std::error_code convert_from_json(epee::span<const char> source, COMMAND_RPC_GET_ADDRESS_TXS::response& dest);
   
   //-----------------------------------------------
   struct COMMAND_RPC_GET_ADDRESS_INFO
@@ -138,6 +147,9 @@ namespace tools
       
       struct spent_output 
       {
+        using min_wire_size =
+          wire::min_element_sizeof<crypto::key_image, crypto::public_key>;
+ 
         uint64_t amount;
         std::string key_image;
         std::string tx_pub_key;
@@ -173,11 +185,13 @@ namespace tools
           KV_SERIALIZE(start_height)
           KV_SERIALIZE(transaction_height)
           KV_SERIALIZE(blockchain_height)
-          KV_SERIALIZE(spent_outputs)
+          KV_SERIALIZE_ARRAY(spent_outputs, spent_output::min_wire_size)
         END_KV_SERIALIZE_MAP()
       };
       typedef epee::misc_utils::struct_init<response_t> response;
   };
+  std::error_code convert_to_json(std::string& dest, const COMMAND_RPC_GET_ADDRESS_INFO::request& source);
+  std::error_code convert_from_json(epee::span<const char> source, COMMAND_RPC_GET_ADDRESS_INFO::response& dest);
   
   //-----------------------------------------------
   struct COMMAND_RPC_GET_UNSPENT_OUTS
@@ -205,6 +219,9 @@ namespace tools
     
       
       struct output {
+	using min_wire_size =
+	  wire::min_element_sizeof<crypto::public_key, crypto::hash, crypto::public_key, crypto::hash>;
+
         uint64_t amount;
         std::string public_key;
         uint64_t  index;
@@ -227,7 +244,7 @@ namespace tools
           KV_SERIALIZE(tx_hash)
           KV_SERIALIZE(tx_pub_key)
           KV_SERIALIZE(tx_prefix_hash)
-          KV_SERIALIZE(spend_key_images)  
+          KV_SERIALIZE_ARRAY(spend_key_images, wire::min_element_sizeof<crypto::key_image>)  
           KV_SERIALIZE(timestamp)  
           KV_SERIALIZE(height)                                    
         END_KV_SERIALIZE_MAP()
@@ -242,7 +259,7 @@ namespace tools
         std::string reason;
         BEGIN_KV_SERIALIZE_MAP()
           KV_SERIALIZE(amount)
-          KV_SERIALIZE(outputs)
+          KV_SERIALIZE_ARRAY(outputs, output::min_wire_size)
           KV_SERIALIZE(per_kb_fee)
           KV_SERIALIZE(status)
           KV_SERIALIZE(reason)
@@ -250,6 +267,8 @@ namespace tools
       };
       typedef epee::misc_utils::struct_init<response_t> response;
   };
+  std::error_code convert_to_json(std::string& dest, const COMMAND_RPC_GET_UNSPENT_OUTS::request& source);
+  std::error_code convert_from_json(epee::span<const char> source, COMMAND_RPC_GET_UNSPENT_OUTS::response& dest);
   //-----------------------------------------------
   struct COMMAND_RPC_LOGIN
   {
@@ -281,6 +300,8 @@ namespace tools
       };
       typedef epee::misc_utils::struct_init<response_t> response;
   };
+  std::error_code convert_to_json(std::string& dest, const COMMAND_RPC_LOGIN::request& source);
+  std::error_code convert_from_json(epee::span<const char> source, COMMAND_RPC_LOGIN::response& dest);
   //-----------------------------------------------
   struct COMMAND_RPC_IMPORT_WALLET_REQUEST
   {
@@ -316,22 +337,29 @@ namespace tools
       };
       typedef epee::misc_utils::struct_init<response_t> response;
   };
+  std::error_code convert_to_json(std::string& dest, const COMMAND_RPC_IMPORT_WALLET_REQUEST::request& source);
+  std::error_code convert_from_json(epee::span<const char> source, COMMAND_RPC_IMPORT_WALLET_REQUEST::response& dest);
   //-----------------------------------------------
   struct COMMAND_RPC_GET_RANDOM_OUTS
   {
+      using max_amounts = wire::max_element_count<512>;
+
       struct request_t
       {
         std::vector<std::string> amounts;
         uint32_t count;
 
         BEGIN_KV_SERIALIZE_MAP()
-          KV_SERIALIZE(amounts)
+          KV_SERIALIZE_ARRAY(amounts, max_amounts)
           KV_SERIALIZE(count)
         END_KV_SERIALIZE_MAP()
       };
       typedef epee::misc_utils::struct_init<request_t> request;
 
       struct output {
+	using min_wire_size =
+          wire::min_element_size<sizeof(crypto::public_key) + 192>;
+
         std::string public_key;
         uint64_t global_index;
         std::string rct; // 64+64+64 characters long (<rct commit> + <encrypted mask> + <rct amount>)
@@ -348,7 +376,7 @@ namespace tools
         std::vector<output> outputs;
         BEGIN_KV_SERIALIZE_MAP()
           KV_SERIALIZE(amount)
-          KV_SERIALIZE(outputs)
+          KV_SERIALIZE_ARRAY(outputs, output::min_wire_size)
         END_KV_SERIALIZE_MAP()
       };
 
@@ -357,11 +385,14 @@ namespace tools
         std::vector<amount_out> amount_outs;
         std::string Error;
         BEGIN_KV_SERIALIZE_MAP()
-          KV_SERIALIZE(amount_outs)
+          KV_SERIALIZE_ARRAY(amount_outs, wire::max_element_count<8192>)
           KV_SERIALIZE(Error)
         END_KV_SERIALIZE_MAP()
       };
       typedef epee::misc_utils::struct_init<response_t> response;
   };
+  std::error_code convert_to_json(std::string& dest, const COMMAND_RPC_GET_RANDOM_OUTS::request& source);
+  std::error_code convert_from_json(epee::span<const char> source, COMMAND_RPC_GET_RANDOM_OUTS::response& dest);
   //-----------------------------------------------
-}
+} // tools
+

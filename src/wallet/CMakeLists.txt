@@ -33,6 +33,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(wallet_sources
   wallet2.cpp
   wallet_args.cpp
+  wallet_light_rpc.cpp
   ringdb.cpp
   node_rpc_proxy.cpp
   message_store.cpp
@@ -68,6 +69,7 @@ target_link_libraries(wallet
 
 if(NOT IOS)
   set(wallet_rpc_sources
+    wallet_rpc_server_commands_defs.cpp
     wallet_rpc_server.cpp)
 
   set(wallet_rpc_headers)
@@ -91,6 +93,7 @@ if(NOT IOS)
       common
       version
       daemonizer
+      epee_wire_json
       ${EPEE_READLINE}
       ${Boost_CHRONO_LIBRARY}
       ${Boost_PROGRAM_OPTIONS_LIBRARY}

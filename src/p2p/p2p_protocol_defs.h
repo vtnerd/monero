@@ -34,10 +34,11 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/serialization/version.hpp>
 #include "net/net_utils_base.h"
-#include "net/tor_address.h" // needed for serialization
-#include "net/i2p_address.h" // needed for serialization
 #include "net/serialization.h"
 #include "misc_language.h"
+#include "serialization/keyvalue_serialization.h"
+#include "serialization/serialization.h"
+#include "serialization/wire/epee/base.h"
 #include "string_tools.h"
 #include "time_helper.h"
 #include "cryptonote_config.h"
@@ -239,8 +240,7 @@ namespace nodetool
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
-  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_HANDSHAKE_T<cryptonote::CORE_SYNC_DATA>::request);
-  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_HANDSHAKE_T<cryptonote::CORE_SYNC_DATA>::response);
+  WIRE_EPEE_DECLARE_COMMAND(COMMAND_HANDSHAKE_T<cryptonote::CORE_SYNC_DATA>);
 
 
   /************************************************************************/
@@ -272,8 +272,7 @@ namespace nodetool
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
-  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_TIMED_SYNC_T<cryptonote::CORE_SYNC_DATA>::request);
-  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_TIMED_SYNC_T<cryptonote::CORE_SYNC_DATA>::response);
+  WIRE_EPEE_DECLARE_COMMAND(COMMAND_TIMED_SYNC_T<cryptonote::CORE_SYNC_DATA>);
 
   /************************************************************************/
   /*                                                                      */
@@ -311,8 +310,7 @@ namespace nodetool
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
-  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_PING::request);
-  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_PING::response);
+  WIRE_EPEE_DECLARE_COMMAND(COMMAND_PING);
 
   
   /************************************************************************/
@@ -339,6 +337,5 @@ namespace nodetool
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
-  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_REQUEST_SUPPORT_FLAGS:request);
-  WIRE_EPEE_DECLARE_CONVERSION(COMMAND_REQUEST_SUPPORT_FLAGS::response);
+  WIRE_EPEE_DECLARE_COMMAND(COMMAND_REQUEST_SUPPORT_FLAGS);
 }

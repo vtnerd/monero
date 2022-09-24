@@ -34,8 +34,6 @@
 #include <utility>
 
 #include "byte_stream.h"
-#include "serialization/wire/field.h"
-#include "serialization/wire/traits.h"
 #include "serialization/wire/write.h"
 #include "span.h"
 #include "storages/portable_storage_base.h"
@@ -121,20 +119,8 @@ namespace wire
 
   // optimization for all numeric types
   template<typename T>
-  inline enable_if<std::is_arithmetic<T>::value> write_bytes(epee_writer& dest, const T source)
+  inline std::enable_if_t<std::is_arithmetic<T>::value> write_bytes(epee_writer& dest, const T source)
   {
     dest.write_arithmetic(source);
-  }
-
-  template<typename... T>
-  inline void object(epee_writer& dest, T... fields)
-  {
-    wire_write::object(dest, std::move(fields)...);
-  }
-
-  template<typename... T>
-  inline void wire_object(epee_writer& dest, T... fields)
-  {
-    ::wire::object(dest, std::move(fields));
   }
 }

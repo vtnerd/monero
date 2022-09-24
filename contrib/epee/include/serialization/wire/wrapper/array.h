@@ -39,7 +39,6 @@
 #define WIRE_FIELD_ARRAY(name, read_constraint)         \
   ::wire::optional_field( #name , ::wire::array< read_constraint >(std::ref( self . name )))
 
-
 namespace wire
 {
   /*! A wrapper that ensures `T` is written as an array, with `C` constraints
@@ -48,7 +47,11 @@ namespace wire
 
     This wrapper meets the requirements for an optional field; `wire::field`
     and `wire::optional_field` determine whether an empty array must be
-    encoded on the wire.
+    encoded on the wire. Historically, empty arrays were always omitted on
+    the wire (a defacto optional field).
+
+    The `is_array` trait can also be used, but is always treated as an optional
+    field.
 
     `container_type` is `T` with optional `std::reference_wrapper` removed.
     `container_type` concept requirements:
@@ -64,12 +67,10 @@ namespace wire
   struct array_
   {
     using constraint = C;
-    using container_type = typename unwrap_reference<T>::type;
+    using container_type = unwrap_reference_t<T>;
     using value_type = typename container_type::value_type;
 
     T container;
-
-    static constexpr constraint get_constraint() noexcept { return{}; }
 
     constexpr const container_type& get_container() const noexcept { return container; }
     container_type& get_container() noexcept { return container; }
@@ -77,7 +78,7 @@ namespace wire
     // concept requirements for optional fields
 
     explicit operator bool() const noexcept { return !get_container().empty(); }
-    container_type& emplace() noexcept { return get_container(); }
+    array_& emplace() noexcept { return *this; }
 
     array_& operator*() noexcept { return *this; }
     const array_& operator*() const noexcept { return *this; }
@@ -90,41 +91,5 @@ namespace wire
   inline constexpr array_<T, C> array(T value)
   {
     return {std::move(value)};
-  }
-
-
-  //! No valid constraint given for array read, compile error
-  template<typename R, typename T, typename C>
-  inline void read_bytes(const R&, const array_<T, C>&)
-  {
-    // see constraints directly above `array_` definition
-    static_assert(std::is_same<R, void>::value, "array_ must have a read constraint for memory purposes");
-  }
-
-  //! Read array with a max element count constraint
-  template<typename R, typename T, std::size_t N>
-  inline void read_bytes(R& source, array_<T, max_element_count<N>>& wrapper)
-  {
-    using array_type = array_<T, max_element_count<N>>;
-    using value_type = typename array_type::value_type;
-    static_assert(array_type::constraint::template check<value_type>(), "max reserve bytes exceeded for element");
-    wire_read::array(source, wrapper.get_container(), min_element_size<0>{}, typename array_type::constraint{});
-  }
-
-  //! Read array with a min element size constraint (constraint is relative to archive size)
-  template<typename R, typename T, std::size_t N>
-  inline void read_bytes(R& source, array_<T, min_element_size<N>>& wrapper)
-  {
-    using array_type = array_<T, min_element_size<N>>;
-    using value_type = typename array_type::value_type;
-    static_assert(array_type::constraint::template check<value_type>(), "max compression ratio exceeded for element");
-    wire_read::array(source, wrapper.get_container(), typename array_type::constraint{});
-  }
-
-  //! Write array
-  template<typename W, typename T, typename C>
-  inline void write_bytes(W& dest, const array_<T, C>& wrapper)
-  {
-    wire_write::array(dest, wrapper.get_container());
   }
 } // wire
