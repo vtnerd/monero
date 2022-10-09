@@ -98,6 +98,8 @@ namespace wire
     //! 32-bit float not supported by epee format, upgrade
     void write_arithmetic(const float value) { write_arithmetic(double(value)); }
 
+    void boolean(bool) override final;
+
     void integer(int) override final;
     void integer(std::intmax_t) override final;
 

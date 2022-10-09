@@ -44,8 +44,8 @@ namespace wire
 {
   /*! A wrapper that tells `wire::writer`s` and `wire::reader`s to encode a
     container as a single binary blob. This wrapper meets the requirements for
-    an optional field; `wire::field` and `wire::optional_field` determine
-    whether an empty array must be encoded on the wire.
+    an optional field - currently the type is always considered optional by
+    the input/output system to match the old input/output engine.
 
     `container_type` is `T` with optional `std::reference_wrapper` removed.
     `container_type` concept requirements:

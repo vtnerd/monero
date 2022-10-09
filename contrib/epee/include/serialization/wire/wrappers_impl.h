@@ -110,7 +110,7 @@ namespace wire
     using value_type = typename T::value_type;
     dest.clear();
     wire::reserve(dest, source.size() / sizeof(value_type));
-    while (!dest.empty())
+    while (!source.empty())
     {
       dest.emplace_back();
       std::memcpy(std::addressof(dest.back()), source.data(), sizeof(value_type));

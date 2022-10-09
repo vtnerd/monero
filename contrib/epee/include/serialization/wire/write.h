@@ -61,6 +61,8 @@ namespace wire
 
     virtual ~writer() noexcept;
 
+    virtual void boolean(bool) = 0;
+
     virtual void integer(int) = 0;
     virtual void integer(std::intmax_t) = 0;
 
@@ -87,6 +89,11 @@ namespace wire
   };
 
   // leave in header, compiler can de-virtualize when final type is given
+
+  inline void write_bytes(writer& dest, const bool source)
+  {
+    dest.boolean(source);
+  }
 
   inline void write_bytes(writer& dest, const int source)
   {

@@ -74,6 +74,18 @@ namespace wire
   struct is_blob : std::false_type
   {};
 
+  template<typename> struct array_as_blob_;
+
+  //! For compabtility handling with older engine, never needs user specialization.
+  template<typename T>
+  struct is_array_as_blob
+    : std::false_type
+  {};
+  template<typename T>
+  struct is_array_as_blob<array_as_blob_<T>>
+    : std::true_type
+  {};
+
   //! A constraint for `wire_read::array` where a max of `N` elements can be read.
   template<std::size_t N>
   struct max_element_count

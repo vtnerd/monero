@@ -105,6 +105,11 @@ namespace wire
     return epee::byte_slice{take_buffer()};
   }
 
+  void epee_writer::boolean(const bool source)
+  {
+    write_arithmetic(source);
+  }
+
   void epee_writer::integer(const int source)
   {
     write_arithmetic(source);

@@ -403,7 +403,7 @@ namespace wire_read
   inline void reset_field(const wire::field_<T, true>& dest)
   {
     // array fields are always optional, see `wire/field.h`
-    if (wire::is_array<wire::unwrap_reference_t<T>>::value)
+    if (dest.historical_optional())
       wire::clear(dest.get_value());
   }
 

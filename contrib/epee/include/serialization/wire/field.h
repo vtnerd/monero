@@ -95,7 +95,12 @@ namespace wire
   struct field_
   {
     using value_type = unwrap_reference_t<T>;
-    static constexpr bool is_required() noexcept { return Required && !is_array<value_type>::value; }
+
+    //! \return True if the old output system listed the type as optional
+    static constexpr bool historical_optional() noexcept
+    { return is_array<value_type>::value || is_array_as_blob<value_type>::value; }
+
+    static constexpr bool is_required() noexcept { return Required && !historical_optional(); }
     static constexpr std::size_t count() noexcept { return 1; }
 
     const char* name;
@@ -125,7 +130,7 @@ namespace wire
   {
     /* The old output engine always skipped fields when it was an empty array,
        this follows that behavior. See comments for `field_`. */
-    return elem.is_required() || wire::empty(elem.get_value());
+    return elem.is_required() || (elem.historical_optional() && !wire::empty(elem.get_value()));
   }
   template<typename T>
   inline constexpr bool available(const field_<T, false>& elem)
