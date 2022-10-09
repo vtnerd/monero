@@ -300,7 +300,7 @@ namespace wire
   std::size_t epee_reader::binary(epee::span<std::uint8_t> dest, const bool exact)
   {
     const auto value = raw(error::schema::binary);
-    if (!exact && value.size() < dest.size())
+    if (!exact && dest.size() < value.size())
       WIRE_DLOG_THROW(error::schema::binary, "of max size " << dest.size() << " but got " << value.size());
     if (exact && dest.size() != value.size())
       WIRE_DLOG_THROW(error::schema::fixed_binary, "of size" << dest.size() << " but got " << value.size());

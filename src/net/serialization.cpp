@@ -28,6 +28,7 @@
 #include "serialization.h"
 
 #include <algorithm>
+#include <boost/core/demangle.hpp>
 #include <boost/optional/optional.hpp>
 #include <cstdint>
 #include <functional>
@@ -55,7 +56,7 @@ namespace net
     {
       auto address = T::make({host.data(), host.size()}, port);
       if (!address)
-        WIRE_DLOG_THROW(wire::error::schema::string, "Host field is invalid format for " << typeid(T).name() << ": " << address.error().message());
+        WIRE_DLOG_THROW(wire::error::schema::string, "Host field is invalid format for " << boost::core::demangle(typeid(T).name()) << ": " << address.error().message());
       return *address;
     }
 
@@ -63,9 +64,9 @@ namespace net
     T make_address_fields(const boost::optional<host_buffer>& host, const boost::optional<std::uint16_t> port)
     {
       if (!host)
-        WIRE_DLOG_THROW(wire::error::schema::missing_key, "Expected 'host' key for " << typeid(T).name());
+        WIRE_DLOG_THROW(wire::error::schema::missing_key, "Expected 'host' key for " << boost::core::demangle(typeid(T).name()));
       if (!port)
-        WIRE_DLOG_THROW(wire::error::schema::missing_key, "Expected 'port' key for " << typeid(T).name());
+        WIRE_DLOG_THROW(wire::error::schema::missing_key, "Expected 'port' key for " << boost::core::demangle(typeid(T).name()));
       return make_address<T>(*host, *port);
     }
 
@@ -75,6 +76,8 @@ namespace net
       host_buffer host{};
       std::uint16_t port{};
       wire::object(source, wire::field("host", std::ref(host)), wire::field("port", std::ref(port)));
+      if (boost::string_ref{host.data(), host.size()} == T::unknown_str())
+        return T::unknown();
       return make_address<T>(host, port);
     }
 
