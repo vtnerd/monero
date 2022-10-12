@@ -32,7 +32,6 @@
 #include <boost/utility/string_ref.hpp>
 
 #include "serialization/wire/read.h"
-#include "serialization/wire/write.h"
 
 namespace wire
 {
@@ -72,7 +71,7 @@ namespace wire
   }
 
   template<typename W, std::size_t N>
-  inline void write_bytes(W& dest, boost::container::static_vector<char, N>& source)
+  inline void write_bytes(W& dest, const boost::container::static_vector<char, N>& source)
   {
     dest.string(boost::string_ref{source.data(), source.size()});
   }
@@ -85,7 +84,7 @@ namespace wire
   }
 
   template<typename W, std::size_t N>
-  inline void write_bytes(W& dest, boost::container::static_vector<std::uint8_t, N>& source)
+  inline void write_bytes(W& dest, const boost::container::static_vector<std::uint8_t, N>& source)
   {
     dest.binary(epee::to_span(source));
   }

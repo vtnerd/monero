@@ -40,11 +40,11 @@ void wire::reader::increment_depth()
   if (source < 0)
     WIRE_DLOG_THROW(error::schema::larger_integer, source << " given when " << min << " is minimum permitted");
   else
-    throw_exception(value, max);
+    throw_exception(source, max);
 }
 [[noreturn]] void wire::integer::throw_exception(const std::uintmax_t source, const std::uintmax_t max)
 {
-  WIRE_DLOG_THROW(error::schema::smaller_integer, source << " given when " << max << "is maximum permitted");
+  WIRE_DLOG_THROW(error::schema::smaller_integer, source << " given when " << max << " is maximum permitted");
 }
 
 [[noreturn]] void wire_read::throw_exception(const wire::error::schema code, const char* display, epee::span<char const* const> names)

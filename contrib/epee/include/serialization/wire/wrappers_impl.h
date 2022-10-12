@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include <boost/range/adaptor/transformed.hpp>
 #include <cstring>
 #include "byte_slice.h"
 #include "byte_stream.h"
@@ -58,7 +59,7 @@ namespace wire
     using value_type = typename array_type::value_type;
     using constraint = typename array_type::constraint;
     static_assert(constraint::template check<value_type>(), "max reserve bytes exceeded for element");
-    wire_read::array(source, wrapper.get_container(), min_element_size<0>{}, constraint{});
+    wire_read::array(source, wrapper.get_read_object(), min_element_size<0>{}, constraint{});
   }
   template<typename R, typename T, std::size_t N>
   inline void read_bytes(R& source, array_<T, min_element_size<N>>& wrapper)
@@ -67,13 +68,20 @@ namespace wire
     using value_type = typename array_type::value_type;
     using constraint = typename array_type::constraint;
     static_assert(constraint::template check<value_type>(), "max compression ratio exceeded for element");
-    wire_read::array(source, wrapper.get_container(), constraint{});
+    wire_read::array(source, wrapper.get_read_object(), constraint{});
   }
 
   template<typename W, typename T, typename C>
   inline void write_bytes(W& dest, const array_<T, C>& wrapper)
   {
     wire_write::array(dest, wrapper.get_container());
+  }
+  template<typename W, typename T, typename C, typename D>
+  inline void write_bytes(W& dest, const array_<array_<T, C>, D>& wrapper)
+  {
+    using inner_type = typename array_<array_<T, C>, D>::inner_array_const;
+    const auto wrap = [](const auto& val) -> inner_type { return {std::ref(val)}; };
+    wire_write::array(dest, boost::adaptors::transform(wrapper.get_container(), wrap));
   }
 
 
@@ -84,7 +92,7 @@ namespace wire
 #if BYTE_ORDER == LITTLE_ENDIAN
   // enable optimization if `T` has `resize` and `data()`
   template<typename T>
-  auto read_as_blob(epee::byte_slice source, T& dest) -> decltype(dest.resize(0), dest.data())
+  auto read_as_blob(epee::span<const std::uint8_t> source, T& dest) -> decltype(dest.resize(0), dest.data())
   {
     using value_type = typename T::value_type;
     dest.resize(source.size() / sizeof(value_type));
@@ -105,7 +113,7 @@ namespace wire
   // Parameter packs take lower precedence (above preferred if `T` has extra functions)
 
   template<typename T, typename... Ignored>
-  void read_as_blob(epee::byte_slice source, T& dest, const Ignored&...)
+  void read_as_blob(epee::span<const std::uint8_t> source, T& dest, const Ignored&...)
   {
     using value_type = typename T::value_type;
     dest.clear();
@@ -142,7 +150,7 @@ namespace wire
     if (bytes.size() % dest.value_size() != 0)
       WIRE_DLOG_THROW_(error::schema::fixed_binary);
 
-    read_as_blob(std::move(bytes), dest.get_container());
+    read_as_blob(epee::to_span(bytes), dest.get_container());
   }
 
   template<typename W, typename T>

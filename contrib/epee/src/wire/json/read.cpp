@@ -321,7 +321,7 @@ namespace wire
       read_next_value(json_string);
     }
 
-    if (!exact && dest.size() < str_buffer_.size())
+    if (!exact && str_buffer_.size() <= dest.size())
       dest = {dest.data(), str_buffer_.size()};
     if (dest.size() != str_buffer_.size())
       WIRE_DLOG_THROW(error::schema::string, "of size " << dest.size() << " but got " << str_buffer_.size());
@@ -346,11 +346,11 @@ namespace wire
   std::size_t json_reader::binary(epee::span<std::uint8_t> dest, const bool exact)
   {
     const boost::string_ref value = get_next_string();
-    if (!exact && dest.size() < value.size())
+    if (!exact && value.size() / 2 <= dest.size())
       dest = {dest.data(), value.size() / 2}; // `from_hex` will ensure exact size
     if (!epee::from_hex::to_buffer(dest, value))
-      WIRE_DLOG_THROW(exact ? error::schema::fixed_binary : error::schema::binary, "invalid hex and/or expected size" << dest.size() * 2 << " but got " << value.size());
-    return value.size();
+      WIRE_DLOG_THROW(exact ? error::schema::fixed_binary : error::schema::binary, "invalid hex and/or expected size " << dest.size() * 2 << " but got " << value.size());
+    return dest.size();
   }
 
   std::size_t json_reader::start_array(std::size_t)

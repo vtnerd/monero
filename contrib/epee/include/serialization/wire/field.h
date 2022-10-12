@@ -54,13 +54,14 @@ namespace wire
     `write_bytes` function when parsing with a `wire::writer` - see `write.h`
     for more info.
 
-    Any `value_type` where `is_array<value_type> == true`, will automatically
-    be converted to an optional field. The old output engine omitted fields
+    Any `value_type` where `is_optional_on_empty<value_type> == true`, will
+    automatically be converted to an optional field iff `value_type` has an
+    `empty()` method that returns `true`. The old output engine omitted fields
     when an array was empty, and the standard input macro would ignore the
     `false` return for the missing field. For compability reasons, the
-    input/output engine here matches that behavior. See `wire/wrapper/array.h`
-    to enforce a required field with size 0 for empty arrays. Only new fields
-    should use this behavior.
+    input/output engine here matches that behavior. See `wrapper/array.h` to
+    enforce a required field even when the array is empty or specialize the
+    `is_optional_on_empty` trait. Only new fields should use this behavior.
 
     Additional concept requirements for `value_type` when `Required == false`:
       * must have an `operator*()` function.
@@ -96,11 +97,11 @@ namespace wire
   {
     using value_type = unwrap_reference_t<T>;
 
-    //! \return True if the old output system listed the type as optional
-    static constexpr bool historical_optional() noexcept
-    { return is_array<value_type>::value || is_array_as_blob<value_type>::value; }
+    //! \return True if field is forced optional when `get_value().empty()`.
+    static constexpr bool optional_on_empty() noexcept
+    { return is_optional_on_empty<value_type>::value; }
 
-    static constexpr bool is_required() noexcept { return Required && !historical_optional(); }
+    static constexpr bool is_required() noexcept { return Required && !optional_on_empty(); }
     static constexpr std::size_t count() noexcept { return 1; }
 
     const char* name;
@@ -130,7 +131,7 @@ namespace wire
   {
     /* The old output engine always skipped fields when it was an empty array,
        this follows that behavior. See comments for `field_`. */
-    return elem.is_required() || (elem.historical_optional() && !wire::empty(elem.get_value()));
+    return elem.is_required() || (elem.optional_on_empty() && !wire::empty(elem.get_value()));
   }
   template<typename T>
   inline constexpr bool available(const field_<T, false>& elem)

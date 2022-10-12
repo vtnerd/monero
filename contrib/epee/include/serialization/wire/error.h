@@ -52,21 +52,23 @@ namespace wire
   {
     enum class schema : int
     {
-      none = 0,        //!< Must be zero for `expect<..>`
-      array,           //!< Expected an array value
-      binary,          //!< Expected a binary value of variable length
-      boolean,         //!< Expected a boolean value
-      enumeration,     //!< Expected a value from a specific set
-      fixed_binary,    //!< Expected a binary value of fixed length
-      integer,         //!< Expected an integer value
-      invalid_key,     //!< Key for object is invalid
-      larger_integer,  //!< Expected a larger integer value
-      maximum_depth,   //!< Hit maximum number of object+array tracking
-      missing_key,     //!< Missing required key for object
-      number,          //!< Expected a number (integer or float) value
-      object,          //!< Expected object value
-      smaller_integer, //!< Expected a smaller integer value
-      string,          //!< Expected string value
+      none = 0,         //!< Must be zero for `expect<..>`
+      array,            //!< Expected an array value
+      array_max_element,//!< Exceeded max array count
+      array_min_size,   //!< Below min element wire size
+      binary,           //!< Expected a binary value of variable length
+      boolean,          //!< Expected a boolean value
+      enumeration,      //!< Expected a value from a specific set
+      fixed_binary,     //!< Expected a binary value of fixed length
+      integer,          //!< Expected an integer value
+      invalid_key,      //!< Key for object is invalid
+      larger_integer,   //!< Expected a larger integer value
+      maximum_depth,    //!< Hit maximum number of object+array tracking
+      missing_key,      //!< Missing required key for object
+      number,           //!< Expected a number (integer or float) value
+      object,           //!< Expected object value
+      smaller_integer,  //!< Expected a smaller integer value
+      string,           //!< Expected string value
     };
 
     //! \return Error message string.

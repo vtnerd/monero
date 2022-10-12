@@ -45,20 +45,22 @@ namespace wire
   template<typename T>
   struct unwrap_reference
   {
-    using type = T;
+    using type = std::remove_cv_t<std::remove_reference_t<T>>;
   };
 
   template<typename T>
   struct unwrap_reference<std::reference_wrapper<T>>
   {
-    using type = T;
+    using type = std::remove_cv_t<T>;
   };
 
   template<typename T>
   using unwrap_reference_t = typename unwrap_reference<T>::type;
 
 
-  //! Mark `T` as an array for writing purposes only. See `array_` in `wrapper/array.h`.
+  /*! Mark `T` as an array for writing, and reading when 
+    `default_min_element_size<T::value_type>::value != 0`. See `array_` in
+    `wrapper/array.h`. */
   template<typename T>
   struct is_array : std::false_type
   {};
@@ -74,16 +76,15 @@ namespace wire
   struct is_blob : std::false_type
   {};
 
-  template<typename> struct array_as_blob_;
-
-  //! For compabtility handling with older engine, never needs user specialization.
+  /*! Forces field to be optional when empty. Concept requirements for `T` when
+    `is_optional_on_empty<T>::value == true`:
+      * must have an `empty()` method that toggles whether the associated
+        `wire::field_<...>` is omitted by the `wire::writer`. 
+      * must have a `clear()` method where `empty() == true` upon completion,
+        used by the `wire::reader` when the `wire::field_<...>` is omitted. */
   template<typename T>
-  struct is_array_as_blob
-    : std::false_type
-  {};
-  template<typename T>
-  struct is_array_as_blob<array_as_blob_<T>>
-    : std::true_type
+  struct is_optional_on_empty
+    : is_array<T> // all array types in old output engine were optional when empty
   {};
 
   //! A constraint for `wire_read::array` where a max of `N` elements can be read.
@@ -92,7 +93,7 @@ namespace wire
     : std::integral_constant<std::size_t, N>
   {
     // The threshold is low - min_element_size is a better constraint metric
-    static constexpr std::size_t max_bytes() noexcept { return 512 * 1024 * 1024; } // 512 KiB
+    static constexpr std::size_t max_bytes() noexcept { return 512 * 1024; } // 512 KiB
 
     //! \return True if `N` C++ objects of type `T` are below `max_bytes()` threshold.
     template<typename T>

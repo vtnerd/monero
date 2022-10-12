@@ -88,66 +88,63 @@ namespace wire
     writer& operator=(writer&&) = default;
   };
 
-  // leave in header, compiler can de-virtualize when final type is given
+  template<typename W>
+  inline void write_arithmetic(W& dest, const bool source)
+  { dest.boolean(source); }
 
-  inline void write_bytes(writer& dest, const bool source)
-  {
-    dest.boolean(source);
-  }
+  template<typename W>
+  inline void write_arithmetic(W& dest, const int source)
+  { dest.integer(source); }
 
-  inline void write_bytes(writer& dest, const int source)
-  {
-    dest.integer(source);
-  }
-  inline void write_bytes(writer& dest, const long source)
-  {
-    dest.integer(std::intmax_t(source));
-  }
-  inline void write_bytes(writer& dest, const long long source)
-  {
-    dest.integer(std::intmax_t(source));
-  }
+  template<typename W>
+  inline void write_arithmetic(W& dest, const long source)
+  { dest.integer(std::intmax_t(source)); }
 
-  inline void write_bytes(writer& dest, const unsigned source)
-  {
-    dest.unsigned_integer(source);
-  }
-  inline void write_bytes(writer& dest, const unsigned long source)
-  {
-    dest.unsigned_integer(std::uintmax_t(source));
-  }
-  inline void write_bytes(writer& dest, const unsigned long long source)
-  {
-    dest.unsigned_integer(std::uintmax_t(source));
-  }
+  template<typename W>
+  inline void write_arithmetic(W& dest, const long long source)
+  { dest.integer(std::intmax_t(source)); }
 
-  inline void write_bytes(writer& dest, const double source)
-  {
-    dest.real(source);
-  }
+  template<typename W>
+  inline void write_arithmetic(W& dest, const unsigned source)
+  { dest.unsigned_integer(source); }
 
-  inline void write_bytes(writer& dest, const boost::string_ref source)
-  {
-    dest.string(source);
-  }
+  template<typename W>
+  inline void write_arithmetic(W& dest, const unsigned long source)
+  { dest.unsigned_integer(std::uintmax_t(source)); }
 
-  template<typename T>
-  inline std::enable_if_t<is_blob<T>::value> write_bytes(writer& dest, const T& source)
-  {
-    dest.binary(epee::as_byte_span(source));
-  }
+  template<typename W>
+  inline void write_arithmethic(W& dest, const unsigned long long source)
+  { dest.unsigned_integer(std::uintmax_t(source));}
 
-  inline void write_bytes(writer& dest, const epee::span<const std::uint8_t> source)
-  {
-    dest.binary(source);
-  }
+  template<typename W>
+  inline void write_arithmetic(W& dest, const double source)
+  { dest.real(source); }
+
+  // Template both arguments to allow derived writer specializations
+  template<typename W, typename T>
+  inline std::enable_if_t<std::is_arithmetic<T>::value> write_bytes(W& dest, const T source)
+  { write_arithmetic(dest, source); }
+
+  template<typename W>
+  inline void write_bytes(W& dest, const boost::string_ref source)
+  { dest.string(source); }
+
+  template<typename W, typename T>
+  inline std::enable_if_t<is_blob<T>::value> write_bytes(W& dest, const T& source)
+  { dest.binary(epee::as_byte_span(source)); }
+
+  template<typename W>
+  inline void write_bytes(W& dest, const epee::span<const std::uint8_t> source)
+  { dest.binary(source); }
+
+  template<typename W>
+  inline void write_bytes(W& dest, const epee::byte_slice& source)
+  { write_bytes(dest, epee::to_span(source)); }
 
   //! Use `write_bytes(...)` method if available for `T`.
   template<typename W, typename T>
   inline auto write_bytes(W& dest, const T& source) -> decltype(source.write_bytes(dest))
-  {
-    return source.write_bytes(dest);
-  }
+  { return source.write_bytes(dest); }
 }
 
 namespace wire_write
@@ -191,7 +188,8 @@ namespace wire_write
   inline void array(W& dest, const T& source)
   {
     using value_type = typename T::value_type;
-    static_assert(!std::is_same<value_type, char>::value, "write array of chars as binary");
+    static_assert(!std::is_same<value_type, char>::value, "write array of chars as string");
+    static_assert(!std::is_same<value_type, std::int8_t>::value, "write array of signed chars as binary");
     static_assert(!std::is_same<value_type, std::uint8_t>::value, "write array of unsigned chars as binary");
 
     dest.start_array(source.size());

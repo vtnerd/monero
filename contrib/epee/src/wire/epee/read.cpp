@@ -53,7 +53,7 @@ namespace
     case SERIALIZE_TYPE_BOOL:   return sizeof(bool);
     case SERIALIZE_TYPE_DOUBLE: return sizeof(double);
     case SERIALIZE_TYPE_INT8:   return sizeof(std::int8_t);
-    case SERIALIZE_TYPE_INT16:  return sizeof(std::int64_t);
+    case SERIALIZE_TYPE_INT16:  return sizeof(std::int16_t);
     case SERIALIZE_TYPE_INT32:  return sizeof(std::int32_t);
     case SERIALIZE_TYPE_INT64:  return sizeof(std::int64_t);
     case SERIALIZE_TYPE_OBJECT: return min_object_size;
@@ -135,9 +135,13 @@ namespace wire
 
   void epee_reader::skip_next()
   {
-    const auto start_tag = [this] (const std::uint8_t tag)
+    const auto is_array = [] (const std::uint8_t tag)
     {
-      if (tag & SERIALIZE_FLAG_ARRAY)
+      return tag & SERIALIZE_FLAG_ARRAY || tag == SERIALIZE_TYPE_ARRAY;
+    };
+    const auto start_tag = [this, is_array] (const std::uint8_t tag)
+    {
+      if (is_array(tag))
         skip_stack_.emplace_back(start_array(0), tag);
       else if (tag == SERIALIZE_TYPE_OBJECT)
         skip_stack_.emplace_back(start_object(), tag);
@@ -151,7 +155,7 @@ namespace wire
     {
       while (!skip_stack_.empty() && !skip_stack_.back().first)
       {
-        if (skip_stack_.back().second & SERIALIZE_FLAG_ARRAY)
+        if (is_array(skip_stack_.back().second))
         {
           end_array();
           last_tag_ = SERIALIZE_TYPE_ARRAY;

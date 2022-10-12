@@ -90,4 +90,6 @@ namespace wire
 
   // `read_bytes` / `write_bytes` in `wire/wrappers_impl.h`
 
+  // Do not specialize `is_optional_on_empty`; allow selection
+
 } // wire

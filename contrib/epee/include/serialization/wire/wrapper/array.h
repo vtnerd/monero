@@ -50,8 +50,10 @@ namespace wire
     encoded on the wire. Historically, empty arrays were always omitted on
     the wire (a defacto optional field).
 
-    The `is_array` trait can also be used, but is always treated as an optional
-    field.
+    The `is_array` trait can also be used, but is default treated as an optional
+    field. The trait `is_optional_on_empty` traits can be specialized to disable
+    the optional on empty behavior. See `wire/traits.h` for more ifnormation
+    on the `is_optional_on_empty` trait.
 
     `container_type` is `T` with optional `std::reference_wrapper` removed.
     `container_type` concept requirements:
@@ -59,8 +61,13 @@ namespace wire
       * must have `size()` method that returns number of elements.
     Additional concept requirements for `container_type` when reading:
       * must have `clear()` method that removes all elements (`size() == 0`).
-      * must have `emplace_back()` method that default initializes new element
-      * must have `back()` method that retrieves last element by reference.
+      * must have either: (1) `end()` and `emplace_hint(iterator, value_type&&)`
+        or (2) `emplace_back()` and `back()`:
+        * `end()` method that returns one-past the last element.
+        * `emplace_hint(iterator, value_type&&)` method that move constructs a new
+           element.
+        * `emplace_back()` method that default initializes new element
+        * `back()` method that retrieves last element by reference.
     Additional concept requirements for `container_type` when writing:
       * must work with foreach loop (`std::begin` and `std::end`). */
   template<typename T, typename C = void>
@@ -70,10 +77,18 @@ namespace wire
     using container_type = unwrap_reference_t<T>;
     using value_type = typename container_type::value_type;
 
+    // See nested `array_` overload below
+    using inner_array = std::reference_wrapper<value_type>;
+    using inner_array_const = std::reference_wrapper<const value_type>;
+
     T container;
 
     constexpr const container_type& get_container() const noexcept { return container; }
     container_type& get_container() noexcept { return container; }
+
+    //! Read directly into the non-nested array
+    container_type& get_read_object() noexcept { return get_container(); }
+
 
     // concept requirements for optional fields
 
@@ -86,10 +101,60 @@ namespace wire
     void reset() { get_container().clear(); }
   };
 
+  //! Nested array case
+  template<typename T, typename C, typename D>
+  struct array_<array_<T, C>, D>
+  {
+    // compute `container_type` and `value_type` recursively
+    using constraint = D;
+    using container_type = typename array_<T, C>::container_type;
+    using value_type = typename container_type::value_type;
+
+    // Re-compute `array_` for inner values
+    using inner_array = array_<typename array_<T, C>::inner_array, C>;
+    using inner_array_const = array_<typename array_<T, C>::inner_array_const, C>;
+
+    array_<T, C> nested;
+
+    const container_type& get_container() const noexcept { return nested.get_container(); }
+    container_type& get_container() noexcept { return nested.get_container(); }
+
+    //! Read through this proxy to track nested array
+    array_& get_read_object() noexcept { return *this; }
+
+
+    // concept requirements for optional fields
+
+    explicit operator bool() const noexcept { return !empty(); }
+    array_& emplace() noexcept { return *this; }
+
+    array_& operator*() noexcept { return *this; }
+    const array_& operator*() const noexcept { return *this; }
+
+    void reset() { clear(); }
+
+
+    /* For reading nested arrays. writing nested arrays is handled in
+       `wrappers_impl.h` with range transform. */
+
+    void clear() { get_container().clear(); }
+    bool empty() const noexcept { return get_container().empty(); }
+    std::size_t size() const noexcept { return get_container().size(); }
+
+    void emplace_back() { get_container().emplace_back(); }
+
+    //! \return A proxy object for tracking inner-array constraints
+    inner_array back() noexcept { return {std::ref(get_container().back())}; }
+  };
+
   //! Treat `value` as an array when reading/writing, and constrain reading with `C`.
   template<typename C = void, typename T = void>
   inline constexpr array_<T, C> array(T value)
   {
     return {std::move(value)};
   }
+
+  /* Do not register with `is_optional_on_empty` trait, this allows selection
+     on whether an array is mandatory on wire. */
+
 } // wire

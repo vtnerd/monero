@@ -39,7 +39,6 @@
 #include "net/jsonrpc_structs.h"
 #include "rpc/rpc_handler.h"
 #include "serialization/keyvalue_serialization.h"
-#include "serialization/wire/adapted/static_vector.h"
 #include "serialization/wire/epee/base.h"
 #include "serialization/wire/json/base.h"
 #include "serialization/wire/traits.h"
@@ -65,7 +64,7 @@ namespace cryptonote
 #define MAKE_CORE_RPC_VERSION(major,minor) (((major)<<16)|(minor))
 #define CORE_RPC_VERSION MAKE_CORE_RPC_VERSION(CORE_RPC_VERSION_MAJOR, CORE_RPC_VERSION_MINOR)
 
-  using max_peers = wire::max_element_count<2048>;
+  using max_peers = wire::max_element_count<1024>;
   using max_spans = wire::max_element_count<4096>;
 
   struct rpc_request_base
@@ -1334,7 +1333,7 @@ namespace cryptonote
 
   struct COMMAND_RPC_GET_PEER_LIST
   {
-    using max_peer_list = wire::max_element_count<8192>;
+    using max_peer_list = wire::max_element_count<4096>;
 
     struct request_t: public rpc_request_base
     {
@@ -1404,7 +1403,7 @@ namespace cryptonote
 
     struct response_t: public rpc_response_base
     {
-      using max_node_list = wire::max_element_count<16384>;
+      using max_node_list = wire::max_element_count<8192>;
 
       std::vector<public_node> gray;
       std::vector<public_node> white;
@@ -2014,7 +2013,7 @@ namespace cryptonote
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE_PARENT(rpc_response_base)
-        KV_SERIALIZE_ARRAY(bans, wire::max_element_count<16384>)
+        KV_SERIALIZE_ARRAY(bans, wire::max_element_count<8192>)
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
@@ -2043,7 +2042,7 @@ namespace cryptonote
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE_PARENT(rpc_request_base)
-        KV_SERIALIZE_ARRAY(bans, wire::max_element_count<16384>)
+        KV_SERIALIZE_ARRAY(bans, wire::max_element_count<8192>)
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<request_t> request;
@@ -2108,7 +2107,7 @@ namespace cryptonote
 
   struct COMMAND_RPC_GET_OUTPUT_HISTOGRAM
   {
-    using max_amounts = wire::max_element_count<16384>;
+    using max_amounts = wire::max_element_count<8192>;
 
     struct request_t: public rpc_access_request_base
     {
@@ -2584,7 +2583,7 @@ namespace cryptonote
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE_PARENT(rpc_response_base)
-        KV_SERIALIZE_ARRAY(data, wire::max_element_count<16384>)
+        KV_SERIALIZE_ARRAY(data, wire::max_element_count<8192>)
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;

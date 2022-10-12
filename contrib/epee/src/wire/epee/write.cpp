@@ -46,9 +46,7 @@ namespace wire
 
     template<typename T>
     constexpr T varint_limit() noexcept
-    {
-      return std::numeric_limits<T>::max() >> 2;
-    }
+    { return std::numeric_limits<T>::max() >> 2; }
   }
 
   void epee_writer::write_tag(const std::uint8_t tag)
@@ -101,19 +99,13 @@ namespace wire
   }
 
   epee::byte_slice epee_writer::take_bytes()
-  {
-    return epee::byte_slice{take_buffer()};
-  }
+  { return epee::byte_slice{take_buffer()}; }
 
   void epee_writer::boolean(const bool source)
-  {
-    write_arithmetic(source);
-  }
+  { write_arithmetic(source); }
 
   void epee_writer::integer(const int source)
-  {
-    write_arithmetic(source);
-  }
+  { write_arithmetic(source); }
   void epee_writer::integer(const std::intmax_t source)
   {
     static_assert(std::numeric_limits<std::intmax_t>::min() == std::numeric_limits<std::int64_t>::min(), "unexpected intmax");
@@ -121,23 +113,18 @@ namespace wire
     write_arithmetic(std::int64_t(source));
   }
   void epee_writer::unsigned_integer(const unsigned source)
-  {
-    write_arithmetic(source);
-  }
+  { write_arithmetic(source); }
   void epee_writer::unsigned_integer(const std::uintmax_t source)
   {
     static_assert(std::numeric_limits<std::uintmax_t>::max() == std::numeric_limits<std::uint64_t>::max(), "unexpected uintmax");
     write_arithmetic(std::uint64_t(source));
   }
   void epee_writer::real(const double source)
-  {
-    write_arithmetic(source);
-  }
+  { write_arithmetic(source); }
 
   void epee_writer::string(const boost::string_ref source)
-  {
-    binary({reinterpret_cast<const std::uint8_t*>(source.data()), source.size()});
-  }
+  { binary({reinterpret_cast<const std::uint8_t*>(source.data()), source.size()}); }
+
   void epee_writer::binary(epee::span<const std::uint8_t> source)
   {
     if (needs_tag_)

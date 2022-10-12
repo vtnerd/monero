@@ -34,6 +34,7 @@
 #include "common/varint.h"
 #include "cryptonote_config.h"
 #include "serialization/wire/adapted/list.h"
+#include "serialization/wire/adapted/static_vector.h"
 #include "serialization/wire/adapted/vector.h"
 #include "serialization/wire/epee.h"
 #include "serialization/wire/json.h"
@@ -87,37 +88,34 @@ namespace cryptonote
 
   namespace
   {
-    std::vector<std::uint64_t> decompress_integer_array(const std::string &s)
+    std::vector<std::uint64_t> decompress_integer_array(const epee::span<const std::uint8_t> s)
     {
       std::vector<std::uint64_t> v;
       v.reserve(s.size());
       int read = 0;
-      const std::string::const_iterator end = s.end();
-      for (std::string::const_iterator i = s.begin(); i != end; std::advance(i, read))
+      auto end = s.end();
+      for (auto i = s.begin(); i != end; std::advance(i, read))
       {
         v.emplace_back();
-        read = tools::read_varint(std::string::const_iterator(i), s.end(), v.back());
+        read = tools::read_varint(i, end, v.back());
         CHECK_AND_ASSERT_THROW_MES(read > 0 && read <= 256, "Error decompressing data");
       }
       return v;
     }
-    std::string compress_integer_array(const std::vector<std::uint64_t> &v)
+    epee::byte_slice compress_integer_array(const std::vector<std::uint64_t> &v)
     {
-      std::string s;
-      s.resize(v.size() * (sizeof(std::uint64_t) * 8 / 7 + 1));
-      char *ptr = (char*)s.data();
+      epee::byte_stream s;
+      s.reserve(v.size() * (sizeof(std::uint64_t) * 8 / 7 + 1));
       for (const std::uint64_t t: v)
-        tools::write_varint(ptr, t);
-      s.resize(ptr - s.data());
-      return s;
+        tools::write_varint(std::back_inserter(s), t);
+      return epee::byte_slice{std::move(s)};
     }
 
     enum class is_blob { false_ = 0, true_ };
     void read_bytes(wire::json_reader& source, std::pair<std::vector<std::uint64_t>, is_blob>& dest)
     {
-      static constexpr const std::size_t ten_million = 10000000;
       dest.second = is_blob::false_;
-      wire_read::array(source, dest.first, wire::min_element_size<0>{}, wire::max_element_count<ten_million>{});
+      wire_read::array(source, dest.first, wire::min_element_size<0>{}, wire::max_element_count<65536>{});
     }
     void read_bytes(wire::epee_reader& source, std::pair<std::vector<std::uint64_t>, is_blob>& dest)
     {
@@ -147,7 +145,7 @@ namespace cryptonote
     }
 
     template<typename F, typename T, typename U>
-    void output_distribution_map(F& format, T& self, boost::optional<std::string>& compressed, U& binary)
+    void output_distribution_map(F& format, T& self, boost::optional<epee::byte_slice>& compressed, U& binary)
     {
       wire::object(format,
         WIRE_FIELD(amount),
@@ -164,12 +162,12 @@ namespace cryptonote
   template<typename R>
   static void read_bytes(R& source, COMMAND_RPC_GET_OUTPUT_DISTRIBUTION::distribution& dest)
   {
-    boost::optional<std::string> compressed;
+    boost::optional<epee::byte_slice> compressed;
     boost::optional<std::pair<std::vector<std::uint64_t>, is_blob>> binary;
     output_distribution_map(source, dest, compressed, binary);
 
     if (compressed && dest.binary && dest.compress)
-      dest.data.distribution = decompress_integer_array(*compressed);
+      dest.data.distribution = decompress_integer_array(epee::to_span(*compressed));
     else if (binary && bool(binary->second) == dest.binary && !dest.compress)
       dest.data.distribution = std::move(binary->first);
     else
@@ -181,7 +179,7 @@ namespace cryptonote
     if (!std::is_same<W, wire::epee_writer>() && (source.binary || source.compress))
       WIRE_DLOG_THROW(wire::error::schema::binary, "Compressed and binary data only supported with epee format");
 
-    boost::optional<std::string> compressed;
+    boost::optional<epee::byte_slice> compressed;
     boost::optional<std::pair<const std::vector<std::uint64_t>&, is_blob>> binary;
     if (source.binary && source.compress && !source.data.distribution.empty())
       compressed = compress_integer_array(source.data.distribution);

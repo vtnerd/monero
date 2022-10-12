@@ -372,7 +372,7 @@ namespace wallet_rpc
       std::vector<account_tag_info> account_tags;
 
       BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE_ARRAY(account_tags, wire::max_element_count<8192>)
+        KV_SERIALIZE_ARRAY(account_tags, wire::max_element_count<4096>)
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;

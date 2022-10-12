@@ -173,31 +173,25 @@ namespace wire
     void end_object() noexcept { decrement_depth(); }
   };
 
-  inline void read_bytes(reader& source, bool& dest)
-  {
-    dest = source.boolean();
-  }
+  template<typename R>
+  inline void read_bytes(R& source, bool& dest)
+  { dest = source.boolean(); }
 
-  inline void read_bytes(reader& source, double& dest)
-  {
-    dest = source.real();
-  }
+  template<typename R>
+  inline void read_bytes(R& source, double& dest)
+  { dest = source.real(); }
 
-  inline void read_bytes(reader& source, std::string& dest)
-  {
-    dest = source.string();
-  }
+  template<typename R>
+  inline void read_bytes(R& source, std::string& dest)
+  { dest = source.string(); }
 
-  inline void read_bytes(reader& source, epee::byte_slice& dest)
-  {
-    dest = source.binary();
-  }
+  template<typename R>
+  inline void read_bytes(R& source, epee::byte_slice& dest)
+  { dest = source.binary(); }
 
-  template<typename T>
-  inline std::enable_if_t<is_blob<T>::value> read_bytes(reader& source, T& dest)
-  {
-    source.binary(epee::as_mut_byte_span(dest), /*exact=*/ true);
-  }
+  template<typename R, typename T>
+  inline std::enable_if_t<is_blob<T>::value> read_bytes(R& source, T& dest)
+  { source.binary(epee::as_mut_byte_span(dest), /*exact=*/ true); }
 
   namespace integer
   {
@@ -242,58 +236,54 @@ namespace wire
     }
   }
 
-  inline void read_bytes(reader& source, char& dest)
-  {
-    dest = integer::convert_to<char>(source.integer());
-  }
-  inline void read_bytes(reader& source, signed char& dest)
-  {
-    dest = integer::convert_to<signed char>(source.integer());
-  }
-  inline void read_bytes(reader& source, short& dest)
-  {
-    dest = integer::convert_to<short>(source.integer());
-  }
-  inline void read_bytes(reader& source, int& dest)
-  {
-    dest = integer::convert_to<int>(source.integer());
-  }
-  inline void read_bytes(reader& source, long& dest)
-  {
-    dest = integer::convert_to<long>(source.integer());
-  }
-  inline void read_bytes(reader& source, long long& dest)
-  {
-    dest = integer::convert_to<long long>(source.integer());
-  }
+  template<typename R>
+  inline void read_bytes(R& source, char& dest)
+  { dest = integer::convert_to<char>(source.integer()); }
 
-  inline void read_bytes(reader& source, unsigned char& dest)
-  {
-    dest = integer::convert_to<unsigned char>(source.unsigned_integer());
-  }
-  inline void read_bytes(reader& source, unsigned short& dest)
-  {
-    dest = integer::convert_to<unsigned short>(source.unsigned_integer());
-  }
-  inline void read_bytes(reader& source, unsigned& dest)
-  {
-    dest = integer::convert_to<unsigned>(source.unsigned_integer());
-  }
-  inline void read_bytes(reader& source, unsigned long& dest)
-  {
-    dest = integer::convert_to<unsigned long>(source.unsigned_integer());
-  }
-  inline void read_bytes(reader& source, unsigned long long& dest)
-  {
-    dest = integer::convert_to<unsigned long long>(source.unsigned_integer());
-  }
+  template<typename R>
+  inline void read_bytes(R& source, signed char& dest)
+  { dest = integer::convert_to<signed char>(source.integer()); }
+
+  template<typename R>
+  inline void read_bytes(R& source, short& dest)
+  { dest = integer::convert_to<short>(source.integer()); }
+
+  template<typename R>
+  inline void read_bytes(R& source, int& dest)
+  { dest = integer::convert_to<int>(source.integer()); }
+
+  template<typename R>
+  inline void read_bytes(R& source, long& dest)
+  { dest = integer::convert_to<long>(source.integer()); }
+
+  template<typename R>
+  inline void read_bytes(R& source, long long& dest)
+  { dest = integer::convert_to<long long>(source.integer()); }
+
+  template<typename R>
+  inline void read_bytes(R& source, unsigned char& dest)
+  { dest = integer::convert_to<unsigned char>(source.unsigned_integer()); }
+
+  template<typename R>
+  inline void read_bytes(R& source, unsigned short& dest)
+  { dest = integer::convert_to<unsigned short>(source.unsigned_integer()); }
+
+  template<typename R>
+  inline void read_bytes(R& source, unsigned& dest)
+  { dest = integer::convert_to<unsigned>(source.unsigned_integer()); }
+
+  template<typename R>
+  inline void read_bytes(R& source, unsigned long& dest)
+  { dest = integer::convert_to<unsigned long>(source.unsigned_integer()); }
+
+  template<typename R>
+  inline void read_bytes(R& source, unsigned long long& dest)
+  { dest = integer::convert_to<unsigned long long>(source.unsigned_integer()); }
 
   //! Use `read_bytes(...)` method if available for `T`.
   template<typename R, typename T>
   inline auto read_bytes(R& source, T& dest) -> decltype(dest.read_bytes(source))
-  {
-    return dest.read_bytes(source);
-  }
+  { return dest.read_bytes(source); }
 } // wire
 
 namespace wire_read
@@ -363,18 +353,15 @@ namespace wire_read
   inline void array_unchecked(R& source, T& dest, const std::size_t min_element_size, const std::size_t max_element_count)
   {
     using value_type = typename T::value_type;
-    static_assert(!std::is_same<value_type, char>::value, "read array of chars as binary");
+    static_assert(!std::is_same<value_type, char>::value, "read array of chars as string");
+    static_assert(!std::is_same<value_type, std::int8_t>::value, "read array of signed chars as binary");
     static_assert(!std::is_same<value_type, std::uint8_t>::value, "read array of unsigned chars as binary");
-    /*    static_assert(
-      std::is_same<value_type, std::remove_reference_t<decltype(dest.back())>>::value,
-      "bad value_type"
-      );*/
 
     std::size_t count = source.start_array(min_element_size);
 
     // quick check for epee/msgpack formats
     if (max_element_count < count)
-      throw_exception(wire::error::schema::array, "array size outside of max range", nullptr);
+      throw_exception(wire::error::schema::array_max_element, "", nullptr);
 
     dest.clear();
     wire::reserve(dest, count);
@@ -385,14 +372,14 @@ namespace wire_read
     {
       // check for json/cbor formats
       if (source.delimited_arrays() && max_element_count <= dest.size())
-        throw_exception(wire::error::schema::array, "array size outside of max range", nullptr);
+        throw_exception(wire::error::schema::array_max_element, "", nullptr);
 
       wire_read::array_insert(source, dest);
       --count;
       more &= bool(count);
 
       if (((start_bytes - source.remaining().size()) / dest.size()) < min_element_size)
-        throw_exception(wire::error::schema::array, "array below min element size constraint", nullptr);
+        throw_exception(wire::error::schema::array_min_size, "", nullptr);
     }
 
     source.end_array();
@@ -411,10 +398,10 @@ namespace wire_read
   }
 
   template<typename T>
-  inline void reset_field(const wire::field_<T, true>& dest)
+  inline void reset_field(wire::field_<T, true>& dest)
   {
     // array fields are always optional, see `wire/field.h`
-    if (dest.historical_optional())
+    if (dest.optional_on_empty())
       wire::clear(dest.get_value());
   }
 
