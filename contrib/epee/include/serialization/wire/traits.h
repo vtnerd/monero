@@ -133,6 +133,18 @@ namespace wire
     : std::integral_constant<std::size_t, sizeof(T)>
   {};
 
+  // example usage : `wire::sum(std::size_t(wire::available(fields))...)`
+
+  inline constexpr int sum() noexcept
+  {
+    return 0;
+  }
+  template<typename T, typename... U>
+  inline constexpr T sum(const T head, const U... tail) noexcept
+  {
+    return head + sum(tail...);
+  }
+
   //! If container has no `reserve(0)` function, this function is used
   template<typename... T>
   inline void reserve(const T&...) noexcept
@@ -146,7 +158,10 @@ namespace wire
   //! If `T` has no `empty()` function, this function is used
   template<typename... T>
   inline constexpr bool empty(const T&...) noexcept
-  { return false; }
+  {
+    static_assert(sum(is_optional_on_empty<T>::value...) == 0, "type needs empty method");
+    return false;
+  }
 
   //! `T` has `empty()` function, use it
   template<typename T>
@@ -154,9 +169,11 @@ namespace wire
   { return container.empty(); }
 
   //! If `T` has no `clear()` function, this function is used
-  template<typename T>
+  template<typename... T>
   inline void clear(const T&...) noexcept
-  {}
+  {
+    static_assert(sum(is_optional_on_empty<T>::value...) == 0, "type needs clear method");
+  }
 
   //! `T` has `clear()` function, use it
   template<typename T>

@@ -139,18 +139,6 @@ namespace wire
     return bool(elem.get_value());
   }
 
-  // example usage : `wire::sum(std::size_t(wire::available(fields))...)`
-
-  inline constexpr int sum() noexcept
-  {
-    return 0;
-  }
-  template<typename T, typename... U>
-  inline constexpr T sum(const T head, const U... tail) noexcept
-  {
-    return head + sum(tail...);
-  }
-
   template<typename... T>
   using min_element_sizeof = min_element_size<sum(sizeof(T)...)>;
 } // wire
