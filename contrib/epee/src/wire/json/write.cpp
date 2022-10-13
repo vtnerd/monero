@@ -27,6 +27,7 @@
 
 #include "serialization/wire/json/write.h"
 
+#include <boost/container/small_vector.hpp>
 #include <stdexcept>
 
 #include "hex.h"
@@ -114,19 +115,13 @@ namespace wire
     check_flush();
   }
   void json_writer::binary(epee::span<const std::uint8_t> source)
-  {/* TODO update monero project
-    std::array<char, 256> buffer;
-    if (source.size() <= buffer.size() / 2)
-    {
-      if (!epee::to_hex::buffer({buffer.data(), source.size() * 2}, source))
-        throw std::logic_error{"Invalid buffer size for binary->hex conversion"};
-      string({buffer.data(), source.size() * 2});
-    }
-    else
-    {*/
-      const auto hex = epee::to_hex::string(source);
-      string(hex);
-      //}
+  {
+    // no alloc if `source.size() <= 128`
+    boost::container::small_vector<char, 256> buffer;
+    buffer.resize(source.size() * 2);
+    if (!epee::to_hex::buffer(epee::to_mut_span(buffer), source))
+      throw std::logic_error{"Invalid buffer size for binary->hex conversion"};
+    string({buffer.data(), buffer.size()});
   }
 
   void json_writer::start_array(std::size_t)

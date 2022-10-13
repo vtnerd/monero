@@ -29,7 +29,6 @@
 
 #include <cstdint>
 #include <type_traits>
-#include "serialization/wire/epee/fwd.h"
 
 #define WIRE_DECLARE_BLOB(type)                 \
   template<>                                    \
@@ -50,9 +49,8 @@ namespace wire
 
   template<typename T>
   struct unwrap_reference<std::reference_wrapper<T>>
-  {
-    using type = std::remove_cv_t<T>;
-  };
+    : std::remove_cv<T>
+  {};
 
   template<typename T>
   using unwrap_reference_t = typename unwrap_reference<T>::type;
