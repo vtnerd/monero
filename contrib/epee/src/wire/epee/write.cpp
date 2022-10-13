@@ -30,7 +30,7 @@
 #include <limits>
 #include "serialization/wire/error.h"
 #include "serialization/wire/epee/error.h"
-#include "storages/portable_storage.h"
+#include "storages/portable_storage_base.h"
 
 namespace wire
 {

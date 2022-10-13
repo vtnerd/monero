@@ -37,8 +37,6 @@
 #include <limits>
 
 #include "net/error.h"
-#include "serialization/keyvalue_serialization.h"
-#include "storages/portable_storage.h"
 #include "string_tools_lexical.h"
 
 namespace net
@@ -69,17 +67,6 @@ namespace net
 
             return success();
         }
-
-        struct tor_serialized
-        {
-            std::string host;
-            std::uint16_t port;
-
-            BEGIN_KV_SERIALIZE_MAP()
-                KV_SERIALIZE(host)
-                KV_SERIALIZE(port)
-            END_KV_SERIALIZE_MAP()
-        };
     }
 
     tor_address::tor_address(const boost::string_ref host, const std::uint16_t port) noexcept

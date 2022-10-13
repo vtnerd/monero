@@ -34,7 +34,6 @@
 #include "serialization/wire/basic_value.h"
 #include "serialization/wire/error.h"
 #include "serialization/wire/epee/error.h"
-#include "storages/portable_storage.h"
 #include "storages/portable_storage_base.h"
 #include "storages/portable_storage_bin_utils.h"
 

@@ -33,6 +33,7 @@
 #include <boost/fusion/support/pair.hpp>
 #include <boost/range/algorithm/copy.hpp>
 #include <boost/range/algorithm/equal.hpp>
+#include <boost/variant/get.hpp>
 #include <cstdint>
 #include <limits>
 #include <list>
@@ -591,6 +592,34 @@ namespace
     }
   }
 
+  struct duplicate_key
+  {
+    std::uint16_t value;
+    std::uint16_t value2;
+    
+    WIRE_DEFINE_CONVERSIONS()
+    WIRE_BEGIN_MAP(),
+      WIRE_FIELD(value),
+      wire::field("value", std::ref(self.value2))
+    WIRE_END_MAP()
+  };
+
+  template<typename T, typename U>
+  void run_duplicate_key(U& buffer)
+  {
+    SCOPED_TRACE("Duplicate key for " + boost::core::demangle(typeid(T).name()));
+
+    buffer.clear();
+    {
+      const duplicate_key data{};
+      const std::error_code error = T::to_bytes(buffer, data);
+      ASSERT_FALSE(error);
+      EXPECT_LT(0u, buffer.size());
+    }
+
+    check_error<T, duplicate_key>(buffer, wire::error::schema::invalid_key);
+  }
+
   template<typename X>
   struct single
   {
@@ -606,6 +635,7 @@ namespace
   void run_basic_value(U& buffer)
   {
     SCOPED_TRACE("basic_value test for " + boost::core::demangle(typeid(T).name()));
+    
     buffer.clear();
     U duplicate;
     {
@@ -810,6 +840,7 @@ TEST(wire, readers_writers)
   {
     std::string buffer;
     run_complex<wire::json>(buffer);
+    run_duplicate_key<wire::json>(buffer);
     run_basic_value<wire::json>(buffer);
     run_overflow<wire::json>(buffer);
     run_schema_check<wire::json>(buffer);
@@ -818,6 +849,7 @@ TEST(wire, readers_writers)
   {
     epee::byte_stream buffer;
     run_complex<wire::epee_bin>(buffer);
+    run_duplicate_key<wire::epee_bin>(buffer);
     run_basic_value<wire::epee_bin>(buffer);
     run_overflow<wire::epee_bin>(buffer);
     run_schema_check<wire::epee_bin>(buffer);
