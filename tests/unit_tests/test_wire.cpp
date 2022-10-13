@@ -45,6 +45,7 @@
 #include "serialization/wire.h"
 #include "serialization/wire/adapted/static_vector.h"
 #include "serialization/wire/adapted/vector.h"
+#include "serialization/wire/basic_value.h"
 #include "serialization/wire/epee.h"
 #include "serialization/wire/json.h"
 #include "serialization/wire/wrapper/array.h"
@@ -232,9 +233,10 @@ namespace
     std::list<small_blob> list_blobs;
     std::vector<std::string> strings;
     std::string string;
+    wire::basic_value any;
+    double real;
     std::uint8_t uint8;
     std::int8_t int8;
-    double real;
     bool choice;
 
     WIRE_DEFINE_CONVERSIONS()
@@ -247,9 +249,10 @@ namespace
       WIRE_FIELD_ARRAY_AS_BLOB(list_blobs),
       WIRE_FIELD_ARRAY(strings, wire::min_element_size<7>),
       WIRE_FIELD(string),
+      WIRE_OPTIONAL_FIELD(any),
+      WIRE_FIELD(real),
       WIRE_FIELD_DEFAULTED(uint8, 100u),
       WIRE_FIELD(int8),
-      WIRE_FIELD(real),
       WIRE_FIELD(choice)
     WIRE_END_MAP()
   };
@@ -317,9 +320,10 @@ namespace
     EXPECT_TRUE(self.list_blobs.empty());
     EXPECT_TRUE(self.strings.empty());
     EXPECT_TRUE(self.string.empty());
+    EXPECT_FALSE(bool(self.any));
+    EXPECT_DOUBLE_EQ(self.real, 0.0);
     EXPECT_EQ(self.uint8, 0);
     EXPECT_EQ(self.int8, 0);
-    EXPECT_DOUBLE_EQ(self.real, 0.0);
     EXPECT_FALSE(self.choice);
   }
 
@@ -343,9 +347,10 @@ namespace
     boost::range::copy(self.blobs, std::back_inserter(self.list_blobs));
     self.strings = {"string1", "string2", "string3", "string4"};
     self.string = "simple_string";
+    self.any.value = limit<std::intmax_t>::min();
+    self.real = 2.43;
     self.uint8 = limit<std::uint8_t>::max();
     self.int8 = limit<std::int8_t>::min();
-    self.real = 2.43;
     self.choice = true;
   }
 
@@ -413,9 +418,11 @@ namespace
     verify_strings(self.strings);
 
     EXPECT_EQ(self.string, "simple_string");
+    EXPECT_TRUE(bool(self.any));
+    EXPECT_EQ(limit<std::intmax_t>::min(), boost::get<std::intmax_t>(self.any.value));
+    EXPECT_DOUBLE_EQ(self.real, 2.43);
     EXPECT_EQ(self.uint8, limit<std::uint8_t>::max());
     EXPECT_EQ(self.int8, limit<std::int8_t>::min());
-    EXPECT_DOUBLE_EQ(self.real, 2.43);
 
     EXPECT_TRUE(self.choice);
   }
@@ -453,136 +460,134 @@ namespace
   template<typename T, typename U>
   void run_complex(U& buffer)
   {
+    SCOPED_TRACE("Complex test for " + boost::core::demangle(typeid(T).name()));
+    complex base{};
+    verify_initial(base);
+
+    U initial_buffer;
     {
-      SCOPED_TRACE("Complex test for " + boost::core::demangle(typeid(T).name()));
-      complex base{};
-      verify_initial(base);
+      SCOPED_TRACE("Empty complex data structure");
 
-      U initial_buffer;
+      buffer.clear();
+      std::error_code error = T::to_bytes(buffer, base);
+      ASSERT_FALSE(error);
+      EXPECT_LT(0u, buffer.size());
+      copy_buffer(initial_buffer, buffer);
+
+      complex derived{};
+      fill(derived);
+      verify_filled(derived);
+
+      error = T::from_bytes(epee::to_span(buffer), derived);
+      ASSERT_FALSE(error);
+      verify_initial(derived);
+    }
+
+    fill(base);
+    verify_filled(base);
+
+    {
+      SCOPED_TRACE("Filled complex data structure");
+
+      buffer.clear();
+      std::error_code error = T::to_bytes(buffer, base);
+      ASSERT_FALSE(error);
+      EXPECT_LT(0u, buffer.size());
+      const std::size_t buffer_size = buffer.size();
+
+      complex derived{};
+      error = T::from_bytes(epee::to_span(buffer), derived);
+      ASSERT_FALSE(error);
+      verify_filled(derived);
+
+      skipped skip{};
+      EXPECT_FALSE(skip.choice);
+      error = T::from_bytes(epee::to_span(buffer), skip);
+      ASSERT_FALSE(error);
+      EXPECT_TRUE(skip.choice);
+
       {
-        SCOPED_TRACE("Empty complex data structure");
+        SCOPED_TRACE("Required field/array");
 
-        buffer.clear();
-        std::error_code error = T::to_bytes(buffer, base);
+        check_error<T, required_array>(initial_buffer, wire::error::schema::missing_key);
+        check_error<T, required_array>(buffer, std::error_code{});
+
+        required_array array{};
+        EXPECT_TRUE(array.ints.empty());
+        error = T::from_bytes(epee::to_span(buffer), array);
         ASSERT_FALSE(error);
-        EXPECT_LT(0u, buffer.size());
-        copy_buffer(initial_buffer, buffer);
-
-        complex derived{};
-        fill(derived);
-        verify_filled(derived);
-
-        error = T::from_bytes(epee::to_span(buffer), derived);
-        ASSERT_FALSE(error);
-        verify_initial(derived);
+        verify_ints(array.ints);
       }
-
-      fill(base);
-      verify_filled(base);
-
       {
-        SCOPED_TRACE("Filled complex data structure");
+        SCOPED_TRACE("Array constraints");
+
+        constraints<4, 2, 4, 5, 4, 9, 5> base2{};
+        verify_initial(base2);
+        error = T::from_bytes(epee::to_span(buffer), base2);
+        ASSERT_FALSE(error);
+        verify_filled(base2);
 
         buffer.clear();
-        std::error_code error = T::to_bytes(buffer, base);
+        error = T::to_bytes(buffer, base2);
         ASSERT_FALSE(error);
         EXPECT_LT(0u, buffer.size());
-        const std::size_t buffer_size = buffer.size();
 
-        complex derived{};
-        error = T::from_bytes(epee::to_span(buffer), derived);
+        constraints<4, 2, 4, 4, 3, 7, 4> derived2{};
+        verify_initial(derived2);
+        error = T::from_bytes(epee::to_span(buffer), derived2);
         ASSERT_FALSE(error);
-        verify_filled(derived);
+        verify_filled(derived2);
 
-        skipped skip{};
-        EXPECT_FALSE(skip.choice);
-        error = T::from_bytes(epee::to_span(buffer), skip);
+        error = T::from_bytes(epee::to_span(initial_buffer), derived2);
         ASSERT_FALSE(error);
-        EXPECT_TRUE(skip.choice);
+        verify_initial(derived2);
 
-        {
-          SCOPED_TRACE("Required field/array");
+        static constexpr const std::size_t min = std::is_same<T, wire::json>::value ? 10 : 9;
+        static constexpr const wire::error::schema string_error =
+          std::is_same<T, wire::epee_bin>::value ?
+          wire::error::schema::binary : wire::error::schema::string;
 
-          check_error<T, required_array>(initial_buffer, wire::error::schema::missing_key);
-          check_error<T, required_array>(buffer, std::error_code{});
+        check_error<T, min_size<min - 1>>(buffer, std::error_code{});
+        check_error<T, min_size<min>>(initial_buffer, std::error_code{});
+        check_error<T, min_size<min>>(buffer, wire::error::schema::array_min_size);
 
-          required_array array{};
-          EXPECT_TRUE(array.ints.empty());
-          error = T::from_bytes(epee::to_span(buffer), array);
-          ASSERT_FALSE(error);
-          verify_ints(array.ints);
-        }
-        {
-          SCOPED_TRACE("Array constraints");
-
-          constraints<4, 2, 4, 5, 4, 9, 5> base2{};
-          verify_initial(base2);
-          error = T::from_bytes(epee::to_span(buffer), base2);
-          ASSERT_FALSE(error);
-          verify_filled(base2);
-
-          buffer.clear();
-          error = T::to_bytes(buffer, base2);
-          ASSERT_FALSE(error);
-          EXPECT_LT(0u, buffer.size());
-
-          constraints<4, 2, 4, 4, 3, 7, 4> derived2{};
-          verify_initial(derived2);
-          error = T::from_bytes(epee::to_span(buffer), derived2);
-          ASSERT_FALSE(error);
-          verify_filled(derived2);
-
-          error = T::from_bytes(epee::to_span(initial_buffer), derived2);
-          ASSERT_FALSE(error);
-          verify_initial(derived2);
-
-          static constexpr const std::size_t min = std::is_same<T, wire::json>::value ? 10 : 9;
-          static constexpr const wire::error::schema string_error =
-            std::is_same<T, wire::epee_bin>::value ?
-              wire::error::schema::binary : wire::error::schema::string;
-
-          check_error<T, min_size<min - 1>>(buffer, std::error_code{});
-          check_error<T, min_size<min>>(initial_buffer, std::error_code{});
-          check_error<T, min_size<min>>(buffer, wire::error::schema::array_min_size);
-
-          check_error<T, constraints<4, 2, 4, 4, 3, 7, 4>>(buffer, std::error_code{});
-          check_error<T, constraints<1, 1, 1, 1, 1, 1, 1>>(initial_buffer, std::error_code{});
-          check_error<T, constraints<3, 2, 4, 4, 3, 7, 4>>(buffer, wire::error::schema::array_max_element);
-          check_error<T, constraints<4, 1, 4, 4, 3, 7, 4>>(buffer, wire::error::schema::array_max_element);
-          check_error<T, constraints<4, 2, 3, 4, 3, 7, 4>>(buffer, wire::error::schema::array_max_element);
-          check_error<T, constraints<4, 2, 4, 3, 3, 7, 4>>(buffer, wire::error::schema::binary);
-          check_error<T, constraints<4, 2, 4, 4, 2, 7, 4>>(buffer, wire::error::schema::array_max_element);
-          check_error<T, constraints<4, 2, 4, 4, 3, 6, 4>>(buffer, string_error);
-          check_error<T, constraints<4, 2, 4, 4, 3, 7, 3>>(buffer, wire::error::schema::array_max_element);
-        }
-        {
-          SCOPED_TRACE("Testing defaulted value");
-
-          buffer.clear();
-          error = T::to_bytes(buffer, base);
-          ASSERT_FALSE(error);
-          EXPECT_EQ(buffer.size(), buffer_size);
-
-          EXPECT_NE(100u, base.uint8);
-          base.uint8 = 100u; // defaulted value
-          buffer.clear();
-          error = T::to_bytes(buffer, base);
-          ASSERT_FALSE(error);
-          EXPECT_LT(0u, buffer.size());
-          EXPECT_LT(buffer.size(), buffer_size);
-
-          EXPECT_NE(100u, derived.uint8);
-          error = T::from_bytes(epee::to_span(buffer), derived);
-          ASSERT_FALSE(error);
-          EXPECT_EQ(100u, derived.uint8);
-        }
+        check_error<T, constraints<4, 2, 4, 4, 3, 7, 4>>(buffer, std::error_code{});
+        check_error<T, constraints<1, 1, 1, 1, 1, 1, 1>>(initial_buffer, std::error_code{});
+        check_error<T, constraints<3, 2, 4, 4, 3, 7, 4>>(buffer, wire::error::schema::array_max_element);
+        check_error<T, constraints<4, 1, 4, 4, 3, 7, 4>>(buffer, wire::error::schema::array_max_element);
+        check_error<T, constraints<4, 2, 3, 4, 3, 7, 4>>(buffer, wire::error::schema::array_max_element);
+        check_error<T, constraints<4, 2, 4, 3, 3, 7, 4>>(buffer, wire::error::schema::binary);
+        check_error<T, constraints<4, 2, 4, 4, 2, 7, 4>>(buffer, wire::error::schema::array_max_element);
+        check_error<T, constraints<4, 2, 4, 4, 3, 6, 4>>(buffer, string_error);
+        check_error<T, constraints<4, 2, 4, 4, 3, 7, 3>>(buffer, wire::error::schema::array_max_element);
+      }
+      {
+        SCOPED_TRACE("Testing defaulted value");
 
         buffer.clear();
-        error = T::to_bytes(buffer, skip);
+        error = T::to_bytes(buffer, base);
+        ASSERT_FALSE(error);
+        EXPECT_EQ(buffer.size(), buffer_size);
+
+        EXPECT_NE(100u, base.uint8);
+        base.uint8 = 100u; // defaulted value
+        buffer.clear();
+        error = T::to_bytes(buffer, base);
         ASSERT_FALSE(error);
         EXPECT_LT(0u, buffer.size());
         EXPECT_LT(buffer.size(), buffer_size);
+
+        EXPECT_NE(100u, derived.uint8);
+        error = T::from_bytes(epee::to_span(buffer), derived);
+        ASSERT_FALSE(error);
+        EXPECT_EQ(100u, derived.uint8);
       }
+
+      buffer.clear();
+      error = T::to_bytes(buffer, skip);
+      ASSERT_FALSE(error);
+      EXPECT_LT(0u, buffer.size());
+      EXPECT_LT(buffer.size(), buffer_size);
     }
   }
 
@@ -596,6 +601,109 @@ namespace
       WIRE_FIELD(value)
     WIRE_END_MAP()
   };
+
+  template<typename T, typename U>
+  void run_basic_value(U& buffer)
+  {
+    SCOPED_TRACE("basic_value test for " + boost::core::demangle(typeid(T).name()));
+    buffer.clear();
+    U duplicate;
+    {
+      buffer.clear();
+      const single<bool> boolean{true};
+      const std::error_code error = T::to_bytes(buffer, boolean);
+      ASSERT_FALSE(error);
+      EXPECT_LT(0u, buffer.size());
+    }
+    {
+      single<wire::basic_value> any;
+      std::error_code error = T::from_bytes(epee::to_span(buffer), any);
+      ASSERT_FALSE(error);
+      EXPECT_TRUE(bool(any.value));
+      EXPECT_TRUE(boost::get<bool>(any.value.value));
+
+      duplicate.clear();
+      error = T::to_bytes(duplicate, any);
+      ASSERT_FALSE(error);
+      EXPECT_TRUE(boost::range::equal(epee::to_span(duplicate), epee::to_span(buffer)));
+    }
+    {
+      buffer.clear();
+      const single<std::uintmax_t> number{limit<std::uintmax_t>::max()};
+      const std::error_code error = T::to_bytes(buffer, number);
+      ASSERT_FALSE(error);
+      EXPECT_LT(0u, buffer.size());
+    }
+    {
+      single<wire::basic_value> any;
+      std::error_code error = T::from_bytes(epee::to_span(buffer), any);
+      ASSERT_FALSE(error);
+      EXPECT_TRUE(bool(any.value));
+      EXPECT_EQ(limit<std::uintmax_t>::max(), boost::get<std::uintmax_t>(any.value.value));
+
+      duplicate.clear();
+      error = T::to_bytes(duplicate, any);
+      ASSERT_FALSE(error);
+      EXPECT_TRUE(boost::range::equal(epee::to_span(duplicate), epee::to_span(buffer)));
+    }
+    {
+      buffer.clear();
+      const single<std::intmax_t> number{limit<std::intmax_t>::min()};
+      const std::error_code error = T::to_bytes(buffer, number);
+      ASSERT_FALSE(error);
+      EXPECT_LT(0u, buffer.size());
+    }
+    {
+      single<wire::basic_value> any;
+      std::error_code error = T::from_bytes(epee::to_span(buffer), any);
+      ASSERT_FALSE(error);
+      EXPECT_TRUE(bool(any.value));
+      EXPECT_EQ(limit<std::intmax_t>::min(), boost::get<std::intmax_t>(any.value.value));
+
+      duplicate.clear();
+      error = T::to_bytes(duplicate, any);
+      ASSERT_FALSE(error);
+      EXPECT_TRUE(boost::range::equal(epee::to_span(duplicate), epee::to_span(buffer)));
+    }
+    {
+      buffer.clear();
+      const single<double> number{5.433};
+      const std::error_code error = T::to_bytes(buffer, number);
+      ASSERT_FALSE(error);
+      EXPECT_LT(0u, buffer.size());
+    }
+    {
+      single<wire::basic_value> any;
+      std::error_code error = T::from_bytes(epee::to_span(buffer), any);
+      ASSERT_FALSE(error);
+      EXPECT_TRUE(bool(any.value));
+      EXPECT_DOUBLE_EQ(5.433, boost::get<double>(any.value.value));
+
+      duplicate.clear();
+      error = T::to_bytes(duplicate, any);
+      ASSERT_FALSE(error);
+      EXPECT_TRUE(boost::range::equal(epee::to_span(duplicate), epee::to_span(buffer)));
+    }
+    {
+      buffer.clear();
+      const single<std::string> string{"the string"};
+      const std::error_code error = T::to_bytes(buffer, string);
+      ASSERT_FALSE(error);
+      EXPECT_LT(0u, buffer.size());
+    }
+    {
+      single<wire::basic_value> any;
+      std::error_code error = T::from_bytes(epee::to_span(buffer), any);
+      ASSERT_FALSE(error);
+      EXPECT_TRUE(bool(any.value));
+      EXPECT_EQ("the string", boost::get<std::string>(any.value.value));
+
+      duplicate.clear();
+      error = T::to_bytes(duplicate, any);
+      ASSERT_FALSE(error);
+      EXPECT_TRUE(boost::range::equal(epee::to_span(duplicate), epee::to_span(buffer)));
+    }
+  }
 
   template<typename T, typename U>
   expect<single<std::int32_t>> round_trip(U& buffer, const std::int64_t value)
@@ -702,6 +810,7 @@ TEST(wire, readers_writers)
   {
     std::string buffer;
     run_complex<wire::json>(buffer);
+    run_basic_value<wire::json>(buffer);
     run_overflow<wire::json>(buffer);
     run_schema_check<wire::json>(buffer);
   }
@@ -709,6 +818,7 @@ TEST(wire, readers_writers)
   {
     epee::byte_stream buffer;
     run_complex<wire::epee_bin>(buffer);
+    run_basic_value<wire::epee_bin>(buffer);
     run_overflow<wire::epee_bin>(buffer);
     run_schema_check<wire::epee_bin>(buffer);
   }
@@ -717,17 +827,17 @@ TEST(wire, readers_writers)
 namespace
 {
   constexpr const char initial_json[] =
-    u8"{\"choice\":false,\"real\":0.0,\"int8\":0,\"uint8\":0,\"string\":\"\",\"uints\":[]}";
+    u8"{\"uints\":[],\"string\":\"\",\"real\":0.0,\"uint8\":0,\"int8\":0,\"choice\":false}";
   constexpr const char filled_json[] =
     u8"{"
-        "\"choice\":true,\"real\":2.43,\"int8\":-128,\"uint8\":255,\"string\":\"simple_string\","
-        "\"strings\":[\"string1\",\"string2\",\"string3\",\"string4\"],"
-        "\"list_blobs\":\"00ff2211117f7e80deadbeef\","
-        "\"vector_blobs\":\"00ff2211117f7e80deadbeef\","
-        "\"blobs\":[\"00ff2211\",\"117f7e80\",\"deadbeef\"],"
-        "\"uints\":[[[0,18446744073709551615,34234234,33],[977]]],"
+        "\"objects\":[{\"left\":0,\"right\":4294967295},{\"left\":100,\"right\":200},{\"left\":44444,\"right\":83434}],"
         "\"ints\":[-32768,0,31234,32767],"
-        "\"objects\":[{\"right\":4294967295,\"left\":0},{\"right\":200,\"left\":100},{\"right\":83434,\"left\":44444}]"
+        "\"uints\":[[[0,18446744073709551615,34234234,33],[977]]],"
+        "\"blobs\":[\"00ff2211\",\"117f7e80\",\"deadbeef\"],"
+        "\"vector_blobs\":\"00ff2211117f7e80deadbeef\","
+        "\"list_blobs\":\"00ff2211117f7e80deadbeef\","
+        "\"strings\":[\"string1\",\"string2\",\"string3\",\"string4\"],"
+        "\"string\":\"simple_string\",\"any\":-9223372036854775808,\"real\":2.43,\"uint8\":255,\"int8\":-128,\"choice\":true"
       "}";
 }
 

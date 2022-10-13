@@ -329,7 +329,7 @@ namespace wire
     const std::size_t remaining = std::min(array_space_, remaining_.size());
     min_element_size = std::max(min_wire_size(last_tag()), min_element_size);
     if (min_element_size && ((remaining / min_element_size) < count))
-      WIRE_DLOG_THROW(error::epee::not_enough_bytes, count << " array elements of at least " << min_element_size << " bytes each exceeds " << remaining << " remaining bytes");
+      WIRE_DLOG_THROW(error::schema::array_min_size, count << " array elements of at least " << min_element_size << " bytes each exceeds " << remaining << " remaining bytes");
     array_space_ = remaining - (count * min_element_size);
     return count;
   }

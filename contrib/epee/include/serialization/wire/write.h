@@ -213,7 +213,6 @@ namespace wire_write
   template<typename W, typename T>
   inline bool field(W& dest, const wire::field_<T, false> field)
   {
-    // Arrays always optional, see `wire/field.h`
     if (wire::available(field))
     {
       dest.key(field.name);
@@ -226,8 +225,9 @@ namespace wire_write
   inline void object(W& dest, T&&... fields)
   {
     dest.start_object(wire::sum(std::size_t(wire::available(fields))...));
-    wire::sum(field(dest, std::forward<T>(fields))...);
+    const bool dummy[] = {field(dest, std::forward<T>(fields))...};
     dest.end_object();
+    (void)dummy; // expand into array to get 0,1,2,etc order
   }
 } // wire_write
 

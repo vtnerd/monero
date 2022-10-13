@@ -193,6 +193,11 @@ namespace wire
   inline std::enable_if_t<is_blob<T>::value> read_bytes(R& source, T& dest)
   { source.binary(epee::as_mut_byte_span(dest), /*exact=*/ true); }
 
+  //! Use `read_bytes(...)` method if available for `T`.
+  template<typename R, typename T>
+  inline auto read_bytes(R& source, T& dest) -> decltype(dest.read_bytes(source))
+  { return dest.read_bytes(source); }
+
   namespace integer
   {
     [[noreturn]] void throw_exception(std::intmax_t value, std::intmax_t min, std::uintmax_t max);
@@ -279,11 +284,6 @@ namespace wire
   template<typename R>
   inline void read_bytes(R& source, unsigned long long& dest)
   { dest = integer::convert_to<unsigned long long>(source.unsigned_integer()); }
-
-  //! Use `read_bytes(...)` method if available for `T`.
-  template<typename R, typename T>
-  inline auto read_bytes(R& source, T& dest) -> decltype(dest.read_bytes(source))
-  { return dest.read_bytes(source); }
 } // wire
 
 namespace wire_read
