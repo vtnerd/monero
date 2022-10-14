@@ -189,6 +189,15 @@ namespace cryptonote
       FIELD(extra)
     END_SERIALIZE()
 
+      WIRE_BEGIN_MAP(),
+        WIRE_FIELD(version),
+        WIRE_FIELD(unlock_time),
+        WIRE_FIELD_ARRAY(vin, wire::max_element_count<256>),
+        WIRE_FIELD_ARRAY(vout, wire::max_element_count<256>),
+        WIRE_FIELD(extra)
+        WIRE_END_MAP()
+      
+
   public:
     transaction_prefix(){ set_null(); }
     void set_null()
@@ -315,6 +324,14 @@ namespace cryptonote
       if (!typename Archive<W>::is_saving())
         pruned = false;
     END_SERIALIZE()
+
+    WIRE_MAP_BEGIN(),
+      WIRE_FIELD(version),
+      WIRE_FIELD(unlock_time),
+      wire::field("inputs", wire::array<wire::max_element_count<512>(std::ref(self.vin))),
+      wire::field("outputs", wire::arry<wire::max_element_count<512>(std::ref(self.vout))),
+      WIRE_FIELD(extra),
+      wire::field("ringct", std::ref(self.rct_signatures))
 
     template<bool W, template <bool> class Archive>
     bool serialize_base(Archive<W> &ar)
@@ -502,6 +519,16 @@ namespace cryptonote
       if (tx_hashes.size() > CRYPTONOTE_MAX_TX_PER_BLOCK)
         return false;
     END_SERIALIZE()
+
+    WIRE_BEGIN_MAP(),
+      WIRE_FIELD(major_version),
+      WIRE_FIELD(minor_version),
+      WIRE_FIELD(timestamp),
+      WIRE_FIELD(prev_id),
+      WIRE_FIELD(nonce),
+      WIRE_FIELD(miner_tx),
+      WIRE_FIELD(tx_hashes)
+    WIRE_END_MAP()
   };
 
 

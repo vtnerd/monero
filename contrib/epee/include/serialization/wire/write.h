@@ -28,6 +28,7 @@
 #pragma once
 
 #include <boost/utility/string_ref.hpp>
+#include <boost/range/size.hpp>
 #include <cstdint>
 #include <system_error>
 #include <type_traits>
@@ -60,6 +61,9 @@ namespace wire
     writer() = default;
 
     virtual ~writer() noexcept;
+
+    //! By default, insist on retrieving array size before writing array
+    static constexpr std::true_type need_array_size() noexcept { return{}; }
 
     virtual void boolean(bool) = 0;
 
@@ -184,6 +188,14 @@ namespace wire_write
     return {};
   }
 
+  template<typename T>
+  inline std::size_t array_size(std::true_type, const T& source)
+  { return boost::size(source); }
+
+  template<typename T>
+  inline constexpr std::size_t array_size(std::false_type, const T&) noexcept
+  { return 0; }
+
   template<typename W, typename T>
   inline void array(W& dest, const T& source)
   {
@@ -192,7 +204,7 @@ namespace wire_write
     static_assert(!std::is_same<value_type, std::int8_t>::value, "write array of signed chars as binary");
     static_assert(!std::is_same<value_type, std::uint8_t>::value, "write array of unsigned chars as binary");
 
-    dest.start_array(source.size());
+    dest.start_array(array_size(dest.need_array_size(), source));
     for (const auto& elem : source)
       bytes(dest, elem);
     dest.end_array();
