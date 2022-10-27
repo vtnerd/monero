@@ -37,6 +37,7 @@
 #include "serialization/wire/adapted/static_vector.h"
 #include "serialization/wire/adapted/vector.h"
 #include "serialization/wire/epee.h"
+#include "serialization/wire/error.h"
 #include "serialization/wire/json.h"
 #include "serialization/wire/wrappers.h"
 #include "serialization/wire/wrappers_impl.h"
@@ -57,6 +58,90 @@ namespace cryptonote
 
   std::error_code convert_from_json(const epee::span<const char> source, COMMAND_RPC_SUBMIT_RAW_TX::response& dest)
   { return wire_read::from_bytes<wire::json_reader>(source, dest); }
+
+
+  namespace
+  {
+    struct optional_entry_fields
+    {
+      boost::optional<std::uint64_t> block_height;
+      boost::optional<std::uint64_t> confirmations;
+      boost::optional<std::uint64_t> block_timestamp;
+      boost::optional<std::uint64_t> received_timestamp;
+      boost::optional<bool> relayed;
+    };
+
+    template<typename F, typename T>
+    void get_transactions_entry_map(F& format, T& self, optional_entry_fields& optional)
+    {
+      wire::object(format,
+        WIRE_FIELD(tx_hash),
+        WIRE_FIELD(as_hex),
+        WIRE_FIELD(pruned_as_hex),
+        WIRE_FIELD(prunable_as_hex),
+        WIRE_FIELD(prunable_hash),
+        WIRE_FIELD(as_json),
+        WIRE_FIELD(in_pool),
+        wire::optional_field("block_height", std::ref(optional.block_height)),
+        wire::optional_field("confirmations", std::ref(optional.confirmations)),
+        wire::optional_field("block_timestamp", std::ref(optional.block_timestamp)),
+        wire::optional_field("received_timestamp", std::ref(optional.received_timestamp)),
+        WIRE_FIELD_ARRAY(output_indices, wire::max_element_count<512>),
+        wire::optional_field("relayed", std::ref(optional.relayed))
+      );
+    }
+  }
+
+  void read_bytes(wire::json_reader& source, COMMAND_RPC_GET_TRANSACTIONS::entry& dest)
+  {
+    optional_entry_fields optional{};
+    get_transactions_entry_map(source, dest, optional);
+
+    if (dest.in_pool)
+    {
+      if (optional.received_timestamp && optional.block_timestamp)
+      {
+        dest.received_timestamp = *optional.received_timestamp;
+        dest.relayed = *optional.relayed;
+        dest.block_height = 0;
+        dest.confirmations = 0;
+        dest.block_timestamp = 0;
+        dest.output_indices.clear();
+      }
+      else
+        WIRE_DLOG_THROW(wire::error::schema::missing_key, "expected keys \"received_timestamp\" and \"relayed\"");
+    }
+    else
+    {
+      if (optional.block_height && optional.confirmations && optional.block_timestamp)
+      {
+        dest.block_height = *optional.block_height;
+        dest.confirmations = *optional.confirmations;
+        dest.block_timestamp = *optional.block_timestamp;
+        dest.received_timestamp = 0;
+        dest.relayed = false;
+      }
+      else
+        WIRE_DLOG_THROW(wire::error::schema::missing_key, "expected keys \"block_height\", \"confirmations\", and \"block_timestamp\"");
+    }
+  }
+  void write_bytes(wire::json_writer& dest, const COMMAND_RPC_GET_TRANSACTIONS::entry& source)
+  {
+    optional_entry_fields optional{};
+
+    if (source.in_pool)
+    {
+      optional.block_height.emplace(source.block_height);
+      optional.confirmations.emplace(source.confirmations);
+      optional.block_timestamp.emplace(source.block_timestamp);
+    }
+    else
+    {
+      optional.received_timestamp.emplace(source.received_timestamp);
+      optional.relayed.emplace(source.relayed);
+    }
+    get_transactions_entry_map(dest, source, optional);
+  }
 
   WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_GET_TRANSACTIONS)
   WIRE_JSON_DEFINE_COMMAND(COMMAND_RPC_IS_KEY_IMAGE_SPENT)
@@ -114,8 +199,9 @@ namespace cryptonote
     enum class is_blob { false_ = 0, true_ };
     void read_bytes(wire::json_reader& source, std::pair<std::vector<std::uint64_t>, is_blob>& dest)
     {
+      static constexpr const unsigned mb20 = (20 * 1024 * 1024) / sizeof(std::uint64_t);
       dest.second = is_blob::false_;
-      wire_read::array(source, dest.first, wire::min_element_size<0>{}, wire::max_element_count<65536>{});
+      wire_read::array_unchecked(source, dest.first, 0, mb20);
     }
     void read_bytes(wire::epee_reader& source, std::pair<std::vector<std::uint64_t>, is_blob>& dest)
     {

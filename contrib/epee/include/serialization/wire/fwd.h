@@ -41,9 +41,7 @@
   }                                                                     \
   template<typename W>                                                  \
   inline void write_bytes(W& dest, const type_ source)                  \
-  {                                                                     \
-    write_bytes(dest, std::underlying_type<type_>::type(source));       \
-  }
+  { write_bytes(dest, std::underlying_type<type_>::type(source)); }
 
 //! Declare functions that list fields in `type` (using virtual interface)
 #define WIRE_DECLARE_OBJECT(type)                       \

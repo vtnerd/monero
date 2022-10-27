@@ -1,4 +1,39 @@
+// Copyright (c) 2022, The Monero Project
+//
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without modification, are
+// permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this list of
+//    conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright notice, this list
+//    of conditions and the following disclaimer in the documentation and/or other
+//    materials provided with the distribution.
+//
+// 3. Neither the name of the copyright holder nor the names of its contributors may be
+//    used to endorse or promote products derived from this software without specific
+//    prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "cryptonote_basic.h"
+
+#include "cryptonote_basic_impl.h"
+#include "serialization/wire.h"
+#include "serialization/wire/adapted/vector.h"
+#include "serialization/wire/wrapper/array.h"
+#include "serialization/wire/wrapper/variant.h"
+#include "serialization/wire/wrappers_impl.h"
 
 namespace cryptonote
 {
@@ -15,7 +50,7 @@ namespace cryptonote
     {
       wire::object(format, WIRE_FIELD(prev), WIRE_FIELD(prevout), WIRE_FIELD(sigset));
     }
-    
+
     template<typename F, typename T>
     void txin_to_scripthash_map(F& format, T& self)
     {
@@ -25,26 +60,34 @@ namespace cryptonote
     template<typename F, typename T>
     void txin_to_key_map(F& format, T& self)
     {
+      using max_ring_size = wire::max_element_count<5000>;
       wire::object(format,
         WIRE_FIELD(amount),
-        WIRE_FIELD(key_offsets),
+        wire::field("key_offsets", wire::array<max_ring_size>(std::ref(self.key_offsets))),
         wire::field("key_image", std::ref(self.k_image))
       );
     }
+
+    template<typename F, typename T>
+    void txin_v_map(F& format, T& self)
+    {
+      auto variant = wire::variant(std::ref(self));
+      wire::object(format,
+        WIRE_OPTION("gen",           txin_gen,           variant),
+        WIRE_OPTION("to_script",     txin_to_script,     variant),
+        WIRE_OPTION("to_scripthash", txin_to_scripthash, variant),
+        WIRE_OPTION("to_key",        txin_to_key,        variant)
+      );
+    }
   } // anonymous
-  WIRE_DECLARE_OBJECT(txin_gen, txin_gen_map)
-  WIRE_DECLARE_OBJECT(txin_to_script, txin_to_script_map)
-  WIRE_DECLARE_OBJECT(txin_to_scripthash, txin_to_scripthash_map)
-  WIRE_DECLARE_OBJECT(txin_to_key, txin_to_key)
+  WIRE_DEFINE_OBJECT(txin_gen, txin_gen_map)
+  WIRE_DEFINE_OBJECT(txin_to_script, txin_to_script_map)
+  WIRE_DEFINE_OBJECT(txin_to_scripthash, txin_to_scripthash_map)
+  WIRE_DEFINE_OBJECT(txin_to_key, txin_to_key_map)
+  WIRE_DEFINE_OBJECT(txin_v, txin_v_map)
 
   namespace
   {
-    template<typename F, typename T>
-    void txin_gen_map(F& format, T& self)
-    {
-      wire::object(format, WIRE_FIELD(height));
-    }
-
     template<typename F, typename T>
     void txout_to_script_map(F& format, T& self)
     {
@@ -62,7 +105,7 @@ namespace cryptonote
     {
       wire::object(format, WIRE_FIELD(key));
     }
-    
+
     template<typename F, typename T>
     void txout_to_tagged_key_map(F& format, T& self)
     {
@@ -72,184 +115,77 @@ namespace cryptonote
     template<typename F, typename T>
     void tx_out_map(F& format, T& self)
     {
+      auto variant = wire::variant(std::ref(self.target));
       wire::object(format,
         WIRE_FIELD(amount),
-        WIRE_VARIANT_OPTION("to_key", target, txout_to_key),
-        WIRE_VARIANT_OPTION("to_tagged_key", target, txout_to_tagged_key),
-        WIRE_VARIANT_OPTION("to_script", target, txout_to_script),
-        WIRE_VARIANT_OPTION("to_scripthash", target, txout_to_scripthash)
-      );                           
+        WIRE_OPTION("to_key",        txout_to_key,        variant),
+        WIRE_OPTION("to_tagged_key", txout_to_tagged_key, variant),
+        WIRE_OPTION("to_script",     txout_to_script,     variant),
+        WIRE_OPTION("to_scripthash", txout_to_scripthash, variant)
+      );
     }
   } // anonymous
-  WIRE_DECLARE_OBJECT(txout_to_script, txout_to_script_map)
-  WIRE_DECLARE_OBJECT(txout_to_scripthash, txout_to_scripthash_map)
-  WIRE_DECLARE_OBJECT(txout_to_key, txout_to_key_map)
-  WIRE_DECLARE_OBJECT(txout_to_tagged_key, txout_to_tagged_key)
-  WIRE_DECLARE_OBJECT(tx_out, tx_out_map)
-} // cryptonote
+  WIRE_DEFINE_OBJECT(txout_to_script, txout_to_script_map)
+  WIRE_DEFINE_OBJECT(txout_to_scripthash, txout_to_scripthash_map)
+  WIRE_DEFINE_OBJECT(txout_to_key, txout_to_key_map)
+  WIRE_DEFINE_OBJECT(txout_to_tagged_key, txout_to_tagged_key_map)
+  WIRE_DEFINE_OBJECT(tx_out, tx_out_map)
 
-namespace rct
-{
   namespace
   {
     template<typename F, typename T>
-    void range_sig_map(F& format, T& self)
+    void tx_map(F& format, T& self)
     {
-      wire::object(format, WIRE_FIELD(asig));
-    }
-
-    template<typename F, typename T>
-    void bulletproof_map(F& format, T& self)
-    {
+      // make all arrays required for ZMQ backwards compatability
+      using max_inputs = wire::max_element_count<3000>;
+      using max_outputs = wire::max_element_count<2000>;
+      using signature_min = wire::min_element_sizeof<crypto::signature>;
       wire::object(format,
-        WIRE_FIELD(V),
-        WIRE_FIELD(A),
-        WIRE_FIELD(S),
-        WIRE_FIELD(T1),
-        WIRE_FIELD(T2),
-        WIRE_FIELD(taux),
-        WIRE_FIELD(mu),
-        WIRE_FIELD(L),
-        WIRE_FIELD(R),
-        WIRE_FIELD(a),
-        WIRE_FIELD(b),
-        WIRE_FIELD(t)
+        WIRE_FIELD(version),
+        WIRE_FIELD(unlock_time),
+        wire::field("inputs", wire::array<max_inputs>(std::ref(self.vin))),
+        wire::field("outputs", wire::array<max_outputs>(std::ref(self.vout))),
+        WIRE_FIELD(extra),
+        wire::optional_field("signatures", wire::array<max_inputs>(wire::array<signature_min>(std::ref(self.signatures)))),
+        wire::field("ringct", std::ref(self.rct_signatures))
       );
     }
 
     template<typename F, typename T>
-    void bulletproof_plus_map(F& format, T& self)
+    void block_map(F& format, T& self)
     {
+      // make all arrays required for ZMQ backwards compatability
       wire::object(format,
-        WIRE_FIELD(V),
-        WIRE_FIELD(A),
-        WIRE_FIELD(A1),
-        WIRE_FIELD(B),
-        WIRE_FIELD(r1),
-        WIRE_FIELD(s1),
-        WIRE_FIELD(d1),
-        WIRE_FIELD(L),
-        WIRE_FIELD(R)
-      );
-    }
-
-    template<typename F, typename T, typename U>
-    void boro_sig_map(F& format, T& self, U&& s0, U&& s1)
-    {
-      wire::object(format, WIRE_FIELD(ee), wire::field("s0", std::ref(s0)), wire::field("s1", std::ref(s1)));
-    }
-
-    template<typename F, typename T>
-    void mg_sig_map(F& format, T& self)
-    {
-      wire::object(format, WIRE_FIELD(ss), WIRE_FIELD(cc));
-    }
-    
-    template<typename F, typename T>
-    void rct_sig_prunable(F& format, T& self)
-    {
-      using range_proof_max = wire::max_element_count<256>;
-      using bulletproof_max = wire::max_element_count<BULLETPROOF_MAX_OUTPUTS>;
-      using bulletproof_plus_max = wire::max_element_COUNT<BULLETPROOF_PLUS_MAX_OUTPUTS>;
-      using mlsags_max = wire::max_element_count<256>;
-      using pseudo_outs_max = wire::max_element_count<256>;
-
-      // make all arrays required for backwards compatability
-      wire::object(format,
-        wire::field("range_proofs", wire::array<range_proof_max>(std::ref(self.rangeSigs))),
-        wire::field("bulletproofs", wire::array<bulletproof_max>(std::ref(self.bulletproofs)),
-        wire::field("bulletproof_plus", wire::array<bulletproof_plus_max>(std::ref(self.bulletproofs_plus))),
-        wire::field("mlsags", wire::array<mlsags_max>(std::ref(self.MGs))),
-        wire::field("pseudo_outs", wire::array<pseudo_outs_max>(std::ref(self.get_pseudo_outs())))
-      );
-    }
-
-    template<typename F, typename T>
-    void ecdh_tuple_map(F& format, T& self)
-    {
-      wire::object(format, WIRE_FIELD(mask), WIRE_FIELD(amount));
-    }
-    
-    template<typename F, typename T>
-    void rct_sig_map(F& format, T& self)
-    {
-      using min_commitment_size = wire::min_element_sizeof<rct::key>;
-      wire::object(format,
-        WIRE_FIELD(type),
-        wire::optional_field("encrypted", std::ref(encrypted)),
-        wire::optional_field("commitments", wire::array<min_commitment_size>(std::ref(self.outPk))),
-        wire::optional_field("fee", std::ref(fee)),
-        wire::optional_field("prunable", std::ref(prunable))
+        WIRE_FIELD(major_version),
+        WIRE_FIELD(minor_version),
+        WIRE_FIELD(timestamp),
+        WIRE_FIELD(prev_id),
+        WIRE_FIELD(nonce),
+        WIRE_FIELD(miner_tx),
+        wire::field("tx_hashes", wire::array<wire::min_element_sizeof<crypto::hash>>(std::ref(self.tx_hashes)))
       );
     }
   } // anonymous
 
-  WIRE_DEFINE_OBJECT(rangeSig, range_sig_map)
-  WIRE_DEFINE_OBJECT(Bulletproof, bulletproof_map)
-  WIRE_DEFINE_OBJECT(BulletproofPlus, bulletproof_plus_map)
-  WIRE_DEFINE_OBJECT(ecdhTuple, ecdh_tuple_map)
-
-  void read_bytes(wire::reader& source, rct::boroSig& dest)
+  void read_bytes(wire::reader& source, transaction& dest)
   {
-    boost::container::static_vector<rct::key, 64> s0;
-    boost::container::static_vector<rct::key, 64> s1;
-    boro_sig_map(source, dest, s0, s1);
+    dest.invalidate_hashes();
+    tx_map(source, dest);
 
-    if (s0.size() != boost::size(dest.s0) || s1.size() != boost::size(dest.s1))
-      WIRE_DLOG_THROW(wire::error::schema::array, "invalid array size");
-
-    boost::range::copy(s0, boost::begin(dest.s0));
-    boost::range::copy(s1, boost::begin(dest.s1));
+    const auto& rsig = dest.rct_signatures;
+    if (!cryptonote::is_coinbase(dest) && rsig.p.bulletproofs.empty() && rsig.p.bulletproofs_plus.empty() && rsig.p.rangeSigs.empty() && rsig.p.MGs.empty() && rsig.get_pseudo_outs().empty() && dest.signatures.empty())
+      dest.pruned = true;
+    else
+      dest.pruned = false;
   }
-  void write_bytes(wire::writer& dest, const rct::boroSig& source)
+  void write_bytes(wire::writer& dest, const transaction& source)
+  { tx_map(dest, source); }
+
+  void read_bytes(wire::reader& source, block& dest)
   {
-    using key_span = epee::span<const rct::key>;
-    boro_sig_map(dest, source, key_span{source.s0}, key_span{source.s1});
+    dest.invalidate_hashes();
+    block_map(source, dest);
   }
-
-  void read_bytes(wire::reader& source, rctSig& dest)
-  {
-    boost::optional<rct::ecdhTuple&> encrypted;
-    boost::optional<rct::xmr_amount&> fee;
-    boost::optional<rct::rctSigPrunable&> prunable;
-
-    encrypted.emplace(dest.ecdhInfo);
-    fee.emplace(dest.txnFee);
-    prunable.emplace(dest.p);
-
-    rct_sig_map(source, dest, encrypted, fee, prunable);
-    if (dest.type == rct::RCTTypeNull && (fee || encrypted))
-      WIRE_DLOG_THROW(wire::error::schema::missing_key, "unexpected keys");
-    if (dest.type != rct::RCTTypeNull && (!fee || !encrypted))
-      WIRE_DLOG_THROW(wire::error::schema::missing_key, "expected keys");
-
-    if (!prunable)
-    {
-      dest.p.rangeSigs.clear();
-      dest.p.bulletproofs.clear();
-      dest.p.bulletproofs_plus.clear();
-      dest.p.MGs.clear();
-      dest.p.get_pseudo_outs().clear();
-    }
-  }
-  void write_bytes(wire::writer& dest, const rctSig& source)
-  {
-    boost::optional<const rct::ecdhTuple&> encrypted;
-    boost::optional<rct::xmr_amount> fee;
-    boost::optional<const rctSigPrunable&> prunable;
-    
-    if (self.type != rct::RCTTypeNull)
-    {
-      encrypted.emplace(self.ecdhInfo);
-      fee.emplace(self.txnFee);
-    }
-    
-    if (!source.p.bulletproofs.empty() || !sig.p.bulletproofs_plus.empty() || !sig.p.rangeSigs.empty() || !sig.get_pseudo_outs().empty())
-      prunable.emplace(source.p);
-
-    rct_sig_map(dest, source, encrypted, fee, prunable);
-  }
-
-  WIRE_DEFINE_OBJECT(rctSigPrunable, rct_sig_prunable_map)
-  WIRE_DEFINE_OBJECT(rctSig, rct_sig_map)
-} // rct
+  void write_bytes(wire::writer& dest, const block& source)
+  { block_map(dest, source); }
+} // cryptonote

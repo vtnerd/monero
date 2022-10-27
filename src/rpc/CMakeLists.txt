@@ -44,7 +44,8 @@ set(rpc_sources
 
 set(daemon_messages_sources
   message.cpp
-  daemon_messages.cpp)
+  daemon_messages.cpp
+  message_data_structs.cpp)
 
 set(rpc_pub_sources zmq_pub.cpp)
 
@@ -149,7 +150,6 @@ target_link_libraries(rpc_pub
     epee
     net
     cryptonote_basic
-    serialization
     ${Boost_THREAD_LIBRARY})
 
 target_link_libraries(daemon_messages
@@ -157,7 +157,6 @@ target_link_libraries(daemon_messages
     cryptonote_core
     cryptonote_protocol
     version
-    serialization
     ${EXTRA_LIBRARIES})
 
 target_link_libraries(daemon_rpc_server
@@ -168,7 +167,6 @@ target_link_libraries(daemon_rpc_server
     cryptonote_protocol
     version
     daemon_messages
-    serialization
     ${Boost_CHRONO_LIBRARY}
     ${Boost_REGEX_LIBRARY}
     ${Boost_SYSTEM_LIBRARY}

@@ -57,7 +57,7 @@ namespace cryptonote
       wire::object(format, WIRE_FIELD(id), WIRE_FIELD(weight), WIRE_FIELD(fee));
     }
   }
-  WIRE_DEFINE_OBJECT(tx_block_template_back_entry, tx_block_template_map);
+  WIRE_DEFINE_OBJECT(tx_block_template_backlog_entry, tx_block_template_map);
   //---------------------------------------------------------------
   void classify_addresses(const std::vector<tx_destination_entry> &destinations, const boost::optional<cryptonote::account_public_address>& change_addr, size_t &num_stdaddresses, size_t &num_subaddresses, account_public_address &single_dest_subaddress)
   {

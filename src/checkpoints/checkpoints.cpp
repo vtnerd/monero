@@ -33,10 +33,10 @@
 #include "common/dns_utils.h"
 #include "string_tools.h"
 #include "serialization/keyvalue_serialization.h"
+#include "serialization/wire.h"
 #include "serialization/wire/adapted/vector.h"
 #include "serialization/wire/json.h"
 #include "serialization/wire/wrappers_impl.h"
-#include "serialization/wire.h"
 #include "storages/portable_storage_template_helper.h" // epee json include
 #include <boost/system/error_code.hpp>
 #include <boost/filesystem.hpp>

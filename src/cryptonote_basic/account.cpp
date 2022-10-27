@@ -67,7 +67,7 @@ DISABLE_VS_WARNINGS(4244 4345)
         WIRE_FIELD(m_account_address),
         WIRE_FIELD(m_spend_secret_key),
         WIRE_FIELD(m_view_secret_key),
-        wire::field("m_multisig_keys", wire::array_as_blob(std::ref(multisig_keys))),
+        wire::optional_field("m_multisig_keys", wire::array_as_blob(std::ref(multisig_keys))),
         WIRE_FIELD_DEFAULTED(m_encryption_iv, std::cref(default_iv))
       );
     }

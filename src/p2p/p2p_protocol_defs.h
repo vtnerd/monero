@@ -34,7 +34,6 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/serialization/version.hpp>
 #include "net/net_utils_base.h"
-#include "net/serialization.h"
 #include "misc_language.h"
 #include "serialization/keyvalue_serialization.h"
 #include "serialization/serialization.h"

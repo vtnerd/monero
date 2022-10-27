@@ -43,6 +43,8 @@
 #include "serialization/debug_archive.h"
 #include "serialization/crypto.h"
 #include "serialization/keyvalue_serialization.h" // eepe named serialization
+#include "serialization/wire/fwd.h"
+#include "serialization/wire/traits.h"
 #include "cryptonote_config.h"
 #include "crypto/crypto.h"
 #include "crypto/hash.h"
@@ -54,7 +56,8 @@
 namespace cryptonote
 {
   typedef std::vector<crypto::signature> ring_signature;
-
+  using block_blob_min = wire::min_element_size<73>;
+  using tx_blob_min = wire::min_element_size<42>;
 
   /* outputs */
 
@@ -189,15 +192,6 @@ namespace cryptonote
       FIELD(extra)
     END_SERIALIZE()
 
-      WIRE_BEGIN_MAP(),
-        WIRE_FIELD(version),
-        WIRE_FIELD(unlock_time),
-        WIRE_FIELD_ARRAY(vin, wire::max_element_count<256>),
-        WIRE_FIELD_ARRAY(vout, wire::max_element_count<256>),
-        WIRE_FIELD(extra)
-        WIRE_END_MAP()
-      
-
   public:
     transaction_prefix(){ set_null(); }
     void set_null()
@@ -325,14 +319,6 @@ namespace cryptonote
         pruned = false;
     END_SERIALIZE()
 
-    WIRE_MAP_BEGIN(),
-      WIRE_FIELD(version),
-      WIRE_FIELD(unlock_time),
-      wire::field("inputs", wire::array<wire::max_element_count<512>(std::ref(self.vin))),
-      wire::field("outputs", wire::arry<wire::max_element_count<512>(std::ref(self.vout))),
-      WIRE_FIELD(extra),
-      wire::field("ringct", std::ref(self.rct_signatures))
-
     template<bool W, template <bool> class Archive>
     bool serialize_base(Archive<W> &ar)
     {
@@ -360,6 +346,7 @@ namespace cryptonote
   private:
     static size_t get_signature_size(const txin_v& tx_in);
   };
+  WIRE_DECLARE_OBJECT(transaction);
 
   inline transaction::transaction(const transaction &t):
     transaction_prefix(t),
@@ -519,18 +506,8 @@ namespace cryptonote
       if (tx_hashes.size() > CRYPTONOTE_MAX_TX_PER_BLOCK)
         return false;
     END_SERIALIZE()
-
-    WIRE_BEGIN_MAP(),
-      WIRE_FIELD(major_version),
-      WIRE_FIELD(minor_version),
-      WIRE_FIELD(timestamp),
-      WIRE_FIELD(prev_id),
-      WIRE_FIELD(nonce),
-      WIRE_FIELD(miner_tx),
-      WIRE_FIELD(tx_hashes)
-    WIRE_END_MAP()
   };
-
+  WIRE_DECLARE_OBJECT(block);
 
   /************************************************************************/
   /*                                                                      */

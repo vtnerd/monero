@@ -29,6 +29,7 @@
 
 #include <boost/variant/apply_visitor.hpp>
 #include <stdexcept>
+#include "serialization/wire/read.h"
 #include "serialization/wire/write.h"
 
 namespace wire
@@ -43,6 +44,10 @@ namespace wire
     value = nullptr;
   }
 
+  void read_bytes(reader& source, basic_value& dest)
+  {
+    dest = source.basic();
+  }
   void write_bytes(writer& dest, const basic_value& source)
   {
     boost::apply_visitor([&dest] (const auto& val) { wire_write::bytes(dest, val); }, source.value);

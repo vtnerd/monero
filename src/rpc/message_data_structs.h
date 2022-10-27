@@ -135,7 +135,7 @@ namespace rpc
     rct::key mask;
     bool unlocked;
   };
-  WIRE_DECLARE_OBJECT(output_key_masked_unlocked);
+  WIRE_DECLARE_OBJECT(output_key_mask_unlocked);
 
   struct hard_fork_info
   {

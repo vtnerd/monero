@@ -41,24 +41,18 @@
 //! Define functions that list fields in `type` (calls de-virtualized)
 #define WIRE_EPEE_DEFINE_OBJECT(type, map)                              \
   void read_bytes(::wire::epee_reader& source, type& dest)              \
-  {                                                                     \
-    map(source, dest);                                                  \
-  }                                                                     \
+  { map(source, dest); }                                                \
+                                                                        \
   void write_bytes(::wire::epee_writer& dest, const type& source)       \
-  {                                                                     \
-    map(dest, source);                                                  \
-  }
+  { map(dest, source); }
 
 //! Define functions that convert `type` to/from epee binary bytes
 #define WIRE_EPEE_DEFINE_CONVERSION(type)                               \
   std::error_code convert_from_epee(const ::epee::span<const std::uint8_t> source, type& dest) \
-  {                                                                     \
-    return ::wire_read::from_bytes<::wire::epee_reader>(source, dest);  \
-  }                                                                     \
+  { return ::wire_read::from_bytes<::wire::epee_reader>(source, dest); } \
+                                                                        \
   std::error_code convert_to_epee(::epee::byte_stream& dest, const type& source) \
-  {                                                                     \
-    return ::wire_write::to_bytes<::wire::epee_writer>(dest, source);   \
-  }
+  { return ::wire_write::to_bytes<::wire::epee_writer>(dest, source); }
 
 //! Define functions that convert `type::command` and `type::response` to/from epee binary bytes
 #define WIRE_EPEE_DEFINE_COMMAND(type)		\

@@ -349,8 +349,10 @@ namespace wire
 {
   WIRE_DECLARE_BLOB(crypto::ec_point);
   WIRE_DECLARE_BLOB(crypto::ec_scalar);
+  WIRE_DECLARE_BLOB(crypto::public_key);
   WIRE_DECLARE_BLOB(crypto::key_derivation);
   WIRE_DECLARE_BLOB(crypto::key_image);
-  WIRE_DECLARE_BLOB(crypto::public_key);
+  WIRE_DECLARE_BLOB(crypto::signature);
+  WIRE_DECLARE_BLOB(crypto::view_tag);
 }
 

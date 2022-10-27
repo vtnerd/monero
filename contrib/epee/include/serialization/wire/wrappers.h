@@ -31,6 +31,7 @@
 #include "serialization/wire/wrapper/array_blob.h"
 #include "serialization/wire/wrapper/blob.h" // also see `traits.h` to register type as blob
 #include "serialization/wire/wrapper/defaulted.h"
+#include "serialization/wire/wrapper/variant.h"
 
 /* Wrappers change how a type is read/written. Some of the wrappers "tell" the
    encoding system how to output an unknown type. Some of the wrappers need to include

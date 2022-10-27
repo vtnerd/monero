@@ -1,4 +1,5 @@
 // Copyright (c) 2022, The Monero Project
+//
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -25,37 +26,15 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#pragma once
+#include "serialization/wire/wrapper/variant.h"
 
-#include <cstdint>
-#include <cstring>
-#include <type_traits>
-#include <vector>
-
-#include "byte_slice.h"
-#include "serialization/wire/traits.h"
+#include <boost/core/demangle.hpp>
+#include "serialization/wire/error.h"
 
 namespace wire
 {
-  template<typename T, typename A>
-  struct is_array<std::vector<T, A>>
-    : std::true_type
-  {};
-  template<typename A>
-  struct is_array<std::vector<std::uint8_t, A>>
-    : std::false_type
-  {};
-
-  template<typename R, typename A>
-  inline void read_bytes(R& source, std::vector<std::uint8_t, A>& dest)
+  [[noreturn]] void throw_variant_exception(wire::error::schema type, const char* variant_name)
   {
-    const epee::byte_slice bytes = source.binary();
-    dest.resize(bytes.size());
-    std::memcpy(dest.data(), bytes.data(), bytes.size());
-  }
-  template<typename W, typename A>
-  inline void write_bytes(W& dest, const std::vector<std::uint8_t, A>& source)
-  {
-    dest.binary(epee::to_span(source));
+    WIRE_DLOG_THROW(type, "error with variant type: " << boost::core::demangle(variant_name));
   }
 }

@@ -76,13 +76,14 @@ namespace wire
     virtual void real(double) = 0;
 
     virtual void string(boost::string_ref) = 0;
-    virtual void binary(epee::span<const std::uint8_t> bytes) = 0;
+    virtual void binary(epee::span<const std::uint8_t>) = 0;
 
     virtual void start_array(std::size_t) = 0;
     virtual void end_array() = 0;
 
     virtual void start_object(std::size_t) = 0;
     virtual void key(boost::string_ref) = 0;
+    virtual void binary_key(epee::span<const std::uint8_t>) = 0;
     virtual void end_object() = 0;
 
   protected:
@@ -231,6 +232,30 @@ namespace wire_write
       bytes(dest, *field.get_value());
     }
     return true;
+  }
+
+  template<typename W, typename T>
+  inline std::enable_if_t<std::is_pod<T>::value> dynamic_object_key(W& dest, const T& source)
+  {
+    dest.binary_key(epee::as_byte_span(source));
+  }
+
+  template<typename W>
+  inline void dynamic_object_key(W& dest, const boost::string_ref source)
+  {
+    dest.key(source);
+  }
+
+  template<typename W, typename T>
+  inline void dynamic_object(W& dest, const T& source)
+  {
+    dest.start_object(source.size());
+    for (const auto& elem : source)
+    {
+      dynamic_object_key(dest, elem.first);
+      bytes(dest, elem.second);
+    }
+    dest.end_object();
   }
 
   template<typename W, typename... T>

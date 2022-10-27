@@ -271,22 +271,6 @@ namespace net_utils
 				throw std::bad_cast{};
 			return static_cast<implementation<Type_>*>(self_)->value;
 		}
-	  /*
-		template<typename T, typename t_storage>
-		bool serialize_addr(std::false_type, t_storage& stg, typename t_storage::hsection hparent)
-		{
-			T addr{};
-			if (!epee::serialization::selector<false>::serialize(addr, stg, hparent, "addr"))
-				return false;
-			*this = std::move(addr);
-			return true;
-		}
-
-		template<typename T, typename t_storage>
-		bool serialize_addr(std::true_type, t_storage& stg, typename t_storage::hsection hparent) const
-		{
-			return epee::serialization::selector<true>::serialize(as<T>(), stg, hparent, "addr");
-			}*/
 
 	public:
 		network_address() : self(nullptr) {}

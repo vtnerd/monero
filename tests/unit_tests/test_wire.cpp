@@ -52,6 +52,7 @@
 #include "serialization/wire/wrapper/array.h"
 #include "serialization/wire/wrapper/array_blob.h"
 #include "serialization/wire/wrapper/defaulted.h"
+#include "serialization/wire/wrapper/variant.h"
 #include "serialization/wire/wrappers_impl.h"
 #include "span.h"
 
@@ -220,6 +221,23 @@ namespace
     WIRE_END_MAP()
   };
 
+  struct variant
+  {
+    WIRE_DEFINE_CONVERSIONS()
+    boost::variant<int, std::string> choice;
+  };
+
+  template<typename F, typename T>
+  void variant_map(F& format, T& self)
+  {
+    auto wrapped = wire::variant(std::ref(self.choice));
+    wire::object(format,
+      WIRE_OPTION("a_string", std::string, wrapped),
+      WIRE_OPTION("a_int",    int,         wrapped)
+    );
+  }
+  WIRE_DEFINE_OBJECT(variant, variant_map);
+
   using max_1 = wire::max_element_count<1>;
   struct complex
   {
@@ -235,6 +253,7 @@ namespace
     std::vector<std::string> strings;
     std::string string;
     wire::basic_value any;
+    variant string_or_int;
     double real;
     std::uint8_t uint8;
     std::int8_t int8;
@@ -251,6 +270,7 @@ namespace
       WIRE_FIELD_ARRAY(strings, wire::min_element_size<7>),
       WIRE_FIELD(string),
       WIRE_OPTIONAL_FIELD(any),
+      WIRE_FIELD(string_or_int),
       WIRE_FIELD(real),
       WIRE_FIELD_DEFAULTED(uint8, 100u),
       WIRE_FIELD(int8),
@@ -322,6 +342,7 @@ namespace
     EXPECT_TRUE(self.strings.empty());
     EXPECT_TRUE(self.string.empty());
     EXPECT_FALSE(bool(self.any));
+    EXPECT_EQ(0u, boost::get<int>(self.string_or_int.choice));
     EXPECT_DOUBLE_EQ(self.real, 0.0);
     EXPECT_EQ(self.uint8, 0);
     EXPECT_EQ(self.int8, 0);
@@ -349,6 +370,7 @@ namespace
     self.strings = {"string1", "string2", "string3", "string4"};
     self.string = "simple_string";
     self.any.value = limit<std::intmax_t>::min();
+    self.string_or_int.choice = std::string{"variant_string"};
     self.real = 2.43;
     self.uint8 = limit<std::uint8_t>::max();
     self.int8 = limit<std::int8_t>::min();
@@ -421,6 +443,7 @@ namespace
     EXPECT_EQ(self.string, "simple_string");
     EXPECT_TRUE(bool(self.any));
     EXPECT_EQ(limit<std::intmax_t>::min(), boost::get<std::intmax_t>(self.any.value));
+    EXPECT_EQ("variant_string", boost::get<std::string>(self.string_or_int.choice));
     EXPECT_DOUBLE_EQ(self.real, 2.43);
     EXPECT_EQ(self.uint8, limit<std::uint8_t>::max());
     EXPECT_EQ(self.int8, limit<std::int8_t>::min());
@@ -858,8 +881,9 @@ TEST(wire, readers_writers)
 
 namespace
 {
+  constexpr const char bad_variant_json[] = u8"{\"a_int\":0,\"a_string\":\"\"}";
   constexpr const char initial_json[] =
-    u8"{\"uints\":[],\"string\":\"\",\"real\":0.0,\"uint8\":0,\"int8\":0,\"choice\":false}";
+    u8"{\"uints\":[],\"string\":\"\",\"string_or_int\":{\"a_int\":0},\"real\":0.0,\"uint8\":0,\"int8\":0,\"choice\":false}";
   constexpr const char filled_json[] =
     u8"{"
         "\"objects\":[{\"left\":0,\"right\":4294967295},{\"left\":100,\"right\":200},{\"left\":44444,\"right\":83434}],"
@@ -869,7 +893,13 @@ namespace
         "\"vector_blobs\":\"00ff2211117f7e80deadbeef\","
         "\"list_blobs\":\"00ff2211117f7e80deadbeef\","
         "\"strings\":[\"string1\",\"string2\",\"string3\",\"string4\"],"
-        "\"string\":\"simple_string\",\"any\":-9223372036854775808,\"real\":2.43,\"uint8\":255,\"int8\":-128,\"choice\":true"
+        "\"string\":\"simple_string\","
+        "\"any\":-9223372036854775808,"
+        "\"string_or_int\":{\"a_string\":\"variant_string\"},"
+        "\"real\":2.43,"
+        "\"uint8\":255,"
+        "\"int8\":-128,"
+        "\"choice\":true"
       "}";
 }
 
@@ -891,6 +921,9 @@ TEST(wire, json_writer)
   error = wire::json::to_bytes(buffer, data);
   ASSERT_FALSE(error);
   EXPECT_EQ(filled_json, buffer);
+
+  check_error<wire::json, variant>(std::string{bad_variant_json}, wire::error::schema::invalid_key);
+  check_error<wire::json, variant>(std::string{"{}"}, wire::error::schema::missing_key);
 }
 
 namespace

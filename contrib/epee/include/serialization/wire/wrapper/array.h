@@ -69,7 +69,8 @@ namespace wire
         * `emplace_back()` method that default initializes new element
         * `back()` method that retrieves last element by reference.
     Additional concept requirements for `container_type` when writing:
-      * must work with foreach loop (`std::begin` and `std::end`). */
+      * must work with foreach loop (`std::begin` and `std::end`).
+      * must work with `boost::size` (from the `boost::range` library). */
   template<typename T, typename C = void>
   struct array_
   {

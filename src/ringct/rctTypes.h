@@ -37,7 +37,6 @@
 #include <iostream>
 #include <cinttypes>
 #include <sodium/crypto_verify_32.h>
-#include <type_traits>
 
 extern "C" {
 #include "crypto/crypto-ops.h"
@@ -54,6 +53,7 @@ extern "C" {
 #include "serialization/debug_archive.h"
 #include "serialization/binary_archive.h"
 #include "serialization/json_archive.h"
+#include "serialization/wire/fwd.h"
 #include "serialization/wire/traits.h"
 
 
@@ -612,6 +612,7 @@ namespace rct {
           FIELD(p)
         END_SERIALIZE()
     };
+    WIRE_DECLARE_OBJECT(rctSig);
 
     //other basepoint H = toPoint(cn_fast_hash(G)), G the basepoint
     static const key H = { {0x8b, 0x65, 0x59, 0x70, 0x15, 0x37, 0x99, 0xaf, 0x2a, 0xea, 0xdc, 0x9f, 0xf1, 0xad, 0xd0, 0xea, 0x6c, 0x72, 0x51, 0xd5, 0x41, 0x54, 0xcf, 0xa9, 0x2c, 0x17, 0x3a, 0x0d, 0xd3, 0x9c, 0x1f, 0x94} };

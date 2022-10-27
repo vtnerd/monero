@@ -56,7 +56,7 @@ namespace wire
   using unwrap_reference_t = typename unwrap_reference<T>::type;
 
 
-  /*! Mark `T` as an array for writing, and reading when 
+  /*! Mark `T` as an array for writing, and reading when
     `default_min_element_size<T::value_type>::value != 0`. See `array_` in
     `wrapper/array.h`. */
   template<typename T>
@@ -77,7 +77,7 @@ namespace wire
   /*! Forces field to be optional when empty. Concept requirements for `T` when
     `is_optional_on_empty<T>::value == true`:
       * must have an `empty()` method that toggles whether the associated
-        `wire::field_<...>` is omitted by the `wire::writer`. 
+        `wire::field_<...>` is omitted by the `wire::writer`.
       * must have a `clear()` method where `empty() == true` upon completion,
         used by the `wire::reader` when the `wire::field_<...>` is omitted. */
   template<typename T>
@@ -142,6 +142,9 @@ namespace wire
   {
     return head + sum(tail...);
   }
+
+  template<typename... T>
+  using min_element_sizeof = min_element_size<sum(sizeof(T)...)>;
 
   //! If container has no `reserve(0)` function, this function is used
   template<typename... T>

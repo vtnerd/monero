@@ -346,29 +346,6 @@ namespace cryptonote
       uint64_t received_timestamp;
       std::vector<uint64_t> output_indices;
       bool relayed;
-
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(tx_hash)
-        KV_SERIALIZE(as_hex)
-        KV_SERIALIZE(pruned_as_hex)
-        KV_SERIALIZE(prunable_as_hex)
-        KV_SERIALIZE(prunable_hash)
-        KV_SERIALIZE(as_json)
-        KV_SERIALIZE(in_pool)
-        KV_SERIALIZE(double_spend_seen)
-      /*if (!this_ref.in_pool)
-        {
-          KV_SERIALIZE(block_height)
-          KV_SERIALIZE(confirmations)
-          KV_SERIALIZE(block_timestamp)
-          KV_SERIALIZE(output_indices)
-        }
-        else
-        {
-          KV_SERIALIZE(relayed)
-          KV_SERIALIZE(received_timestamp)
-	  }*/
-      END_KV_SERIALIZE_MAP()
     };
 
     struct response_t: public rpc_access_response_base
@@ -393,6 +370,7 @@ namespace cryptonote
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
+  WIRE_JSON_DECLARE_OBJECT(COMMAND_RPC_GET_TRANSACTIONS::entry);
   WIRE_JSON_DECLARE_COMMAND(COMMAND_RPC_GET_TRANSACTIONS);
 
   //-----------------------------------------------

@@ -120,7 +120,6 @@ target_link_libraries(unit_tests
     lmdb_lib
     rpc
     net
-    serialization
     wallet
     p2p
     version

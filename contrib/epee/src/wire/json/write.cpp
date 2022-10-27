@@ -36,6 +36,15 @@ namespace
 {
   constexpr const unsigned flush_threshold = 100;
   constexpr const unsigned max_buffer = 4096;
+
+  boost::container::small_vector<char, 256> json_hex(const epee::span<const std::uint8_t> source)
+  {
+    boost::container::small_vector<char, 256> buffer;
+    buffer.resize(source.size() * 2);
+    if (!epee::to_hex::buffer(epee::to_mut_span(buffer), source))
+      throw std::logic_error{"Invalid buffer size for binary->hex conversion in json_writer"};
+    return buffer;
+  }
 }
 
 namespace wire
@@ -114,13 +123,9 @@ namespace wire
     formatter_.String(source.data(), source.size());
     check_flush();
   }
-  void json_writer::binary(epee::span<const std::uint8_t> source)
+  void json_writer::binary(const epee::span<const std::uint8_t> source)
   {
-    // no alloc if `source.size() <= 128`
-    boost::container::small_vector<char, 256> buffer;
-    buffer.resize(source.size() * 2);
-    if (!epee::to_hex::buffer(epee::to_mut_span(buffer), source))
-      throw std::logic_error{"Invalid buffer size for binary->hex conversion"};
+    const auto buffer = json_hex(source);
     string({buffer.data(), buffer.size()});
   }
 
@@ -142,12 +147,17 @@ namespace wire
     formatter_.Key(str.data(), str.size());
     check_flush();
   }
+  void json_writer::binary_key(const epee::span<const std::uint8_t> source)
+  {
+    const auto buffer = json_hex(source);
+    key({buffer.data(), buffer.size()});
+  }
   void json_writer::end_object()
   {
     formatter_.EndObject();
   }
 
-  void json_stream_writer::do_flush(epee::span<const char> bytes)
+  void json_stream_writer::do_flush(const epee::span<const char> bytes)
   {
     dest.write(bytes.data(), bytes.size());
   }

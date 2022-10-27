@@ -41,6 +41,7 @@ namespace wire
     {
       value <<= 2;
       value |= tag;
+      value = CONVERT_POD(value);
       bytes.write(reinterpret_cast<const char*>(std::addressof(value)), sizeof(value));
     }
 
@@ -122,9 +123,6 @@ namespace wire
   void epee_writer::real(const double source)
   { write_arithmetic(source); }
 
-  void epee_writer::string(const boost::string_ref source)
-  { binary({reinterpret_cast<const std::uint8_t*>(source.data()), source.size()}); }
-
   void epee_writer::binary(epee::span<const std::uint8_t> source)
   {
     if (needs_tag_)
@@ -153,13 +151,13 @@ namespace wire
       write_tag(SERIALIZE_TYPE_OBJECT);
     write_varint(count);
   }
-  void epee_writer::key(const boost::string_ref str)
+  void epee_writer::key(const boost::string_ref source)
   {
-    if (std::numeric_limits<std::uint8_t>::max() < str.size())
+    if (std::numeric_limits<std::uint8_t>::max() < source.size())
       WIRE_DLOG_THROW(error::epee::key_size, "key size is too long");
 
-    bytes_.put(std::uint8_t(str.size()));
-    bytes_.write(str.data(), str.size());
+    bytes_.put(std::uint8_t(source.size()));
+    bytes_.write(source.data(), source.size());
     needs_tag_ = true;
   }
   void epee_writer::end_object()

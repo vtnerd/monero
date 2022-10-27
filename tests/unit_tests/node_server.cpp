@@ -1089,7 +1089,8 @@ TEST(node_server, race_condition)
     conn->get_context(context);
     event_t handshaked;
     typename messages::handshake::request msg{};
-    msg.node_data = {::config::NETWORK_ID, 58080};
+    msg.node_data.network_id = ::config::NETWORK_ID;
+    msg.node_data.my_port = 58080;
     epee::net_utils::async_invoke_remote_command2<typename messages::handshake::response>(
       context,
       messages::handshake::ID,

@@ -59,11 +59,6 @@ namespace wire
     void reset();
   };
 
-  template<typename R>
-  inline void read_bytes(R& source, basic_value& dest)
-  {
-    dest = source.basic();
-  }
-
+  void read_bytes(reader& source, basic_value& dest);
   void write_bytes(writer& dest, const basic_value& source);
 } // wire

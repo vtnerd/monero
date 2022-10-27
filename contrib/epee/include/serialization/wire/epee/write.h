@@ -108,14 +108,17 @@ namespace wire
 
     void real(double) override final;
 
-    void string(boost::string_ref) override final;
     void binary(epee::span<const std::uint8_t> source) override final;
+    void string(const boost::string_ref source) override final
+    { binary(epee::strspan<std::uint8_t>(source)); }
 
     void start_array(std::size_t) override final;
     void end_array() override final;
 
     void start_object(std::size_t) override final;
     void key(boost::string_ref) override final;
+    void binary_key(const epee::span<const std::uint8_t> source) override final
+    { key({reinterpret_cast<const char*>(source.data()), source.size()}); }
     void end_object() override final;
   };
 

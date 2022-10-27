@@ -138,7 +138,4 @@ namespace wire
   {
     return bool(elem.get_value());
   }
-
-  template<typename... T>
-  using min_element_sizeof = min_element_size<sum(sizeof(T)...)>;
 } // wire

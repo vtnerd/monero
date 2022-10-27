@@ -41,7 +41,6 @@ namespace epee
 
   namespace serialization
   {
-    void dump_error(const char* format, const char* name, const std::error_code& error);
     //-----------------------------------------------------------------------------------------------------------
     template<class t_struct>
     bool load_t_from_json(t_struct& out, const std::string& json_buff)

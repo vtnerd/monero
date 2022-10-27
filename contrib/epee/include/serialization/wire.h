@@ -34,13 +34,10 @@
 //! Define functions that list fields in `type` (using virtual interface)
 #define WIRE_DEFINE_OBJECT(type, map)                          \
   void read_bytes(::wire::reader& source, type& dest)          \
-  {                                                            \
-    map(source, dest);                                         \
-  }                                                            \
+  { map(source, dest); }                                       \
+                                                               \
   void write_bytes(::wire::writer& dest, const type& source)   \
-  {                                                            \
-    map(dest, source);                                         \
-  }
+  { map(dest, source); }
 
 //! Define `from_bytes` and `to_bytes` for `this`.
 #define WIRE_DEFINE_CONVERSIONS()                                       \

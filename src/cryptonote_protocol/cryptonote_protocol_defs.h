@@ -35,14 +35,9 @@
 #include "serialization/wire/epee/base.h"
 #include "cryptonote_basic/cryptonote_basic.h"
 #include "cryptonote_basic/blobdatatype.h"
-#include "net/serialization.h"
 
 namespace cryptonote
 {
-  using block_blob_min = wire::min_element_size<73>;
-  using tx_blob_min = wire::min_element_size<42>;
-
-
 #define BC_COMMANDS_POOL_BASE 2000
 
   /************************************************************************/
@@ -133,7 +128,6 @@ namespace cryptonote
 
     tx_blob_entry(const blobdata &bd = {}, const crypto::hash &h = crypto::null_hash): blob(bd), prunable_hash(h) {}
   };
-  WIRE_EPEE_DECLARE_OBJECT(tx_blob_entry);
 
   struct block_complete_entry
   {

@@ -1,6 +1,6 @@
 // Copyright (c) 2006-2013, Andrey N. Sabelnikov, www.sabelnikov.net
 // All rights reserved.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 // * Redistributions of source code must retain the above copyright
@@ -11,7 +11,7 @@
 // * Neither the name of the Andrey N. Sabelnikov nor the
 // names of its contributors may be used to endorse or promote products
 // derived from this software without specific prior written permission.
-//
+// 
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -22,29 +22,29 @@
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+// 
 
 
 
-#pragma once
+#pragma once 
 
 #include <cstdint>
 
 #define PORTABLE_STORAGE_SIGNATUREA 0x01011101
-#define PORTABLE_STORAGE_SIGNATUREB 0x01020101 // bender's nightmare
+#define PORTABLE_STORAGE_SIGNATUREB 0x01020101 // bender's nightmare 
 #define PORTABLE_STORAGE_FORMAT_VER 1
 
-#define PORTABLE_RAW_SIZE_MARK_MASK   0x03
+#define PORTABLE_RAW_SIZE_MARK_MASK   0x03 
 #define PORTABLE_RAW_SIZE_MARK_BYTE   0
 #define PORTABLE_RAW_SIZE_MARK_WORD   1
 #define PORTABLE_RAW_SIZE_MARK_DWORD  2
 #define PORTABLE_RAW_SIZE_MARK_INT64  3
 
-#ifndef MAX_STRING_LEN_POSSIBLE
+#ifndef MAX_STRING_LEN_POSSIBLE       
 #define MAX_STRING_LEN_POSSIBLE       2000000000 //do not let string be so big
 #endif
 
-//data types
+//data types 
 #define SERIALIZE_TYPE_INT64                1
 #define SERIALIZE_TYPE_INT32                2
 #define SERIALIZE_TYPE_INT16                3

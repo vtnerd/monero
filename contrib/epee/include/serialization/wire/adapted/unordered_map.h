@@ -27,35 +27,14 @@
 
 #pragma once
 
-#include <cstdint>
-#include <cstring>
-#include <type_traits>
-#include <vector>
-
-#include "byte_slice.h"
-#include "serialization/wire/traits.h"
+#include <unordered_map>
+#include "serialization/wire/write.h"
 
 namespace wire
 {
-  template<typename T, typename A>
-  struct is_array<std::vector<T, A>>
-    : std::true_type
-  {};
-  template<typename A>
-  struct is_array<std::vector<std::uint8_t, A>>
-    : std::false_type
-  {};
+  // no `read_bytes`, requires implementation with "array read constraints"
 
-  template<typename R, typename A>
-  inline void read_bytes(R& source, std::vector<std::uint8_t, A>& dest)
-  {
-    const epee::byte_slice bytes = source.binary();
-    dest.resize(bytes.size());
-    std::memcpy(dest.data(), bytes.data(), bytes.size());
-  }
-  template<typename W, typename A>
-  inline void write_bytes(W& dest, const std::vector<std::uint8_t, A>& source)
-  {
-    dest.binary(epee::to_span(source));
-  }
+  template<typename W, typename K, typename V, typename H, typename E, typename A>
+  inline void write_bytes(W& dest, const std::unordered_map<K, V, H, E, A>& source)
+  { wire_write::dynamic_object(dest, source); }
 }

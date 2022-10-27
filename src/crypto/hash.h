@@ -32,7 +32,6 @@
 
 #include <stddef.h>
 #include <iostream>
-#include <type_traits>
 
 #include "common/pod-class.h"
 #include "generic-ops.h"
@@ -100,13 +99,6 @@ CRYPTO_MAKE_COMPARABLE(hash8)
 
 namespace wire
 {
-  template<>
-  struct is_blob<crypto::hash>
-    : std::true_type
-  {};
-
-  template<>
-  struct is_blob<crypto::hash8>
-    : std::true_type
-  {};
+  WIRE_DECLARE_BLOB(crypto::hash);
+  WIRE_DECLARE_BLOB(crypto::hash8);
 }
