@@ -40,8 +40,9 @@ except:
 N_MONERODS = 4
 
 # 4 wallets connected to the main offline monerod
-# a wallet connected to the first local online monerod
-N_WALLETS = 5
+# 1 wallet connected to the first local online monerod
+# 1 offline wallet
+N_WALLETS = 6
 
 WALLET_DIRECTORY = builddir + "/functional-tests-directory"
 FUNCTIONAL_TESTS_DIRECTORY = builddir + "/tests/functional_tests"
@@ -54,13 +55,14 @@ monerod_extra = [
   ["--add-exclusive-node", "127.0.0.1:18283"],
   ["--add-exclusive-node", "127.0.0.1:18282"],
 ]
-wallet_base = [builddir + "/bin/monero-wallet-rpc", "--wallet-dir", WALLET_DIRECTORY, "--rpc-bind-port", "wallet_port", "--disable-rpc-login", "--rpc-ssl", "disabled", "--daemon-ssl", "disabled", "--log-level", "1"]
+wallet_base = [builddir + "/bin/monero-wallet-rpc", "--wallet-dir", WALLET_DIRECTORY, "--rpc-bind-port", "wallet_port", "--disable-rpc-login", "--rpc-ssl", "disabled", "--daemon-ssl", "disabled", "--log-level", "1", "--allow-mismatched-daemon-version"]
 wallet_extra = [
   ["--daemon-port", "18180"],
   ["--daemon-port", "18180"],
   ["--daemon-port", "18180"],
   ["--daemon-port", "18180"],
   ["--daemon-port", "18182"],
+  ["--offline"],
 ]
 
 command_lines = []
