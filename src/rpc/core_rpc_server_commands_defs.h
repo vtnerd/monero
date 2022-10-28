@@ -2162,6 +2162,8 @@ namespace cryptonote
 
     struct response_t: public rpc_response_base
     {
+      using max_forks = wire::max_element_count<2048>;
+
       uint32_t version;
       bool release;
       uint64_t current_height;
@@ -2174,7 +2176,7 @@ namespace cryptonote
         KV_SERIALIZE(release)
         KV_SERIALIZE_OPT(current_height, (uint64_t)0)
         KV_SERIALIZE_OPT(target_height, (uint64_t)0)
-        KV_SERIALIZE_OPT(hard_forks, std::vector<hf_entry>())
+        KV_SERIALIZE_ARRAY(hard_forks, max_forks)
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
