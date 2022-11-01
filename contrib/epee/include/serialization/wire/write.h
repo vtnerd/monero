@@ -118,7 +118,7 @@ namespace wire
   { dest.unsigned_integer(std::uintmax_t(source)); }
 
   template<typename W>
-  inline void write_arithmethic(W& dest, const unsigned long long source)
+  inline void write_arithmetic(W& dest, const unsigned long long source)
   { dest.unsigned_integer(std::uintmax_t(source));}
 
   template<typename W>
