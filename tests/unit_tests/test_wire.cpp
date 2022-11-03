@@ -658,7 +658,7 @@ namespace
   void run_basic_value(U& buffer)
   {
     SCOPED_TRACE("basic_value test for " + boost::core::demangle(typeid(T).name()));
-    
+
     buffer.clear();
     U duplicate;
     {
@@ -682,7 +682,7 @@ namespace
     }
     {
       buffer.clear();
-      const single<std::uintmax_t> number{limit<std::uintmax_t>::max()};
+      const single<std::uint64_t> number{limit<std::uint64_t>::max()};
       const std::error_code error = T::to_bytes(buffer, number);
       ASSERT_FALSE(error);
       EXPECT_LT(0u, buffer.size());
@@ -701,7 +701,7 @@ namespace
     }
     {
       buffer.clear();
-      const single<std::intmax_t> number{limit<std::intmax_t>::min()};
+      const single<std::int64_t> number{limit<std::int64_t>::min()};
       const std::error_code error = T::to_bytes(buffer, number);
       ASSERT_FALSE(error);
       EXPECT_LT(0u, buffer.size());
