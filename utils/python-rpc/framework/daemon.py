@@ -47,6 +47,7 @@ class Daemon(object):
                 'wallet_address': address,
                 'reserve_size' : 1,
                 'prev_block' : prev_block,
+                'extra_nonce': ''
             },
             'jsonrpc': '2.0', 
             'id': '0'
@@ -204,6 +205,7 @@ class Daemon(object):
             'method': 'hard_fork_info',
             'params': {
                 'client': client,
+                'version':0
             },
             'jsonrpc': '2.0',
             'id': '0'

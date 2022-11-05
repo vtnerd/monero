@@ -92,7 +92,7 @@ namespace cryptonote
 
     BEGIN_KV_SERIALIZE_MAP()
       KV_SERIALIZE_PARENT(rpc_request_base)
-      KV_SERIALIZE(client)
+      KV_SERIALIZE_OPT(client, "")
     END_KV_SERIALIZE_MAP()
   };
 
