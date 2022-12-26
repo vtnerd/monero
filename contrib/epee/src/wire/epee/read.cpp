@@ -95,9 +95,9 @@ namespace wire
     switch (remaining_[0] & PORTABLE_RAW_SIZE_MARK_MASK)
     {
     case PORTABLE_RAW_SIZE_MARK_BYTE:  out = read<uint8_t>(); break;
-    case PORTABLE_RAW_SIZE_MARK_WORD:  out = integer::convert_to<std::size_t>(read<uint16_t>()); break;
-    case PORTABLE_RAW_SIZE_MARK_DWORD: out = integer::convert_to<std::size_t>(read<uint32_t>()); break;
-    case PORTABLE_RAW_SIZE_MARK_INT64: out = integer::convert_to<std::size_t>(read<uint64_t>()); break;
+    case PORTABLE_RAW_SIZE_MARK_WORD:  out = integer::cast_unsigned<std::size_t>(read<uint16_t>()); break;
+    case PORTABLE_RAW_SIZE_MARK_DWORD: out = integer::cast_unsigned<std::size_t>(read<uint32_t>()); break;
+    case PORTABLE_RAW_SIZE_MARK_INT64: out = integer::cast_unsigned<std::size_t>(read<uint64_t>()); break;
     default:
       WIRE_DLOG_THROW_(error::epee::invalid_varint_type);
     }

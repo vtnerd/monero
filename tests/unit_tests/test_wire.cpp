@@ -69,12 +69,12 @@ namespace
 
     SCOPED_TRACE("uintmax_t to " + boost::core::demangle(typeid(Target).name()));
 
-    EXPECT_EQ(Target(0), wire::integer::convert_to<Target>(std::uintmax_t(0)));
-    EXPECT_EQ(limit::max(), wire::integer::convert_to<Target>(std::uintmax_t(limit::max())));
+    EXPECT_EQ(Target(0), wire::integer::cast_unsigned<Target>(std::uintmax_t(0)));
+    EXPECT_EQ(limit::max(), wire::integer::cast_unsigned<Target>(std::uintmax_t(limit::max())));
     if (limit::max() < max)
     {
-      EXPECT_THROW(wire::integer::convert_to<Target>(std::uintmax_t(limit::max()) + 1), wire::exception);
-      EXPECT_THROW(wire::integer::convert_to<Target>(max), wire::exception);
+      EXPECT_THROW(wire::integer::cast_unsigned<Target>(std::uintmax_t(limit::max()) + 1), wire::exception);
+      EXPECT_THROW(wire::integer::cast_unsigned<Target>(max), wire::exception);
     }
   }
 
@@ -92,59 +92,17 @@ namespace
     SCOPED_TRACE("intmax_t to " + boost::core::demangle(typeid(Target).name()));
     if (min < limit::min())
     {
-      EXPECT_THROW(wire::integer::convert_to<Target>(std::intmax_t(limit::min()) - 1), wire::exception);
-      EXPECT_THROW(wire::integer::convert_to<Target>(min), wire::exception);
+      EXPECT_THROW(wire::integer::cast_signed<Target>(std::intmax_t(limit::min()) - 1), wire::exception);
+      EXPECT_THROW(wire::integer::cast_signed<Target>(min), wire::exception);
     }
-    EXPECT_EQ(limit::min(), wire::integer::convert_to<Target>(std::intmax_t(limit::min())));
-    EXPECT_EQ(Target(0), wire::integer::convert_to<Target>(std::intmax_t(0)));
-    EXPECT_EQ(limit::max(), wire::integer::convert_to<Target>(std::intmax_t(limit::max())));
+    EXPECT_EQ(limit::min(), wire::integer::cast_signed<Target>(std::intmax_t(limit::min())));
+    EXPECT_EQ(Target(0), wire::integer::cast_signed<Target>(std::intmax_t(0)));
+    EXPECT_EQ(limit::max(), wire::integer::cast_signed<Target>(std::intmax_t(limit::max())));
     if (limit::max() < max)
     {
-      EXPECT_THROW(wire::integer::convert_to<Target>(std::intmax_t(limit::max()) + 1), wire::exception);
-      EXPECT_THROW(wire::integer::convert_to<Target>(max), wire::exception);
+      EXPECT_THROW(wire::integer::cast_signed<Target>(std::intmax_t(limit::max()) + 1), wire::exception);
+      EXPECT_THROW(wire::integer::cast_signed<Target>(max), wire::exception);
     }
-  }
-
-  template<typename Target>
-  void test_signed_to_unsigned()
-  {
-    using limit = std::numeric_limits<Target>;
-    static constexpr const auto min =
-      std::numeric_limits<std::intmax_t>::min();
-    static constexpr const auto max =
-      std::numeric_limits<std::intmax_t>::max();
-    static_assert(limit::is_integer, "expected integer");
-    static_assert(!limit::is_signed, "expected signed");
-    static_assert(0 < max, "expected positive max value");
-
-    SCOPED_TRACE("intmax_t to " + boost::core::demangle(typeid(Target).name()));
-
-    EXPECT_THROW(wire::integer::convert_to<Target>(min), wire::exception);
-    EXPECT_THROW(wire::integer::convert_to<Target>(std::intmax_t(-1)), wire::exception);
-    EXPECT_EQ(Target(0), wire::integer::convert_to<Target>(std::intmax_t(0)));
-    if (limit::max() <= std::uintmax_t(max))
-    {
-      EXPECT_EQ(limit::max(), wire::integer::convert_to<Target>(std::intmax_t(limit::max())));
-      EXPECT_THROW(wire::integer::convert_to<Target>(max), wire::exception);
-    }
-  }
-
-  template<typename Target>
-  void test_unsigned_to_signed()
-  {
-    using limit = std::numeric_limits<Target>;
-    static constexpr const auto max =
-      std::numeric_limits<std::uintmax_t>::max();
-    static_assert(limit::is_integer, "expected integer");
-    static_assert(limit::is_signed, "expected unsigned");
-    static_assert(0 < limit::max(), "expected positive limit::max");
-    static_assert(limit::max() < max, "expected larger max in uintmax_t");
-
-    SCOPED_TRACE("uintmax_t to " + boost::core::demangle(typeid(Target).name()));
-
-    EXPECT_EQ(Target(0), wire::integer::convert_to<Target>(std::uintmax_t(0)));
-    EXPECT_EQ(limit::max(), wire::integer::convert_to<Target>(std::uintmax_t(limit::max())));
-    EXPECT_THROW(wire::integer::convert_to<Target>(max), wire::exception);
   }
 }
 
@@ -166,22 +124,6 @@ TEST(wire, integer_convert_to)
     test_signed_to_signed<std::int32_t>();
     test_signed_to_signed<std::int64_t>();
     test_signed_to_signed<std::intmax_t>();
-  }
-  {
-    SCOPED_TRACE("signed to unsigned");
-    test_signed_to_unsigned<std::uint8_t>();
-    test_signed_to_unsigned<std::uint16_t>();
-    test_signed_to_unsigned<std::uint32_t>();
-    test_signed_to_unsigned<std::uint64_t>();
-    test_signed_to_unsigned<std::uintmax_t>();
-  }
-  {
-    SCOPED_TRACE("unsigned to signed");
-    test_unsigned_to_signed<std::int8_t>();
-    test_unsigned_to_signed<std::int16_t>();
-    test_unsigned_to_signed<std::int32_t>();
-    test_unsigned_to_signed<std::int64_t>();
-    test_unsigned_to_signed<std::intmax_t>();
   }
 }
 
