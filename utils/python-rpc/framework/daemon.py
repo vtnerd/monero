@@ -181,8 +181,10 @@ class Daemon(object):
 
     def get_connections(self, client = ""):
         get_connections = {
-            'client': client,
             'method': 'get_connections',
+            'params': {
+                'client': client
+            },
             'jsonrpc': '2.0', 
             'id': '0'
         }
