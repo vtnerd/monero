@@ -27,6 +27,8 @@
 
 #include "serialization/wire/json/error.h"
 
+#include <string>
+
 namespace wire
 {
 namespace error
