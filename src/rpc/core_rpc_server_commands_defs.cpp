@@ -82,6 +82,7 @@ namespace cryptonote
         WIRE_FIELD(prunable_hash),
         WIRE_FIELD(as_json),
         WIRE_FIELD(in_pool),
+        WIRE_FIELD(double_spend_seen),
         wire::optional_field("block_height", std::ref(optional.block_height)),
         wire::optional_field("confirmations", std::ref(optional.confirmations)),
         wire::optional_field("block_timestamp", std::ref(optional.block_timestamp)),
@@ -131,14 +132,14 @@ namespace cryptonote
 
     if (source.in_pool)
     {
-      optional.block_height.emplace(source.block_height);
-      optional.confirmations.emplace(source.confirmations);
-      optional.block_timestamp.emplace(source.block_timestamp);
+      optional.received_timestamp.emplace(source.received_timestamp);
+      optional.relayed.emplace(source.relayed);
     }
     else
     {
-      optional.received_timestamp.emplace(source.received_timestamp);
-      optional.relayed.emplace(source.relayed);
+      optional.block_height.emplace(source.block_height);
+      optional.confirmations.emplace(source.confirmations);
+      optional.block_timestamp.emplace(source.block_timestamp);
     }
     get_transactions_entry_map(dest, source, optional);
   }

@@ -421,7 +421,7 @@ class Wallet(object):
                 'pool': pool,
                 'min_height': min_height,
                 'max_height': max_height,
-                'filter_by_height': min_height or max_height,
+                'filter_by_height': bool(min_height or max_height),
                 'account_index': account_index,
                 'subaddr_indices': subaddr_indices,
                 'all_accounts': all_accounts,
