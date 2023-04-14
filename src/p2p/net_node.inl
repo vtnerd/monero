@@ -248,7 +248,23 @@ namespace nodetool
     if (it == m_blocked_hosts.end())
     {
       m_blocked_hosts[host_str] = limit;
-      added = true;
+
+      // if the host was already blocked due to being in a blocked subnet, let it be silent
+      bool matches_blocked_subnet = false;
+      if (addr.get_type_id() == epee::net_utils::address_type::ipv4)
+      {
+        auto ipv4_address = addr.template as<epee::net_utils::ipv4_network_address>();
+        for (auto jt = m_blocked_subnets.begin(); jt != m_blocked_subnets.end(); ++jt)
+        {
+          if (jt->first.matches(ipv4_address))
+          {
+            matches_blocked_subnet = true;
+            break;
+          }
+        }
+      }
+      if (!matches_blocked_subnet)
+        added = true;
     }
     else if (it->second < limit || !add_only)
       it->second = limit;
@@ -318,6 +334,7 @@ namespace nodetool
       limit = std::numeric_limits<time_t>::max();
     else
       limit = now + seconds;
+    const bool added = m_blocked_subnets.find(subnet) == m_blocked_subnets.end();
     m_blocked_subnets[subnet] = limit;
 
     // drop any connection to that subnet. This should only have to look into
@@ -350,7 +367,10 @@ namespace nodetool
       conns.clear();
     }
 
-    MCLOG_CYAN(el::Level::Info, "global", "Subnet " << subnet.host_str() << " blocked.");
+    if (added)
+      MCLOG_CYAN(el::Level::Info, "global", "Subnet " << subnet.host_str() << " blocked.");
+    else
+      MINFO("Subnet " << subnet.host_str() << " blocked.");
     return true;
   }
   //-----------------------------------------------------------------------------------
@@ -646,20 +666,10 @@ namespace nodetool
   {
     using namespace boost::asio;
 
-    std::string host = addr;
+    // Split addr string into host string and port string
+    std::string host;
     std::string port = std::to_string(default_port);
-    size_t colon_pos = addr.find_last_of(':');
-    size_t dot_pos = addr.find_last_of('.');
-    size_t square_brace_pos = addr.find('[');
-
-    // IPv6 will have colons regardless.  IPv6 and IPv4 address:port will have a colon but also either a . or a [
-    // as IPv6 addresses specified as address:port are to be specified as "[addr:addr:...:addr]:port"
-    // One may also specify an IPv6 address as simply "[addr:addr:...:addr]" without the port; in that case
-    // the square braces will be stripped here.
-    if ((std::string::npos != colon_pos && std::string::npos != dot_pos) || std::string::npos != square_brace_pos)
-    {
-      net::get_network_address_host_and_port(addr, host, port);
-    }
+    net::get_network_address_host_and_port(addr, host, port);
     MINFO("Resolving node address: host=" << host << ", port=" << port);
 
     io_service io_srv;
@@ -696,34 +706,32 @@ namespace nodetool
     std::set<std::string> full_addrs;
     if (m_nettype == cryptonote::TESTNET)
     {
-      full_addrs.insert("212.83.175.67:28080");
-      full_addrs.insert("212.83.172.165:28080");
       full_addrs.insert("176.9.0.187:28080");
       full_addrs.insert("88.99.173.38:28080");
       full_addrs.insert("51.79.173.165:28080");
+      full_addrs.insert("192.99.8.110:28080");
+      full_addrs.insert("37.187.74.171:28080");
     }
     else if (m_nettype == cryptonote::STAGENET)
     {
-      full_addrs.insert("162.210.173.150:38080");
       full_addrs.insert("176.9.0.187:38080");
       full_addrs.insert("88.99.173.38:38080");
       full_addrs.insert("51.79.173.165:38080");
+      full_addrs.insert("192.99.8.110:38080");
+      full_addrs.insert("37.187.74.171:38080");
     }
     else if (m_nettype == cryptonote::FAKECHAIN)
     {
     }
     else
     {
-      full_addrs.insert("212.83.175.67:18080");
-      full_addrs.insert("212.83.172.165:18080");
       full_addrs.insert("176.9.0.187:18080");
       full_addrs.insert("88.198.163.90:18080");
-      full_addrs.insert("95.217.25.101:18080");
-      full_addrs.insert("136.244.105.131:18080");
-      full_addrs.insert("104.238.221.81:18080");
       full_addrs.insert("66.85.74.134:18080");
       full_addrs.insert("88.99.173.38:18080");
       full_addrs.insert("51.79.173.165:18080");
+      full_addrs.insert("192.99.8.110:18080");
+      full_addrs.insert("37.187.74.171:18080");
     }
     return full_addrs;
   }
@@ -858,6 +866,8 @@ namespace nodetool
           "4pixvbejrvihnkxmduo2agsnmc3rrulrqc7s3cbwwrep6h6hrzsibeqd.onion:18083",
           "zbjkbsxc5munw3qusl7j2hpcmikhqocdf4pqhnhtpzw5nt5jrmofptid.onion:18083",
           "qz43zul2x56jexzoqgkx2trzwcfnr6l3hbtfcfx54g4r3eahy3bssjyd.onion:18083",
+          "plowsof3t5hogddwabaeiyrno25efmzfxyro2vligremt7sxpsclfaid.onion:18083",
+          "plowsoffjexmxalw73tkjmf422gq6575fc7vicuu4javzn2ynnte6tyd.onion:18083",
         };
       }
       return {};
@@ -866,7 +876,9 @@ namespace nodetool
       {
         return {
           "s3l6ke4ed3df466khuebb4poienoingwof7oxtbo6j4n56sghe3a.b32.i2p:18080",
-          "sel36x6fibfzujwvt4hf5gxolz6kd3jpvbjqg6o3ud2xtionyl2q.b32.i2p:18080"
+          "sel36x6fibfzujwvt4hf5gxolz6kd3jpvbjqg6o3ud2xtionyl2q.b32.i2p:18080",
+          "uqj3aphckqtjsitz7kxx5flqpwjlq5ppr3chazfued7xucv3nheq.b32.i2p:18080",
+          "vdmnehdjkpkg57nthgnjfuaqgku673r5bpbqg56ix6fyqoywgqrq.b32.i2p:18080",
         };
       }
       return {};
@@ -2414,7 +2426,7 @@ namespace nodetool
         return false;
       }
       return true;
-    });
+    }, "0.0.0.0", m_ssl_support);
     if(!r)
     {
       LOG_WARNING_CC(context, "Failed to call connect_async, network error.");

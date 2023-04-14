@@ -30,6 +30,8 @@
 // check local first (in the event of static or in-source compilation of libunbound)
 #include "unbound.h"
 
+#include <deque>
+#include <set>
 #include <stdlib.h>
 #include "include_base_utils.h"
 #include "common/threadpool.h"
@@ -328,11 +330,6 @@ std::vector<std::string> DNSResolver::get_record(const std::string& url, int rec
   dnssec_available = false;
   dnssec_valid = false;
 
-  if (!check_address_syntax(url.c_str()))
-  {
-    return addresses;
-  }
-
   // destructor takes care of cleanup
   ub_result_ptr result;
 
@@ -413,16 +410,6 @@ DNSResolver& DNSResolver::instance()
 DNSResolver DNSResolver::create()
 {
   return DNSResolver();
-}
-
-bool DNSResolver::check_address_syntax(const char *addr) const
-{
-  // if string doesn't contain a dot, we won't consider it a url for now.
-  if (strchr(addr,'.') == NULL)
-  {
-    return false;
-  }
-  return true;
 }
 
 namespace dns_utils

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2022, The Monero Project
+// Copyright (c) 2014-2022, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -25,44 +25,41 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// 
+// Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
-#include "gtest/gtest.h"
+#pragma once 
 
-#include <stdint.h>
-#include "misc_log_ex.h"
-#include "memwipe.h"
-#include "warnings.h"
+#include <unordered_set>
+#include <mutex>
 
-// Probably won't catch the optimized out case, but at least we test
-// it works in the normal case
-static void test(bool wipe)
+namespace tools
 {
-  char *foo = (char*)malloc(4);
-  ASSERT_TRUE(foo != NULL);
-  intptr_t foop = (intptr_t)foo;
-  strcpy(foo, "bar");
-  void *bar = wipe ? memwipe(foo, 3) : memset(foo, 0, 3);
-  ASSERT_EQ(foo, bar);
-  free(foo);
-  char *quux = (char*)malloc(4); // same size, just after free, so we're likely to get the same, depending on the allocator
-PUSH_WARNINGS
-DISABLE_GCC_WARNING(maybe-uninitialized)
-  if ((intptr_t)quux == foop)
+  template<typename T, size_t MAX_SIZE>
+  class data_cache
   {
-    MDEBUG(std::hex << std::setw(8) << std::setfill('0') << *(uint32_t*)quux);
-    if (wipe) { ASSERT_TRUE(memcmp(quux, "bar", 3)); }
-  }
-  else MWARNING("We did not get the same location, cannot check");
-POP_WARNINGS
-  free(quux);
-}
+  public:
+    void add(const T& value)
+    {
+      std::lock_guard<std::mutex> lock(m);
+      if (data.insert(value).second)
+      {
+        T& old_value = buf[counter++ % MAX_SIZE];
+        data.erase(old_value);
+        old_value = value;
+      }
+    }
 
-TEST(memwipe, control)
-{
-  test(false);
-}
+    bool has(const T& value) const
+    {
+      std::lock_guard<std::mutex> lock(m);
+      return (data.find(value) != data.end());
+    }
 
-TEST(memwipe, works)
-{
-  test(true);
+  private:
+    mutable std::mutex m;
+    std::unordered_set<T> data;
+    T buf[MAX_SIZE] = {};
+    size_t counter = 0;
+  };
 }
