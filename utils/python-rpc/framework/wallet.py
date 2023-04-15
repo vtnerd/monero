@@ -371,6 +371,7 @@ class Wallet(object):
     def store(self):
         store = {
             'method': 'store',
+            'params': {},
             'jsonrpc': '2.0', 
             'id': '0'
         }

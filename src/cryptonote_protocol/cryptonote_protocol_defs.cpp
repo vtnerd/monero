@@ -53,7 +53,7 @@ namespace cryptonote
     {
       // read function for `tx_blob_entry` detects whether pruned (object) or !pruned (string)
       wire_read::array(source, dest.first, tx_blob_min{});
-      dest.second = is_pruned(source.last_tag() == SERIALIZE_TYPE_OBJECT);
+      dest.second = is_pruned((source.last_tag() & SERIALIZE_TYPE_OBJECT) == SERIALIZE_TYPE_OBJECT);
     }
     void write_bytes(wire::epee_writer& dest, const std::pair<const std::vector<tx_blob_entry>&, is_pruned> source)
     {
@@ -80,7 +80,7 @@ namespace cryptonote
 
   void read_bytes(wire::epee_reader& source, tx_blob_entry& dest)
   {
-    if (source.last_tag() == SERIALIZE_TYPE_STRING)
+    if ((source.last_tag() & SERIALIZE_TYPE_STRING) == SERIALIZE_TYPE_STRING)
     {
       wire_read::bytes(source, dest.blob);
       dest.prunable_hash = crypto::null_hash;

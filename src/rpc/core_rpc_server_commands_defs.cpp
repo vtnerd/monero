@@ -178,17 +178,16 @@ namespace cryptonote
     {
       std::vector<std::uint64_t> v;
       v.reserve(s.size());
-      int read = 0;
       auto end = s.end();
-      for (auto i = s.begin(); i != end; std::advance(i, read))
+      for (auto i = s.begin(); i != end;)
       {
         v.emplace_back();
-        read = tools::read_varint(i, end, v.back());
+        const int read = tools::read_varint(i, end, v.back());
         CHECK_AND_ASSERT_THROW_MES(read > 0 && read <= 256, "Error decompressing data");
       }
       return v;
     }
-    epee::byte_slice compress_integer_array(const std::vector<std::uint64_t> &v)
+    epee::byte_slice compress_integer_array(const std::vector<std::uint64_t>& v)
     {
       epee::byte_stream s;
       s.reserve(v.size() * (sizeof(std::uint64_t) * 8 / 7 + 1));
@@ -206,7 +205,7 @@ namespace cryptonote
     }
     void read_bytes(wire::epee_reader& source, std::pair<std::vector<std::uint64_t>, is_blob>& dest)
     {
-      if (source.last_tag() == SERIALIZE_TYPE_STRING)
+      if ((source.last_tag() & SERIALIZE_TYPE_STRING) == SERIALIZE_TYPE_STRING)
       {
         wire_read::bytes(source, wire::array_as_blob(std::ref(dest.first)));
         dest.second = is_blob::true_;

@@ -210,6 +210,8 @@ namespace cryptonote
     {
       using max_blocks =
 	wire::max_element_count<COMMAND_RPC_GET_BLOCKS_FAST_MAX_BLOCK_COUNT>;
+      using min_pool_tx_info =
+	wire::min_element_sizeof<crypto::hash>;
 
       std::vector<block_complete_entry> blocks;
       uint64_t    start_height;
@@ -229,15 +231,8 @@ namespace cryptonote
         KV_SERIALIZE_ARRAY(output_indices, max_blocks)
         KV_SERIALIZE_OPT(daemon_time, (uint64_t) 0)
         KV_SERIALIZE_OPT(pool_info_extent, (uint8_t) 0)
-        if (pool_info_extent != POOL_INFO_EXTENT::NONE)
-        {
-          KV_SERIALIZE(added_pool_txs)
-          KV_SERIALIZE_CONTAINER_POD_AS_BLOB(remaining_added_pool_txids)
-        }
-        if (pool_info_extent == POOL_INFO_EXTENT::INCREMENTAL)
-        {
-          KV_SERIALIZE_CONTAINER_POD_AS_BLOB(removed_pool_txids)
-        }
+        KV_SERIALIZE_ARRAY(added_pool_txs, min_pool_tx_info) // optional if empty
+        KV_SERIALIZE_CONTAINER_POD_AS_BLOB(removed_pool_txids) // optional if empty
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
