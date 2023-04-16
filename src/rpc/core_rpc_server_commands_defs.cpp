@@ -181,9 +181,10 @@ namespace cryptonote
       auto end = s.end();
       for (auto i = s.begin(); i != end;)
       {
-        v.emplace_back();
-        const int read = tools::read_varint(i, end, v.back());
+        std::uint64_t val{};
+        const int read = tools::read_varint(i, end, val);
         CHECK_AND_ASSERT_THROW_MES(read > 0 && read <= 256, "Error decompressing data");
+        v.push_back(val);
       }
       return v;
     }

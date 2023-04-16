@@ -53,7 +53,6 @@ namespace cryptonote
     {
       // read function for `tx_blob_entry` detects whether pruned (object) or !pruned (string)
       wire_read::array(source, dest.first, tx_blob_min{});
-      dest.second = is_pruned((source.last_tag() & SERIALIZE_TYPE_OBJECT) == SERIALIZE_TYPE_OBJECT);
     }
     void write_bytes(wire::epee_writer& dest, const std::pair<const std::vector<tx_blob_entry>&, is_pruned> source)
     {
@@ -73,7 +72,11 @@ namespace cryptonote
         WIRE_FIELD_DEFAULTED(block_weight, unsigned(0)),
         wire::optional_field("txs", std::ref(txs))
       );
-      if (txs && txs->second != is_pruned(self.pruned))
+      const bool is_schema_mismatch =
+	txs && !txs->first.empty() &&
+	txs->second == is_pruned::false_ &&
+	txs->first.back().prunable_hash != crypto::null_hash;
+      if (is_schema_mismatch)
         WIRE_DLOG_THROW(wire::error::schema::object, "Schema mismatch with pruned flag set to " << self.pruned);
     }
   } // anonymous

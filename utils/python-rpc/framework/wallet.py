@@ -203,7 +203,7 @@ class Wallet(object):
                 'outputs' : outputs,
                 'unlock_time' : unlock_time,
                 'payment_id' : payment_id,
-                'get_tx_keys' : get_tx_keys,
+                'get_tx_key' : get_tx_keys,
                 'key_image' : key_image,
                 'do_not_relay' : do_not_relay,
                 'get_tx_hex' : get_tx_hex,
