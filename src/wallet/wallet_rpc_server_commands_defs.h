@@ -1852,7 +1852,7 @@ namespace wallet_rpc
     struct signed_key_image
     {
       using min_wire_size =
-	wire::min_element_sizeof<crypto::key_image, crypto::signature>;
+	wire::min_element_sizeof<crypto::key_image>;
 
       std::string key_image;
       std::string signature;
@@ -1881,7 +1881,7 @@ namespace wallet_rpc
     struct signed_key_image
     {
       using min_wire_size =
-	wire::min_element_sizeof<crypto::key_image, crypto::signature>;
+	wire::min_element_sizeof<crypto::key_image>;
 
       std::string key_image;
       std::string signature;
