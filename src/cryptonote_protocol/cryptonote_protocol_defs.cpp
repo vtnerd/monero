@@ -101,6 +101,8 @@ namespace cryptonote
     block_complete_entry_map(source, dest, txs);
     if (txs)
       dest.txs = std::move(txs->first);
+    else
+      dest.txs.clear();
   }
   void write_bytes(wire::epee_writer& dest, const block_complete_entry& source)
   {
