@@ -392,6 +392,8 @@ namespace cryptonote
 
     struct response_t: public rpc_access_response_base
     {
+      using max_count = wire::max_element_count<1024>;
+
       // older compatibility stuff
       std::vector<std::string> txs_as_hex;  //transactions blobs as hex (old compat)
       std::vector<std::string> txs_as_json; //transactions decoded as json (old compat)
@@ -404,8 +406,8 @@ namespace cryptonote
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE_PARENT(rpc_access_response_base)
-        KV_SERIALIZE_ARRAY(txs_as_hex, tx_blob_min)
-        KV_SERIALIZE_ARRAY(txs_as_json, tx_blob_min)
+        KV_SERIALIZE_ARRAY(txs_as_hex, max_count)
+        KV_SERIALIZE_ARRAY(txs_as_json, max_count)
         KV_SERIALIZE_ARRAY(txs, entry::min_wire_size)
         KV_SERIALIZE_ARRAY(missed_tx, wire::min_element_sizeof<crypto::hash>)
       END_KV_SERIALIZE_MAP()

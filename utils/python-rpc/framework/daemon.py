@@ -57,6 +57,7 @@ class Daemon(object):
 
     def get_miner_data(self):
         get_miner_data = {
+            'params': {},
             'method': 'get_miner_data',
             'jsonrpc': '2.0', 
             'id': '0'
@@ -231,6 +232,7 @@ class Daemon(object):
 
     def get_height(self, client = ""):
         get_height = {
+                'params': {},
                 'method': 'get_height',
                 'jsonrpc': '2.0',
                 'id': '0'
