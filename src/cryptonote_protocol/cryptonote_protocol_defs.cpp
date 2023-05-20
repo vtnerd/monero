@@ -56,7 +56,7 @@ namespace cryptonote
     }
     void write_bytes(wire::epee_writer& dest, const std::pair<const std::vector<tx_blob_entry>&, is_pruned> source)
     {
-      const auto get_blob = [] (const tx_blob_entry& e) -> const std::string& { return e.blob; };
+      const auto get_blob = [] (const tx_blob_entry& e) -> std::string { return e.blob; };
       if (source.second == is_pruned::true_) // write array of `tx_blob_entry` objects
         wire_write::array(dest, source.first);
       else // !pruned -> write array of string blobs
@@ -73,9 +73,9 @@ namespace cryptonote
         wire::optional_field("txs", std::ref(txs))
       );
       const bool is_schema_mismatch =
-	txs && !txs->first.empty() &&
-	txs->second == is_pruned::false_ &&
-	txs->first.back().prunable_hash != crypto::null_hash;
+        txs && !txs->first.empty() &&
+        txs->second == is_pruned::false_ &&
+        txs->first.back().prunable_hash != crypto::null_hash;
       if (is_schema_mismatch)
         WIRE_DLOG_THROW(wire::error::schema::object, "Schema mismatch with pruned flag set to " << self.pruned);
     }
@@ -106,7 +106,7 @@ namespace cryptonote
   }
   void write_bytes(wire::epee_writer& dest, const block_complete_entry& source)
   {
-    auto txs = boost::make_optional(!source.txs.empty(), std::make_pair(std::ref(source.txs), is_pruned(source.pruned)));
+    auto txs = boost::make_optional(!source.txs.empty(), std::make_pair(std::cref(source.txs), is_pruned(source.pruned)));
     block_complete_entry_map(dest, source, txs);
   }
   WIRE_EPEE_DEFINE_CONVERSION(NOTIFY_NEW_BLOCK::request);

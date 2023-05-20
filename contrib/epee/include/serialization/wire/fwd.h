@@ -87,7 +87,7 @@ namespace wire
 
   // defined in `wire/write.h`
   template<typename W, typename... T>
-  void object_fwd(std::false_type is_read, W& dest, T&&... fields);
+  void object_fwd(std::false_type is_read, W& dest, T... fields);
 }
 namespace wire_read
 {

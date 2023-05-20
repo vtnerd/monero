@@ -212,7 +212,7 @@ namespace wire_write
   }
 
   template<typename W, typename T>
-  inline bool field(W& dest, const wire::field_<T, true> field)
+  inline bool field(W& dest, const wire::field_<T, true>& field)
   {
     // Arrays always optional, see `wire/field.h`
     if (wire::available(field))
@@ -224,7 +224,7 @@ namespace wire_write
   }
 
   template<typename W, typename T>
-  inline bool field(W& dest, const wire::field_<T, false> field)
+  inline bool field(W& dest, const wire::field_<T, false>& field)
   {
     if (wire::available(field))
     {
@@ -277,14 +277,14 @@ namespace wire
   }
 
   template<typename W, typename... T>
-  inline std::enable_if_t<std::is_base_of<writer, W>::value> object(W& dest, T&&... fields)
+  inline std::enable_if_t<std::is_base_of<writer, W>::value> object(W& dest, T... fields)
   {
-    wire_write::object(dest, std::forward<T>(fields)...);
+    wire_write::object(dest, std::move(fields)...);
   }
 
   template<typename W, typename... T>
-  inline void object_fwd(const std::false_type /* is_read */, W& dest, T&&... fields)
+  inline void object_fwd(const std::false_type /* is_read */, W& dest, T... fields)
   {
-    wire::object(dest, std::forward<T>(fields)...);
+    wire::object(dest, std::move(fields)...);
   }
 }
