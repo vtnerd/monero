@@ -276,6 +276,9 @@ namespace wire_read
   template<typename R, typename T, typename U>
   inline std::error_code from_bytes(T&& source, U& dest)
   {
+    if (wire::is_optional_root<U>::value && source.empty())
+      return {};
+
     try
     {
       R in{std::forward<T>(source)};

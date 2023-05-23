@@ -39,6 +39,12 @@
 #define WIRE_DECLARE_BLOB_NS(type)              \
   namespace wire { WIRE_DECLARE_BLOB(type); }
 
+#define WIRE_DECLARE_OPTIONAL_ROOT(type) \
+  template<>                             \
+  struct is_optional_root<type>          \
+    : std::true_type                     \
+  {}
+
 namespace wire
 {
   template<typename T>
@@ -83,6 +89,12 @@ namespace wire
   template<typename T>
   struct is_optional_on_empty
     : is_array<T> // all array types in old output engine were optional when empty
+  {};
+
+  //! When `T` is being read as root object, allow an empty read buffer.
+  template<typename T>
+  struct is_optional_root
+    : std::is_empty<T>
   {};
 
   //! A constraint for `wire_read::array` where a max of `N` elements can be read.
