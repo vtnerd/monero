@@ -2818,13 +2818,6 @@ namespace wire
   WIRE_DECLARE_OPTIONAL_ROOT(cryptonote::COMMAND_RPC_ACCESS_INFO::request);
 
 
-
-
-
-
-
-
-
   // array reading defaults for `epee_reader` only !
 
   using tx_output_indices = cryptonote::COMMAND_RPC_GET_BLOCKS_FAST::tx_output_indices;
