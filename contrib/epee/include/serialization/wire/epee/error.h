@@ -27,14 +27,13 @@
 
 #pragma once
 
-#include <cstdint>
 #include <system_error>
 
 namespace wire
 {
 namespace error
 {
-  enum class epee : std::uint8_t
+  enum class epee : int
   {
     none = 0,
     invalid_tag,
