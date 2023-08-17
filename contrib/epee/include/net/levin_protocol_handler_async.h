@@ -415,7 +415,7 @@ public:
       MERROR(m_connection_context << "Commands handler not set!");
       return false;
     }
-    //
+
     if (m_noise)
     {
       auto decrypted = m_noise->decrypt(*m_pservice_endpoint, ptr, cb);

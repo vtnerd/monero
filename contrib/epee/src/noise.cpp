@@ -54,6 +54,10 @@ namespace epee { namespace noise
 
     template<std::size_t N>
     using buffer = std::array<std::uint8_t, N>;
+  
+
+    //! Max size between authentication tags in messages
+    constexpr const std::size_t transport_max = 65535;
 
     struct v0
     {
@@ -159,17 +163,25 @@ namespace epee { namespace noise
       {
         V::peek(out, in, *k, n);
       }
+      
+      struct decrypt_status
+      {
+        std::size_t ciphertext_length;
+        std::size_t plaintext_length;
+      };
 
-      //! \return Actual length of decrypted data (poly1305 tag removed).
-      std::size_t decrypt(epee::span<std::uint8_t> out, epee::span<const std::uint8_t> in, const digest& ad)
+      decrypt_status decrypt(epee::span<std::uint8_t> out, epee::span<const std::uint8_t> in, const digest& ad)
       {
         if (k)
-          return V::decrypt(out, *k, n++, in, ad);
+        {
+          const std::size_t message_length = V::decrypt(out, *k, n++, in, ad);
+          return {message_length + taglen(), message_length};
+        }
         else if (in.size() <= out.size())
-          std::memcpy(out.data(), in.data(), in.size());
+          std::memcpy(out.data(), in.data(), std::min(transport_max, in.size()));
         else
           throw std::logic_error{"Invalid output buffer size"};
-        return in.size();
+        return {in.size(), in.size()};
       }
 
       //! \return Actual length of encrypted data.
@@ -290,21 +302,43 @@ namespace epee { namespace noise
         cipher.initialize_key(temp_k);
       }
 
+      //! \return `in` encrypted in `transport_max` chunks
       byte_slice encrypt_and_hash(epee::span<const std::uint8_t> in)
       {
-        if (std::numeric_limits<std::size_t>::max() - taglen() < in.size())
-          throw std::runtime_error{"Overflowed max size_t in encrypt_and_hash"};
+        static_assert(taglen() <= transport_max, "possible overflow below");
+        const std::size_t messages = (in.size() / transport_max) + 1;
+        if (std::numeric_limits<std::size_t>::max() - in.size() < taglen() * messages)
+          throw std::runtime_error{"Overflow max size_t in encrypt_and_hash"};
+
         byte_stream out{};
-        out.resize(in.size() + taglen());
-        out.resize(cipher.encrypt(epee::to_mut_span(out), in, hash));
-        mix_hash(epee::to_span(out));
+        out.resize(in.size() + (messages * taglen()));
+
+        auto out_span = epee::to_mut_span(out);
+        for (; !in.empty(); in.remove_prefix(transport_max))
+        {
+          const std::size_t cipher_length =
+            cipher.encrypt(out_span, {in.data(), std::min(transport_max, in.size())}, hash);
+          mix_hash({out_span.data(), cipher_length});
+          out_span.remove_prefix(cipher_length);
+        }
+        out.resize(out.size() - out_span.size());
         return byte_slice{std::move(out)};
       }
 
-      void decrypt_and_hash(span<std::uint8_t> out, span<const std::uint8_t> in)
+      //! \return `in` decrypted with chunks handled
+      std::size_t decrypt_and_hash(const span<std::uint8_t> out, span<const std::uint8_t> in)
       {
-        cipher.decrypt(out, in, hash);
-        mix_hash(in);
+        static constexpr const std::size_t max_size = transport_max + taglen();
+        auto current = epee::to_mut_span(out);
+        while (!in.empty())
+        {
+          const auto status = cipher.decrypt(current, {in.data(), std::min(max_size, in.size())}, hash);
+          mix_hash({in.data(), status.ciphertext_length});
+          in.remove_prefix(status.ciphertext_length);
+          current.remove_prefix(status.plaintext_length);
+        }
+
+        return out.size() - current.size();
       }
 
       std::array<symmetric_state<V>, 2> split()
@@ -366,9 +400,12 @@ namespace epee { namespace noise
 
     boost::optional<complete> read_message(net_utils::i_service_endpoint& peer, void const* const data, std::size_t length)
     {
+      static_assert(sizeof(decltype(bucket_head2::m_signature)) < version::dhpublen());
       in_buffer.append(data, length);
       if (in_buffer.size() < version::dhpublen())
         return boost::none;
+      
+      if (
 
       re.emplace();
       std::memcpy(re->data(), in_buffer.span(version::dhpublen()).data(), re->size());
@@ -387,9 +424,7 @@ namespace epee { namespace noise
       auto states = state.split();
       if (initiator)
         return complete{std::move(states[0]), std::move(states[1]), std::move(in_buffer), std::move(out_queue)};
-      else
-        return complete{std::move(states[1]), std::move(states[0]), std::move(in_buffer), std::move(out_queue)};
-        return complete{std::move(states[1]), std::move(states[0]), std::move(in_buffer), std::move(out_queue)};
+      return complete{std::move(states[1]), std::move(states[0]), std::move(in_buffer), std::move(out_queue)};
     }
   };
 
@@ -415,6 +450,12 @@ namespace epee { namespace noise
       {
         levin::bucket_head2 header{};
         incoming.peek(as_mut_byte_span(header), in_buffer.span(sizeof(header)));
+        if (header.m_signature != LEVIN_SIGNATURE)
+        {
+          MERROR("Expected levin signature in decrypted header");
+          return {state::error, net_utils::buffer{}};
+        }
+
         if (in_buffer.size() < header.m_cb)
         {
           if (LEVIN_DEFAULT_MAX_PACKET_SIZE < header.m_cb)
