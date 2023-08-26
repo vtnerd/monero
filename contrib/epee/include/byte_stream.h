@@ -107,14 +107,6 @@ namespace epee
       check(more);
     }
 
-    void resize(const std::size_t count)
-    {
-      if (size() < count)
-        put_n(0, count - size());
-      else
-        next_write_ = buffer_.get() + count;
-    }
-
     //! Reset write position, but do not release internal memory. \post `size() == 0`.
     void clear() noexcept { next_write_ = buffer_.get(); }
 

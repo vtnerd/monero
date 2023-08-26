@@ -86,7 +86,7 @@ namespace net_utils
 			{
 				return true;
 			}
-			static constexpr bool after_init_connection(const net_utils::encryption_mode&) noexcept
+			bool after_init_connection()
 			{
 				return true;
 			}
@@ -212,7 +212,7 @@ namespace net_utils
 			}
 			void handle_qued_callback()
 			{}
-			static constexpr bool after_init_connection(const net_utils::encryption_mode&) noexcept
+			bool after_init_connection()
 			{
 				return true;
 			}

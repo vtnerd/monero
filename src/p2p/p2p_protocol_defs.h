@@ -38,7 +38,7 @@
 #include "net/net_utils_base.h"
 #include "net/tor_address.h" // needed for serialization
 #include "net/i2p_address.h" // needed for serialization
-#include "net/encryption.h"
+#include "net/net_ssl.h"
 #include "misc_language.h"
 #include "string_tools.h"
 #include "time_helper.h"
@@ -58,13 +58,11 @@ namespace nodetool
   }
 
   template<typename T>
-  inline epee::net_utils::encryption_mode get_p2p_encryption(const T& peer)
+  inline epee::net_utils::ssl_support_t get_p2p_encryption(const T& peer)
   {
     namespace net = epee::net_utils;
-    net::encryption_mode out{net::ssl_support_t::e_ssl_support_disabled};
-    if (peer.noise_v0)
-      out = net::noise_v0{};
-    return out;
+    return peer.encryption_ver == 1 ?
+      net::ssl_support_t::e_ssl_support_autodetect : net::ssl_support_t::e_ssl_support_disabled;
   }
 
 #pragma pack (push, 1)
@@ -84,12 +82,13 @@ namespace nodetool
   struct peerlist_entry_base
   {
     AddressType adr;
+    std::string ssl_finger;
     peerid_type id;
     int64_t last_seen;
     uint32_t pruning_seed;
     uint16_t rpc_port;
     uint32_t rpc_credits_per_hash;
-    uint8_t noise_v0;
+    uint8_t encryption_ver; // default to 1 - try SSL autodetect if specifically disabled
 
     BEGIN_KV_SERIALIZE_MAP()
       KV_SERIALIZE(adr)
@@ -98,7 +97,8 @@ namespace nodetool
       KV_SERIALIZE_OPT(pruning_seed, (uint32_t)0)
       KV_SERIALIZE_OPT(rpc_port, (uint16_t)0)
       KV_SERIALIZE_OPT(rpc_credits_per_hash, (uint32_t)0)
-      KV_SERIALIZE_OPT(noise_v0, (uint8_t)0)
+      KV_SERIALIZE_OPT(encryption_ver, (uint8_t)1)
+      KV_SERIALIZE(ssl_finger) // omitted when empty
     END_KV_SERIALIZE_MAP()
 
     BEGIN_SERIALIZE()
@@ -108,7 +108,8 @@ namespace nodetool
       VARINT_FIELD(pruning_seed)
       VARINT_FIELD(rpc_port)
       VARINT_FIELD(rpc_credits_per_hash)
-      VARINT_FIELD(noise_v0)
+      VARINT_FIELD(encryption_ver)
+      FIELD(ssl_finger)
     END_SERIALIZE()
   };
   typedef peerlist_entry_base<epee::net_utils::network_address> peerlist_entry;
@@ -117,22 +118,25 @@ namespace nodetool
   struct anchor_peerlist_entry_base
   {
     AddressType adr;
+    std::string ssl_finger; // no efficient serialization overloads for vector<uint8_t>
     peerid_type id;
     int64_t first_seen;
-    uint8_t noise_v0;
+    uint8_t encryption_ver; // default to 1 - try SSL autodetect if specifically disabled
 
     BEGIN_KV_SERIALIZE_MAP()
       KV_SERIALIZE(adr)
       KV_SERIALIZE(id)
       KV_SERIALIZE(first_seen)
-      KV_SERIALIZE_OPT(noise_v0, (uint8_t)0)
+      KV_SERIALIZE_OPT(encryption_ver, (uint8_t)1)
+      KV_SERIALIZE_OPT(ssl_finger, std::string{})
     END_KV_SERIALIZE_MAP()
 
     BEGIN_SERIALIZE()
       FIELD(adr)
       FIELD(id)
       VARINT_FIELD(first_seen)
-      VARINT_FIELD(noise_v0)
+      VARINT_FIELD(encryption_ver)
+      FIELD(ssl_finger)
     END_SERIALIZE()
   };
   typedef anchor_peerlist_entry_base<epee::net_utils::network_address> anchor_peerlist_entry;
@@ -202,12 +206,14 @@ namespace nodetool
 
   struct basic_node_data
   {
-    uuid network_id;                   
+    std::string ssl_finger; // no efficient serializaiton overloads for vector<uint8_t>
+    uuid network_id;
     uint32_t my_port;
     uint16_t rpc_port;
     uint32_t rpc_credits_per_hash;
     peerid_type peer_id;
     uint32_t support_flags;
+    uint8_t encryption_ver; // default to 1 - try SSL autodetect if not specifically disabled
 
     BEGIN_KV_SERIALIZE_MAP()
       KV_SERIALIZE_VAL_POD_AS_BLOB(network_id)
@@ -216,6 +222,8 @@ namespace nodetool
       KV_SERIALIZE_OPT(rpc_port, (uint16_t)(0))
       KV_SERIALIZE_OPT(rpc_credits_per_hash, (uint32_t)0)
       KV_SERIALIZE_OPT(support_flags, (uint32_t)0)
+      KV_SERIALIZE_OPT(encryption_ver, (uint8_t)1)
+      KV_SERIALIZE_OPT(ssl_finger, std::string{})
     END_KV_SERIALIZE_MAP()
   };
   

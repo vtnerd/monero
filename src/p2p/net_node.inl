@@ -50,6 +50,7 @@
 #include "common/util.h"
 #include "common/dns_utils.h"
 #include "common/pruning.h"
+#include "hex.h"
 #include "net/error.h"
 #include "math_helper.h"
 #include "misc_log_ex.h"
@@ -84,9 +85,12 @@ namespace nodetool
   static string_address parse_address(std::string adr)
   {
     namespace net = epee::net_utils;
-    net::encryption_mode e2e_mode = net::ssl_support_t::e_ssl_support_disabled;
-    if (boost::string_ref{adr}.ends_with("noise_v0"))
-      e2e_mode = net::noise_v0{};
+    const auto pos = adr.find(',');
+    net::ssl_options_t e2e_mode{net::ssl_support_t::e_ssl_support_autodetect};
+    if (boost::string_ref{adr}.ends_with("no_encryption"))
+      e2e_mode = net::ssl_options_t{net::ssl_support_t::e_ssl_support_enabled};
+    else if (pos != std::string::npos)
+      e2e_mode = net::ssl_options_t{{epee::from_hex_locale::to_vector(boost::string_ref{adr}.substr(pos + 1))}, {}};
     adr.erase(adr.find(','));
     return {std::move(adr) , std::move(e2e_mode)};
   }
@@ -128,6 +132,8 @@ namespace nodetool
     command_line::add_arg(desc, arg_p2p_hide_my_port);
     command_line::add_arg(desc, arg_no_sync);
     command_line::add_arg(desc, arg_enable_dns_blocklist);
+    command_line::add_arg(desc, arg_p2p_disable_encryption);
+    command_line::add_arg(desc, arg_p2p_persistent_cert);
     command_line::add_arg(desc, arg_no_igd);
     command_line::add_arg(desc, arg_igd);
     command_line::add_arg(desc, arg_out_peers);
@@ -692,13 +698,13 @@ namespace nodetool
       if (endpoint.address().is_v4())
       {
         epee::net_utils::network_address na{epee::net_utils::ipv4_network_address{boost::asio::detail::socket_ops::host_to_network_long(endpoint.address().to_v4().to_ulong()), endpoint.port()}};
-        seed_nodes.push_back(p2p_address{na, peer.e2e_mode});
+        seed_nodes.push_back(p2p_address{na, peer.ssl_mode});
         MINFO("Added node: " << na.str());
       }
       else
       {
         epee::net_utils::network_address na{epee::net_utils::ipv6_network_address{endpoint.address().to_v6(), endpoint.port()}};
-        seed_nodes.push_back(p2p_address{na, peer.e2e_mode});
+        seed_nodes.push_back(p2p_address{na, peer.ssl_mode});
         MINFO("Added node: " << na.str());
       }
     }
@@ -989,13 +995,34 @@ namespace nodetool
           ipv6_port = zone.second.m_port_ipv6;
           MINFO("Binding (IPv6) on " << zone.second.m_bind_ipv6_address << ":" << zone.second.m_port_ipv6);
         }
-        
-        epee::net_utils::encryption_mode e2e_mode = epee::net_utils::ssl_support_t::e_ssl_support_disabled;
-        if (zone.first == epee::net_utils::zone::public_ && !command_line::get_arg(vm, arg_disable_p2p_encryption))
-          e2e_mode = epee::net_utils::noise_v0{};	
 
-        res = zone.second.m_net_server.init_server(zone.second.m_port, zone.second.m_bind_ip, ipv6_port, ipv6_addr, m_use_ipv6, m_require_ipv4, e2e_mode);
+        namespace net = epee::net_utils;
+        bool store_cert = false;
+        bool share_fingerprint = false;
+        net::ssl_options_t p2p_ssl{net::ssl_support_t::e_ssl_support_disabled};
+        const auto key_files = tools::get_default_data_dir() + "/public_p2p";
+        if (zone.first == epee::net_utils::zone::public_ && !command_line::get_arg(vm, arg_p2p_disable_encryption))
+        {
+          p2p_ssl = net::ssl_options_t{net::ssl_support_t::e_ssl_support_autodetect};
+          if (command_line::get_arg(vm, arg_p2p_persistent_cert))
+          {
+            share_fingerprint = true;
+            if (boost::filesystem::exists(key_files + ".key") && boost::filesystem::exists(key_files + ".crt"))
+            {
+              p2p_ssl.auth.private_key_path = key_files + ".key";
+              p2p_ssl.auth.certificate_path = key_files + ".crt";
+            }
+            else
+              store_cert = true;
+          }
+        }
+        zone.second.m_ssl_mode = p2p_ssl.support;
+        res = zone.second.m_net_server.init_server(zone.second.m_port, zone.second.m_bind_ip, ipv6_port, ipv6_addr, m_use_ipv6, m_require_ipv4, std::move(p2p_ssl));
         CHECK_AND_ASSERT_MES(res, false, "Failed to bind server");
+        if (store_cert)
+          net::store_ssl_keys(zone.second.m_net_server.get_ssl_context(), key_files);
+        if (share_fingerprint)
+          zone.second.m_ssl_finger = net::get_ssl_fingerprint(zone.second.m_net_server.get_ssl_context());
       }
     }
 
@@ -1764,7 +1791,7 @@ namespace nodetool
         {
           // seeds should have hostname converted to IP already
           MDEBUG("Seed node: " << full_addr.address);
-          server.m_seed_nodes.push_back(p2p_address{MONERO_UNWRAP(net::get_network_address(full_addr.address, default_port)), full_addr.e2e_mode});
+          server.m_seed_nodes.push_back(p2p_address{MONERO_UNWRAP(net::get_network_address(full_addr.address, default_port)), full_addr.ssl_mode});
         }
         MDEBUG("Number of seed nodes: " << server.m_seed_nodes.size());
       }
@@ -2226,6 +2253,9 @@ namespace nodetool
     node_data.rpc_credits_per_hash = zone.m_can_pingback ? m_rpc_credits_per_hash : 0;
     node_data.network_id = m_network_id;
     node_data.support_flags = zone.m_config.m_support_flags;
+    node_data.encryption_ver =
+      zone.m_ssl_mode == epee::net_utils::ssl_support_t::e_ssl_support_disabled ? 0 : 1;
+    node_data.ssl_finger = zone.m_ssl_finger;
     return true;
   }
   //-----------------------------------------------------------------------------------
@@ -2517,7 +2547,7 @@ namespace nodetool
     real peer with that identity banned/blacklisted. */
 
     if(outgoing_to_same_zone)
-      rsp.local_peerlist_new.push_back(peerlist_entry{zone.m_our_address, zone.m_config.m_peer_id, std::time(nullptr)});
+      rsp.local_peerlist_new.push_back(peerlist_entry{zone.m_our_address, {}, zone.m_config.m_peer_id, std::time(nullptr)});
 
     LOG_DEBUG_CC(context, "COMMAND_TIMED_SYNC");
     return 1;
@@ -2597,7 +2627,7 @@ namespace nodetool
       peerid_type peer_id_l = arg.node_data.peer_id;
       uint32_t port_l = arg.node_data.my_port;
       //try ping to be sure that we can add this peer to peer_list
-      try_ping(arg.node_data, context, [peer_id_l, port_l, context, this]()
+      try_ping(arg.node_data, context, [arg, peer_id_l, port_l, context, this]()
       {
         CHECK_AND_ASSERT_MES((context.m_remote_address.get_type_id() == epee::net_utils::ipv4_network_address::get_type_id() || context.m_remote_address.get_type_id() == epee::net_utils::ipv6_network_address::get_type_id()), void(),
             "Only IPv4 or IPv6 addresses are supported here");
@@ -2619,6 +2649,8 @@ namespace nodetool
         pe.pruning_seed = context.m_pruning_seed;
         pe.rpc_port = context.m_rpc_port;
         pe.rpc_credits_per_hash = context.m_rpc_credits_per_hash;
+        pe.encryption_ver = arg.node_data.encryption_ver;
+        pe.ssl_finger = arg.node_data.ssl_finger;
         this->m_network_zones.at(context.m_remote_address.get_zone()).m_peerlist.append_with_peer_white(pe);
         LOG_DEBUG_CC(context, "PING SUCCESS " << context.m_remote_address.host_str() << ":" << port_l);
       });
@@ -2749,7 +2781,7 @@ namespace nodetool
       if (adr)
       {
         add_zone(adr->get_zone());
-        container.push_back(p2p_address{std::move(*adr), std::move(peer.e2e_mode)});
+        container.push_back(p2p_address{std::move(*adr), std::move(peer.ssl_mode)});
         continue;
       }
       std::vector<p2p_address> resolved_addrs;
@@ -3167,7 +3199,7 @@ namespace nodetool
     typename net_server::t_connection_context con{};
     const bool res = zone.m_net_server.connect(address, port,
       zone.m_config.m_net_config.connection_timeout,
-      con, "0.0.0.0", epee::net_utils::ssl_support_t::e_ssl_support_disabled);
+      con, "0.0.0.0", peer.ssl_mode);
 
     if (res)
       return {std::move(con)};

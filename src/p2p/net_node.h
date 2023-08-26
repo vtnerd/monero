@@ -48,7 +48,6 @@
 #include "cryptonote_protocol/levin_notify.h"
 #include "warnings.h"
 #include "net/abstract_tcp_server2.h"
-#include "net/encryption.h"
 #include "net/levin_protocol_handler.h"
 #include "net/levin_protocol_handler_async.h"
 #include "p2p_protocol_defs.h"
@@ -58,7 +57,6 @@
 #include "net_node_common.h"
 #include "net/enums.h"
 #include "net/fwd.h"
-#include "net/encryption.h"
 #include "common/command_line.h"
 
 PUSH_WARNINGS
@@ -122,14 +120,14 @@ namespace nodetool
     peerid_type peer_id;
     uint32_t support_flags;
     bool m_in_timedsync;
-    epee::net_utils::encryption_mode e2e_mode;
+    epee::net_utils::ssl_options_t e2e_mode;
     std::set<epee::net_utils::network_address> sent_addresses;
   };
 
   struct p2p_address
   {
     epee::net_utils::network_address na;
-    epee::net_utils::encryption_mode e2e_mode;
+    epee::net_utils::ssl_options_t ssl_mode = epee::net_utils::ssl_support_t::e_ssl_support_autodetect;
     
     bool operator==(const p2p_address& rhs) const
     { return na == rhs.na; }  
@@ -138,7 +136,7 @@ namespace nodetool
   struct string_address
   {
     std::string address;
-    epee::net_utils::encryption_mode e2e_mode;
+    epee::net_utils::ssl_options_t ssl_mode;
     
     bool operator<(const string_address& rhs) const noexcept
     { return address < rhs.address; }
@@ -147,7 +145,7 @@ namespace nodetool
     { return address == rhs.address; }
   };
 
-  template<class t_payload_net_handler>
+  template<class t_payload_net_handler> 
   class node_server: public epee::levin::levin_commands_handler<p2p_connection_context_t<typename t_payload_net_handler::connection_context> >,
                      public i_p2p_endpoint<typename t_payload_net_handler::connection_context>,
                      public epee::net_utils::i_connection_filter
@@ -191,6 +189,7 @@ namespace nodetool
           m_bind_ipv6_address(),
           m_port(),
           m_port_ipv6(),
+          m_ssl_finger(),
           m_notifier(),
           m_our_address(),
           m_peerlist(),
@@ -198,6 +197,7 @@ namespace nodetool
           m_proxy_address(),
           m_current_number_of_out_peers(0),
           m_current_number_of_in_peers(0),
+          m_ssl_mode(epee::net_utils::ssl_support_t::e_ssl_support_disabled),
           m_seed_nodes_lock(),
           m_can_pingback(false),
           m_seed_nodes_initialized(false)
@@ -213,6 +213,7 @@ namespace nodetool
           m_bind_ipv6_address(),
           m_port(),
           m_port_ipv6(),
+          m_ssl_finger(),
           m_notifier(),
           m_our_address(),
           m_peerlist(),
@@ -220,6 +221,7 @@ namespace nodetool
           m_proxy_address(),
           m_current_number_of_out_peers(0),
           m_current_number_of_in_peers(0),
+          m_ssl_mode(epee::net_utils::ssl_support_t::e_ssl_support_disabled),
           m_seed_nodes_lock(),
           m_can_pingback(false),
           m_seed_nodes_initialized(false)
@@ -234,6 +236,7 @@ namespace nodetool
       std::string m_bind_ipv6_address;
       std::string m_port;
       std::string m_port_ipv6;
+      std::string m_ssl_finger;
       cryptonote::levin::notify m_notifier;
       epee::net_utils::network_address m_our_address; // in anonymity networks
       peerlist_manager m_peerlist;
@@ -241,6 +244,7 @@ namespace nodetool
       boost::asio::ip::tcp::endpoint m_proxy_address;
       std::atomic<unsigned int> m_current_number_of_out_peers;
       std::atomic<unsigned int> m_current_number_of_in_peers;
+      epee::net_utils::ssl_support_t m_ssl_mode;
       boost::shared_mutex m_seed_nodes_lock;
       bool m_can_pingback;
       bool m_seed_nodes_initialized;
@@ -562,7 +566,8 @@ namespace nodetool
     extern const command_line::arg_descriptor<bool> arg_p2p_hide_my_port;
     extern const command_line::arg_descriptor<bool> arg_no_sync;
     extern const command_line::arg_descriptor<bool> arg_enable_dns_blocklist;
-    extern const command_line::arg_descriptor<bool> arg_disable_p2p_encryption;
+    extern const command_line::arg_descriptor<bool> arg_p2p_disable_encryption;
+    extern const command_line::arg_descriptor<bool> arg_p2p_persistent_cert;
 
     extern const command_line::arg_descriptor<bool>        arg_no_igd;
     extern const command_line::arg_descriptor<std::string> arg_igd;
