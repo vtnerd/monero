@@ -91,7 +91,7 @@ namespace nodetool
       e2e_mode = net::ssl_options_t{net::ssl_support_t::e_ssl_support_enabled};
     else if (pos != std::string::npos)
       e2e_mode = net::ssl_options_t{{epee::from_hex_locale::to_vector(boost::string_ref{adr}.substr(pos + 1))}, {}};
-    adr.erase(adr.find(','));
+    adr.erase(std::min(adr.size(), adr.find(',')));
     return {std::move(adr) , std::move(e2e_mode)};
   }
 

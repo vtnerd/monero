@@ -895,7 +895,7 @@ namespace net_utils
       boost::uuids::random_generator()(),
       *real_remote,
       is_income,
-      connection_basic::m_ssl_support == ssl_support_t::e_ssl_support_enabled
+      connection_basic::m_ssl_support != ssl_support_t::e_ssl_support_disabled
     );
     m_host = real_remote->host_str();
     try { host_count(1); } catch(...) { /* ignore */ }
