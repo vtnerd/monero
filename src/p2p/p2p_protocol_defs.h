@@ -58,11 +58,20 @@ namespace nodetool
   }
 
   template<typename T>
-  inline epee::net_utils::ssl_support_t get_p2p_encryption(const T& peer)
+  inline epee::net_utils::ssl_options_t get_p2p_encryption(const T& peer)
   {
     namespace net = epee::net_utils;
-    return peer.encryption_ver == 1 ?
-      net::ssl_support_t::e_ssl_support_autodetect : net::ssl_support_t::e_ssl_support_disabled;
+    if (peer.encryption_ver == 0)
+      return {net::ssl_support_t::e_ssl_support_disabled};
+    if (peer.ssl_finger.empty())
+      return {net::ssl_support_t::e_ssl_support_autodetect};
+
+    // Fingerprint specified, require SSL
+    std::vector<std::vector<std::uint8_t>> fingers;
+    fingers.emplace_back();
+    fingers.back().resize(peer.ssl_finger.size());
+    std::copy(peer.ssl_finger.begin(), peer.ssl_finger.end(), fingers.back().begin());
+    return {std::move(fingers), {}};
   }
 
 #pragma pack (push, 1)

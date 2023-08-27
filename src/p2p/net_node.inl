@@ -1003,6 +1003,7 @@ namespace nodetool
         const auto key_files = tools::get_default_data_dir() + "/public_p2p";
         if (zone.first == epee::net_utils::zone::public_ && !command_line::get_arg(vm, arg_p2p_disable_encryption))
         {
+          MINFO("Using persistent SSL certificate for p2p");
           p2p_ssl = net::ssl_options_t{net::ssl_support_t::e_ssl_support_autodetect};
           if (command_line::get_arg(vm, arg_p2p_persistent_cert))
           {
@@ -1016,6 +1017,9 @@ namespace nodetool
               store_cert = true;
           }
         }
+        else
+          MINFO("Generating new temporary SSL certificate for p2p");
+
         zone.second.m_ssl_mode = p2p_ssl.support;
         res = zone.second.m_net_server.init_server(zone.second.m_port, zone.second.m_bind_ip, ipv6_port, ipv6_addr, m_use_ipv6, m_require_ipv4, std::move(p2p_ssl));
         CHECK_AND_ASSERT_MES(res, false, "Failed to bind server");
