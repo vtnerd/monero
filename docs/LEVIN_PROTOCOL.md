@@ -135,6 +135,42 @@ the `Expect Response` field zeroed. When a message of this type is received, the
 contents can be safely ignored.
 
 
+## Encryption
+The Levin protocol now has optional SSL encryption. Each peer can have 3 states:
+(1) no encryption, (2) autodetect encryption, or (3) authenticated encryption.
+
+> The server/responder must always be in autodetect SSL mode, so that it can
+handle any possible state that the client/initiator is in.
+
+### No Encryption
+If a peer chooses to have no encryption, it will send `encryption_ver = 0` in
+the Handshake messages. When this peer is shared in the Timed Sync messages,
+the same `encryption_ver = 0` field will be set. When connecting to a peer with
+this mode, the client/initiator should not use SSL.
+
+### Autodetect Encryption
+If a peer chooses to have encryption, it will send `encryption_ver = 1` in the
+Handshake messages. This is also the default - if the peer does not send the
+`encryption_ver` in the Handshake, it assumed to be `1`. When this peer is
+shared in the Timed Sync messages, the same `encryption_ver = 1` field will be
+set, with a default of `1` if the field is not sent.
+
+When connecting to a peer of this type, the client/initiator should attempt
+SSL with no server/responder verification. If the connection fails, it should
+immediately attempt a non-SSL connection.
+
+### Authenticated Encryption
+If a peer chooses to have a persistent SSL certificate, it will send
+`encryption_ver = 1` AND `ssl_finger = <binary sha256 of cert>` in the
+Handshake messages. When this peer is shared in the Timed Sync messages, the
+same values are set, alerting other nodes that an authenticated connection
+is possible.
+
+When connecting to a peer of this type, the client/initiator should attempt
+a SSL connection with verification of the SSL fingerprint. The connection
+should fail if the fingerprint check fails - it is treated identically to
+a invalid/old port number.
+
 ## Commands
 ### P2P (Admin) Commands
 
