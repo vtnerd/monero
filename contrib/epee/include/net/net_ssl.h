@@ -151,6 +151,8 @@ namespace net_utils
 	bool create_ec_ssl_certificate(EVP_PKEY *&pkey, X509 *&cert);
 	bool create_rsa_ssl_certificate(EVP_PKEY *&pkey, X509 *&cert);
 
+  std::vector<std::uint8_t> convert_fingerprint(const boost::string_ref id);
+
   /**
    * @brief Create a binary X509 certificate fingerprint
    *

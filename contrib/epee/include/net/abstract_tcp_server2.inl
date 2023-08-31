@@ -1210,7 +1210,7 @@ namespace net_utils
       boost::asio::ip::tcp::endpoint binded_endpoint = acceptor_.local_endpoint();
       m_port = binded_endpoint.port();
       MDEBUG("start accept (IPv4)");
-      new_connection_.reset(new connection<t_protocol_handler>(io_service_, m_state, m_connection_type, ssl_options.support));
+      new_connection_.reset(new connection<t_protocol_handler>(io_service_, m_state, m_connection_type, m_state->ssl_options().support));
       acceptor_.async_accept(new_connection_->socket(),
 	boost::bind(&boosted_tcp_server<t_protocol_handler>::handle_accept_ipv4, this,
 	boost::asio::placeholders::error));
@@ -1649,6 +1649,7 @@ namespace net_utils
           sock_.close();
         return CONNECT_FAILURE;
       }
+      new_connection_l->set_ssl_enabled();
     }
 
     return CONNECT_SUCCESS;

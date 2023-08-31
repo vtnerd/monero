@@ -67,10 +67,7 @@ namespace nodetool
       return {net::ssl_support_t::e_ssl_support_autodetect};
 
     // Fingerprint specified, require SSL
-    std::vector<std::vector<std::uint8_t>> fingers;
-    fingers.emplace_back();
-    fingers.back().resize(peer.ssl_finger.size());
-    std::copy(peer.ssl_finger.begin(), peer.ssl_finger.end(), fingers.back().begin());
+    std::vector<std::vector<std::uint8_t>> fingers{net::convert_fingerprint(peer.ssl_finger)};
     return {std::move(fingers), {}};
   }
 
@@ -107,7 +104,7 @@ namespace nodetool
       KV_SERIALIZE_OPT(rpc_port, (uint16_t)0)
       KV_SERIALIZE_OPT(rpc_credits_per_hash, (uint32_t)0)
       KV_SERIALIZE_OPT(encryption_ver, (uint8_t)1)
-      KV_SERIALIZE(ssl_finger) // omitted when empty
+      KV_SERIALIZE_OPT(ssl_finger, std::string{})
     END_KV_SERIALIZE_MAP()
 
     BEGIN_SERIALIZE()

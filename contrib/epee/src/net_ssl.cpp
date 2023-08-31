@@ -27,6 +27,7 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <algorithm>
 #include <string.h>
 #include <thread>
 #include <boost/asio/ssl.hpp>
@@ -642,6 +643,14 @@ bool ssl_options_t::handshake(
   }
   MDEBUG("SSL handshake success");
   return true;
+}
+
+std::vector<std::uint8_t> convert_fingerprint(const boost::string_ref id)
+{
+  std::vector<std::uint8_t> out;
+  out.resize(id.size());
+  std::copy(id.begin(), id.end(), out.begin());
+  return out;
 }
 
 std::string get_ssl_fingerprint(const X509 *cert, const EVP_MD *fdig)

@@ -1189,7 +1189,6 @@ namespace nodetool
   bool node_server<t_payload_net_handler>::do_handshake_with_peer(peerid_type& pi, p2p_connection_context& context_, bool just_take_peerlist)
   {
     network_zone& zone = m_network_zones.at(context_.m_remote_address.get_zone());
-
     typename COMMAND_HANDSHAKE::request arg;
     typename COMMAND_HANDSHAKE::response rsp;
     get_local_node_data(arg.node_data, zone);
@@ -2279,7 +2278,10 @@ namespace nodetool
   template<class t_payload_net_handler>
   bool node_server<t_payload_net_handler>::relay_notify_to_list(int command, epee::levin::message_writer data_buff, std::vector<std::pair<epee::net_utils::zone, boost::uuids::uuid>> connections)
   {
-    epee::byte_slice message = data_buff.finalize_notify(command);
+    namespace net = epee::net_utils;
+    const bool pad =
+      m_network_zones.at(net::zone::public_).m_ssl_mode != net::ssl_support_t::e_ssl_support_disabled;
+    epee::byte_slice message = data_buff.finalize_notify(command, pad);
     std::sort(connections.begin(), connections.end());
     auto zone = m_network_zones.begin();
     for(const auto& c_id: connections)
@@ -2370,7 +2372,7 @@ namespace nodetool
       return false;
 
     network_zone& zone = m_network_zones.at(context.m_remote_address.get_zone());
-    int res = zone.m_net_server.get_config_object().send(message.finalize_notify(command), context.m_connection_id);
+    int res = zone.m_net_server.get_config_object().send(message.finalize_notify(command, context.m_ssl), context.m_connection_id);
     return res > 0;
   }
   //-----------------------------------------------------------------------------------
@@ -2424,6 +2426,17 @@ namespace nodetool
     {
       address = epee::net_utils::network_address{epee::net_utils::ipv6_network_address(ipv6_addr, node_data.my_port)};
     }
+
+    namespace net = epee::net_utils;
+    net::ssl_options_t ssl_options = net::ssl_support_t::e_ssl_support_disabled;
+    if (!node_data.ssl_finger.empty())
+    { 
+      std::vector<std::vector<std::uint8_t>> fingers{net::convert_fingerprint(node_data.ssl_finger)};
+      ssl_options = net::ssl_options_t{std::move(fingers), {}};
+    }
+    else if (node_data.encryption_ver == 1)
+      ssl_options = net::ssl_support_t::e_ssl_support_autodetect;
+
     peerid_type pr = node_data.peer_id;
     bool r = zone.m_net_server.connect_async(ip, port, zone.m_config.m_net_config.ping_connection_timeout, [cb, /*context,*/ address, pr, this](
       const typename net_server::t_connection_context& ping_context,
@@ -2474,7 +2487,7 @@ namespace nodetool
         return false;
       }
       return true;
-    }, "0.0.0.0", epee::net_utils::ssl_support_t::e_ssl_support_disabled);
+    }, "0.0.0.0", std::move(ssl_options));
     if(!r)
     {
       LOG_WARNING_CC(context, "Failed to call connect_async, network error.");
@@ -3200,10 +3213,14 @@ namespace nodetool
       return boost::none;
     }
 
+    const auto ssl_mode =
+      zone.m_ssl_mode == epee::net_utils::ssl_support_t::e_ssl_support_disabled ?
+        zone.m_ssl_mode : peer.ssl_mode;
+
     typename net_server::t_connection_context con{};
     const bool res = zone.m_net_server.connect(address, port,
       zone.m_config.m_net_config.connection_timeout,
-      con, "0.0.0.0", peer.ssl_mode);
+      con, "0.0.0.0", ssl_mode);
 
     if (res)
       return {std::move(con)};

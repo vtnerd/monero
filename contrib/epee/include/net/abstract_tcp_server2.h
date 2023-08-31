@@ -296,7 +296,11 @@ namespace net_utils
 
 
 		bool speed_limit_is_enabled() const; ///< tells us should we be sleeping here (e.g. do not sleep on RPC connections)
-
+    void set_ssl_enabled()
+    {
+      m_state.ssl.enabled = true;
+      m_state.ssl.handshaked = true;
+    }
     bool cancel();
     
   private:

@@ -438,7 +438,7 @@ TEST_F(positive_test_connection_to_levin_protocol_handler_calls, handler_process
   message.buffer.write(epee::to_span(in_data));
 
   const epee::byte_slice noise = epee::levin::make_noise_notify(1024);
-  const epee::byte_slice notify = message.finalize_notify(expected_command);
+  const epee::byte_slice notify = message.finalize_notify(expected_command, false);
 
   test_connection_ptr conn = create_connection();
 
@@ -479,7 +479,7 @@ TEST_F(positive_test_connection_to_levin_protocol_handler_calls, handler_process
   in_fragmented_data.buffer.put_n('c', 1024 * 4);
 
   const epee::byte_slice noise = epee::levin::make_noise_notify(1024);
-  const epee::byte_slice notify = message.finalize_notify(expected_command);
+  const epee::byte_slice notify = message.finalize_notify(expected_command, false);
   epee::byte_slice fragmented = epee::levin::make_fragmented_notify(noise.size(), expected_fragmented_command, std::move(in_fragmented_data));
 
   EXPECT_EQ(5u, fragmented.size() / 1024);
