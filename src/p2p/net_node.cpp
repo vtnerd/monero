@@ -142,7 +142,8 @@ namespace nodetool
 
     const command_line::arg_descriptor<uint32_t>    arg_p2p_external_port  = {"p2p-external-port", "External port for p2p network protocol (if port forwarding used with NAT)", 0};
     const command_line::arg_descriptor<bool>        arg_p2p_allow_local_ip = {"allow-local-ip", "Allow local ip add to peer list, mostly in debug purposes"};
-    const command_line::arg_descriptor<std::vector<std::string> > arg_p2p_add_peer   = {"add-peer", "Manually add peer to local peerlist. Append \",sha-256 fingerprint\" to make authenticated connection." };
+    const command_line::arg_descriptor<std::vector<std::string> > arg_p2p_add_peer   = {"add-peer", "Manually add peer to local peerlist. Append \",sha-256 fingerprint\" to make authenticated connection." 
+                                                                                        "Append \",no_encryption\" to disable SSL autodetect."};
     const command_line::arg_descriptor<std::vector<std::string> > arg_p2p_add_priority_node   = {"add-priority-node", "Specify list of peers to connect to and attempt to keep the connection open. "
                                                                                                   "Append \",sha-256 fingerprint\" to make authenticated connection. Append \",no_encryption\" to disable SSL autodetect."};
     const command_line::arg_descriptor<std::vector<std::string> > arg_p2p_add_exclusive_node   = {"add-exclusive-node", "Specify list of peers to connect to only. "
@@ -172,8 +173,10 @@ namespace nodetool
     const command_line::arg_descriptor<int64_t> arg_limit_rate = {"limit-rate", "set limit-rate [kB/s]", -1};
 
     const command_line::arg_descriptor<bool> arg_pad_transactions = {
-      "pad-transactions", "Pad relayed transactions to help defend against traffic volume analysis", false
+      "pad-transactions", "Pad relayed transactions to help defend against traffic volume analysis. Always enabled on SSL, Tor, and I2P connections.", false
     };
+
+
     const command_line::arg_descriptor<uint32_t> arg_max_connections_per_ip = {"max-connections-per-ip", "Maximum number of connections allowed from the same IP address", 1};
 
     boost::optional<std::vector<proxy>> get_proxies(boost::program_options::variables_map const& vm)

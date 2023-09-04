@@ -678,7 +678,8 @@ std::string get_ssl_fingerprint(boost::asio::ssl::context &ssl_context, const EV
   
   X509* ssl_cert = nullptr;
   std::unique_ptr<SSL, decltype(&SSL_free)> dflt_SSL(SSL_new(ctx), SSL_free);
-  CHECK_AND_ASSERT_THROW_MES(!(ssl_cert = SSL_get_certificate(dflt_SSL.get())), "Failed to create SSL");
+  CHECK_AND_ASSERT_THROW_MES(dflt_SSL, "Failed to create new SSL object");
+  CHECK_AND_ASSERT_THROW_MES((ssl_cert = SSL_get_certificate(dflt_SSL.get())), "Failed to get SSL certificate");
   return get_ssl_fingerprint(ssl_cert, fdig);
 }
 

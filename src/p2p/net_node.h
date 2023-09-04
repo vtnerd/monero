@@ -111,23 +111,41 @@ namespace nodetool
   struct p2p_connection_context_t: base_type //t_payload_net_handler::connection_context //public net_utils::connection_context_base
   {
     p2p_connection_context_t()
-      : peer_id(0),
+      : cert_finger(),
+        peer_id(0),
         support_flags(0),
-        m_in_timedsync(false),
-        e2e_mode(epee::net_utils::ssl_support_t::e_ssl_support_disabled)
+        encryption_mode(emode_ssl_autodetect),
+        m_in_timedsync(false)
     {}
 
+    std::string cert_finger;
     peerid_type peer_id;
     uint32_t support_flags;
+    uint8_t encryption_mode;
     bool m_in_timedsync;
-    epee::net_utils::ssl_options_t e2e_mode;
     std::set<epee::net_utils::network_address> sent_addresses;
   };
 
   struct p2p_address
   {
     epee::net_utils::network_address na;
-    epee::net_utils::ssl_options_t ssl_mode = epee::net_utils::ssl_support_t::e_ssl_support_autodetect;
+    epee::net_utils::ssl_options_t ssl = epee::net_utils::ssl_support_t::e_ssl_support_autodetect;
+
+    template<typename T>
+    void update_peer(T& peer) const
+    {
+      peer.adr = na;
+      peer.encryption_mode = emode_ssl_autodetect;
+      if (!ssl)
+        peer.encryption_mode = emode_disabled;
+      if (!ssl.fingerprints().empty())
+      {
+        peer.encryption_mode = emode_ssl_enabled;
+        auto& fingerprint = ssl.fingerprints().front();
+        peer.cert_finger.resize(fingerprint.size());
+        std::copy(fingerprint.begin(), fingerprint.end(), peer.cert_finger.begin());
+      }
+    }
     
     bool operator==(const p2p_address& rhs) const
     { return na == rhs.na; }  
@@ -136,7 +154,7 @@ namespace nodetool
   struct string_address
   {
     std::string address;
-    epee::net_utils::ssl_options_t ssl_mode;
+    epee::net_utils::ssl_options_t ssl;
     
     bool operator<(const string_address& rhs) const noexcept
     { return address < rhs.address; }
@@ -197,7 +215,7 @@ namespace nodetool
           m_proxy_address(),
           m_current_number_of_out_peers(0),
           m_current_number_of_in_peers(0),
-          m_ssl_mode(epee::net_utils::ssl_support_t::e_ssl_support_disabled),
+          m_ssl_support(epee::net_utils::ssl_support_t::e_ssl_support_disabled),
           m_seed_nodes_lock(),
           m_can_pingback(false),
           m_seed_nodes_initialized(false)
@@ -221,7 +239,7 @@ namespace nodetool
           m_proxy_address(),
           m_current_number_of_out_peers(0),
           m_current_number_of_in_peers(0),
-          m_ssl_mode(epee::net_utils::ssl_support_t::e_ssl_support_disabled),
+          m_ssl_support(epee::net_utils::ssl_support_t::e_ssl_support_disabled),
           m_seed_nodes_lock(),
           m_can_pingback(false),
           m_seed_nodes_initialized(false)
@@ -244,7 +262,7 @@ namespace nodetool
       boost::asio::ip::tcp::endpoint m_proxy_address;
       std::atomic<unsigned int> m_current_number_of_out_peers;
       std::atomic<unsigned int> m_current_number_of_in_peers;
-      epee::net_utils::ssl_support_t m_ssl_mode;
+      epee::net_utils::ssl_support_t m_ssl_support;
       boost::shared_mutex m_seed_nodes_lock;
       bool m_can_pingback;
       bool m_seed_nodes_initialized;

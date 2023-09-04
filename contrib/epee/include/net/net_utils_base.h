@@ -32,6 +32,7 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/address_v6.hpp>
+#include <boost/optional/optional.hpp>
 #include <typeinfo>
 #include <type_traits>
 #include "byte_slice.h"
@@ -420,6 +421,13 @@ namespace net_utils
     {
       set_details(a.m_connection_id, a.m_remote_address, a.m_is_income, a.m_ssl);
       return *this;
+    }
+
+    bool should_pad() const
+    {
+      if (m_remote_address.get_zone() == zone::public_)
+        return m_ssl;
+      return true; // all other zones use encryption by default
     }
     
   private:

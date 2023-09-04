@@ -28,7 +28,7 @@
 
 #include "net/levin_base.h"
 
-#include <random>
+#include <sodium/randombytes.h>
 #include "cryptonote_config.h"
 #include "int-util.h"
 
@@ -48,13 +48,11 @@ namespace levin
     if (buffer.size() < sizeof(header))
       throw std::runtime_error{"levin_writer::finalize already called"};
 
-    std::size_t pad_bytes = 0;
+    std::uint32_t pad_bytes = 0;
     if (pad)
     {
-      std::random_device rand{};
-      std::uniform_int_distribution<std::size_t> dist{0, P2P_MAX_SSL_PAD_BYTES};
-      pad_bytes = dist(rand);
-
+      static_assert(P2P_MAX_LEVIN_PAD_BYTES <= std::numeric_limits<std::uint32_t>::max(), "invalid max ssl pad bytes");
+      pad_bytes = randombytes_uniform(P2P_MAX_LEVIN_PAD_BYTES);
       if (std::numeric_limits<std::size_t>::max() - payload_size() < pad_bytes)
         throw std::runtime_error{"levin_write::finalize failed to pad bytes due to overflow"};
     }

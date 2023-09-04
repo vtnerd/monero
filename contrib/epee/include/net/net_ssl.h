@@ -107,6 +107,9 @@ namespace net_utils
     //! \return True if `host` can be verified using `this` configuration WITHOUT system "root" CAs.
     bool has_strong_verification(boost::string_ref host) const noexcept;
 
+    //! \return All fingerprints
+    const std::vector<std::vector<std::uint8_t>>& fingerprints() const noexcept { return fingerprints_; }
+
     //! Search against internal fingerprints. Always false if `behavior() != user_certificate_check`.
     bool has_fingerprint(boost::asio::ssl::verify_context &ctx) const;
 
