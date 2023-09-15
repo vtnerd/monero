@@ -146,16 +146,16 @@ namespace nodetool
         std::copy(fingerprint.begin(), fingerprint.end(), peer.cert_finger.begin());
       }
     }
-    
+
     bool operator==(const p2p_address& rhs) const
-    { return na == rhs.na; }  
+    { return na == rhs.na; }
   };
 
   struct string_address
   {
     std::string address;
     epee::net_utils::ssl_options_t ssl;
-    
+
     bool operator<(const string_address& rhs) const noexcept
     { return address < rhs.address; }
 
@@ -163,7 +163,7 @@ namespace nodetool
     { return address == rhs.address; }
   };
 
-  template<class t_payload_net_handler> 
+  template<class t_payload_net_handler>
   class node_server: public epee::levin::levin_commands_handler<p2p_connection_context_t<typename t_payload_net_handler::connection_context> >,
                      public i_p2p_endpoint<typename t_payload_net_handler::connection_context>,
                      public epee::net_utils::i_connection_filter

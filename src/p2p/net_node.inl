@@ -88,7 +88,7 @@ namespace nodetool
     const auto pos = adr.find(',');
     net::ssl_options_t e2e_mode{net::ssl_support_t::e_ssl_support_autodetect};
     if (boost::string_ref{adr}.ends_with("no_encryption"))
-      e2e_mode = net::ssl_options_t{net::ssl_support_t::e_ssl_support_enabled};
+      e2e_mode = net::ssl_options_t{net::ssl_support_t::e_ssl_support_disabled};
     else if (pos != std::string::npos)
       e2e_mode = net::ssl_options_t{{epee::from_hex_locale::to_vector(boost::string_ref{adr}.substr(pos + 1))}, {}};
     adr.erase(std::min(adr.size(), adr.find(',')));
@@ -718,36 +718,36 @@ namespace nodetool
   template<class t_payload_net_handler>
   std::set<string_address> node_server<t_payload_net_handler>::get_ip_seed_nodes() const
   {
-    const auto no_encryption = epee::net_utils::ssl_support_t::e_ssl_support_disabled;
+    const auto autodetect = epee::net_utils::ssl_support_t::e_ssl_support_autodetect;
     std::set<string_address> full_addrs;
     if (m_nettype == cryptonote::TESTNET)
     {
-      full_addrs.insert(string_address{"176.9.0.187:28080", no_encryption});
-      full_addrs.insert(string_address{"88.99.173.38:28080", no_encryption});
-      full_addrs.insert(string_address{"51.79.173.165:28080", no_encryption});
-      full_addrs.insert(string_address{"192.99.8.110:28080", no_encryption});
-      full_addrs.insert(string_address{"37.187.74.171:28080", no_encryption});
+      full_addrs.insert(string_address{"176.9.0.187:28080", autodetect});
+      full_addrs.insert(string_address{"88.99.173.38:28080", autodetect});
+      full_addrs.insert(string_address{"51.79.173.165:28080", autodetect});
+      full_addrs.insert(string_address{"192.99.8.110:28080", autodetect});
+      full_addrs.insert(string_address{"37.187.74.171:28080", autodetect});
     }
     else if (m_nettype == cryptonote::STAGENET)
     {
-      full_addrs.insert(string_address{"176.9.0.187:38080", no_encryption});
-      full_addrs.insert(string_address{"88.99.173.38:38080", no_encryption});
-      full_addrs.insert(string_address{"51.79.173.165:38080", no_encryption});
-      full_addrs.insert(string_address{"192.99.8.110:38080", no_encryption});
-      full_addrs.insert(string_address{"37.187.74.171:38080", no_encryption});
+      full_addrs.insert(string_address{"176.9.0.187:38080", autodetect});
+      full_addrs.insert(string_address{"88.99.173.38:38080", autodetect});
+      full_addrs.insert(string_address{"51.79.173.165:38080", autodetect});
+      full_addrs.insert(string_address{"192.99.8.110:38080", autodetect});
+      full_addrs.insert(string_address{"37.187.74.171:38080", autodetect});
     }
     else if (m_nettype == cryptonote::FAKECHAIN)
     {
     }
     else
     {
-      full_addrs.insert(string_address{"176.9.0.187:18080", no_encryption});
-      full_addrs.insert(string_address{"88.198.163.90:18080", no_encryption});
-      full_addrs.insert(string_address{"66.85.74.134:18080", no_encryption});
-      full_addrs.insert(string_address{"88.99.173.38:18080", no_encryption});
-      full_addrs.insert(string_address{"51.79.173.165:18080", no_encryption});
-      full_addrs.insert(string_address{"192.99.8.110:18080", no_encryption});
-      full_addrs.insert(string_address{"37.187.74.171:18080", no_encryption});
+      full_addrs.insert(string_address{"176.9.0.187:18080", autodetect});
+      full_addrs.insert(string_address{"88.198.163.90:18080", autodetect});
+      full_addrs.insert(string_address{"66.85.74.134:18080", autodetect});
+      full_addrs.insert(string_address{"88.99.173.38:18080", autodetect});
+      full_addrs.insert(string_address{"51.79.173.165:18080", autodetect});
+      full_addrs.insert(string_address{"192.99.8.110:18080", autodetect});
+      full_addrs.insert(string_address{"37.187.74.171:18080", autodetect});
     }
     return full_addrs;
   }
@@ -870,6 +870,7 @@ namespace nodetool
   template<class t_payload_net_handler>
   std::set<string_address> node_server<t_payload_net_handler>::get_seed_nodes(epee::net_utils::zone zone)
   {
+    // `.onion` and `.i2p` are already end-to-end encrypted
     const auto no_encryption = epee::net_utils::ssl_support_t::e_ssl_support_disabled;
     switch (zone)
     {
@@ -1006,11 +1007,12 @@ namespace nodetool
         const auto key_files = m_config_folder + "/p2p_public";
         if (zone.first == epee::net_utils::zone::public_ && !command_line::get_arg(vm, arg_p2p_disable_encryption))
         {
-          MINFO("Using persistent SSL certificate for p2p");
           p2p_ssl = net::ssl_options_t{net::ssl_support_t::e_ssl_support_autodetect};
           if (command_line::get_arg(vm, arg_p2p_persistent_cert))
           {
             share_fingerprint = true;
+            p2p_ssl = net::ssl_options_t{net::ssl_support_t::e_ssl_support_enabled};
+            MINFO("Using persistent SSL certificate for p2p");
             if (boost::filesystem::exists(key_files + ".key") && boost::filesystem::exists(key_files + ".crt"))
             {
               p2p_ssl.auth.private_key_path = key_files + ".key";
@@ -1475,6 +1477,7 @@ namespace nodetool
     }
 
     peerlist_entry pe_local = AUTO_VAL_INIT(pe_local);
+    pe_local.adr = peer.na;
     pe_local.id = pi;
     time_t last_seen;
     time(&last_seen);
@@ -3216,7 +3219,7 @@ namespace nodetool
 
     const auto ssl =
       zone.m_ssl_support == epee::net_utils::ssl_support_t::e_ssl_support_disabled ?
-        zone.m_ssl_support: peer.ssl;
+        zone.m_ssl_support : peer.ssl;
 
     typename net_server::t_connection_context con{};
     const bool res = zone.m_net_server.connect(address, port,

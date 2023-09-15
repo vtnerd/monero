@@ -430,7 +430,6 @@ namespace nodetool
   bool peerlist_manager::append_with_peer_anchor(const anchor_peerlist_entry& ple)
   {
     TRY_ENTRY();
-
     CRITICAL_REGION_LOCAL(m_peerlist_lock);
 
     auto by_addr_it_anchor = m_peers_anchor.get<by_addr>().find(ple.adr);

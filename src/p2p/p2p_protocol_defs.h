@@ -67,7 +67,7 @@ namespace nodetool
     switch (support)
     {
       case epee::net_utils::ssl_support_t::e_ssl_support_enabled:
-        return  emode_ssl_enabled;
+        return emode_ssl_enabled;
       case epee::net_utils::ssl_support_t::e_ssl_support_disabled:
         return emode_disabled;
       default:
@@ -139,17 +139,6 @@ namespace nodetool
       KV_SERIALIZE_OPT(encryption_mode, emode_ssl_autodetect)
       KV_SERIALIZE_OPT(cert_finger, std::string{})
     END_KV_SERIALIZE_MAP()
-
-    BEGIN_SERIALIZE()
-      FIELD(adr)
-      FIELD(id)
-      VARINT_FIELD(last_seen)
-      VARINT_FIELD(pruning_seed)
-      VARINT_FIELD(rpc_port)
-      VARINT_FIELD(rpc_credits_per_hash)
-      VARINT_FIELD(encryption_mode)
-      FIELD(cert_finger)
-    END_SERIALIZE()
   };
   typedef peerlist_entry_base<epee::net_utils::network_address> peerlist_entry;
 
@@ -169,14 +158,6 @@ namespace nodetool
       KV_SERIALIZE_OPT(encryption_mode, emode_ssl_autodetect)
       KV_SERIALIZE_OPT(cert_finger, std::string{})
     END_KV_SERIALIZE_MAP()
-
-    BEGIN_SERIALIZE()
-      FIELD(adr)
-      FIELD(id)
-      VARINT_FIELD(first_seen)
-      VARINT_FIELD(encryption_mode)
-      FIELD(cert_finger)
-    END_SERIALIZE()
   };
   typedef anchor_peerlist_entry_base<epee::net_utils::network_address> anchor_peerlist_entry;
 

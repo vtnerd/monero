@@ -136,22 +136,23 @@ contents can be safely ignored.
 
 
 ## Encryption
-The Levin protocol now has optional SSL encryption. Each peer can have 3 states:
-(1) no encryption, (2) autodetect encryption, or (3) authenticated encryption.
+The Levin protocol now has optional SSL encryption. Each peer can have 4 states:
+(1) no encryption, (2) autodetect encryption, (3) mandatory encryption with no
+certificate verification, or (4) mandatory encryption with certificate
+verification.
 
 > The server/responder must always be in autodetect SSL mode, so that it can
-handle any possible state that the client/initiator is in.
+handle any possible state that the client/initiator is in.gt
 
 ### No Encryption
-If a peer chooses to have no encryption, it will send `encryption_ver = 0` in
-the Handshake messages. When this peer is shared in the Timed Sync messages,
-the same `encryption_ver = 0` field will be set. When connecting to a peer with
-this mode, the client/initiator should not use SSL.
+If a peer chooses to have no encryption, it will send `encryption_mode = 1` in
+Handshake messages. All clients/initiators can then skip an attempt to connect
+in
 
 ### Autodetect Encryption
-If a peer chooses to have encryption, it will send `encryption_ver = 1` in the
+If a peer makes no selection, it will default `encryption_mode = 0` in the
 Handshake messages. This is also the default - if the peer does not send the
-`encryption_ver` in the Handshake, it assumed to be `1`. When this peer is
+`encryption_mode` in the Handshake, it assumed to be `1`. When this peer is
 shared in the Timed Sync messages, the same `encryption_ver = 1` field will be
 set, with a default of `1` if the field is not sent.
 
