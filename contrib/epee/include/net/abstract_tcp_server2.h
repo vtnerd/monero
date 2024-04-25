@@ -131,6 +131,7 @@ namespace net_utils
     void terminate();
     void on_terminating();
 
+
     bool send(epee::byte_slice message);
     bool start_internal(
       bool is_income,
@@ -302,6 +303,13 @@ namespace net_utils
       m_state.ssl.handshaked = true;
     }
     bool cancel();
+
+    //! Used by boosted_tcp_server class in async_connect_internal
+    template<typename F>
+    auto wrap(F&& f)
+    {
+      return m_strand.wrap(std::forward<F>(f));
+    }
     
   private:
     //----------------- i_service_endpoint ---------------------
@@ -384,6 +392,7 @@ namespace net_utils
     bool connect(const std::string& adr, const std::string& port, uint32_t conn_timeot, t_connection_context& cn, const std::string& bind_ip = "0.0.0.0", epee::net_utils::ssl_options_t ssl_options = epee::net_utils::ssl_support_t::e_ssl_support_autodetect);
     template<class t_callback>
     bool connect_async(const std::string& adr, const std::string& port, uint32_t conn_timeot, const t_callback &cb, const std::string& bind_ip = "0.0.0.0", epee::net_utils::ssl_options_t ssl_options = epee::net_utils::ssl_support_t::e_ssl_support_autodetect);
+
 
     boost::asio::ssl::context& get_ssl_context() noexcept
     {
@@ -480,6 +489,11 @@ namespace net_utils
     void handle_accept(const boost::system::error_code& e, bool ipv6 = false);
 
     bool is_thread_worker();
+
+    template<typename t_callback>
+    bool connect_async_internal(const connection_ptr& new_connection_l, const boost::asio::ip::tcp::endpoint& remote_endpoint, uint32_t conn_timeout, const t_callback &cb);
+
+    bool remove_connection(const connection_ptr& ptr);
 
     const std::shared_ptr<typename connection<t_protocol_handler>::shared_state> m_state;
 
