@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2023, The Monero Project
+// Copyright (c) 2014-2024, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -106,17 +106,6 @@ namespace nodetool
 
 #pragma pack (push, 1)
   
-  struct network_address_old
-  {
-    uint32_t ip;
-    uint32_t port;
-
-    BEGIN_KV_SERIALIZE_MAP()
-      KV_SERIALIZE(ip)
-      KV_SERIALIZE(port)
-    END_KV_SERIALIZE_MAP()
-  };
-
   template<typename AddressType>
   struct peerlist_entry_base
   {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2019-2023, The Monero Project
+# Copyright (c) 2019-2024, The Monero Project
 # 
 # All rights reserved.
 # 
@@ -36,7 +36,6 @@ Test the following RPCs:
 
 """
 
-from __future__ import print_function
 from framework.wallet import Wallet
 
 class IntegratedAddressTest():

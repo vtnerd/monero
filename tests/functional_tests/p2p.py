@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2018-2023, The Monero Project
+# Copyright (c) 2018-2024, The Monero Project
 
 # 
 # All rights reserved.
@@ -29,7 +29,6 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from __future__ import print_function
 import time
 
 """Test daemon P2P
@@ -161,12 +160,11 @@ class P2PTest():
 
     def test_p2p_tx_propagation(self):
         print('Testing P2P tx propagation')
-        daemon2 = Daemon(idx = 2)
-        daemon3 = Daemon(idx = 3)
+        daemons = (Daemon(idx=2), Daemon(idx=3))
 
-        for daemon in [daemon2, daemon3]:
+        for daemon in daemons:
             res = daemon.get_transaction_pool_hashes()
-            assert not 'tx_hashes' in res or len(res.tx_hashes) == 0
+            assert len(res.get('tx_hashes', [])) == 0
 
         self.wallet.refresh()
         res = self.wallet.get_balance()
@@ -176,12 +174,32 @@ class P2PTest():
         assert len(res.tx_hash) == 32*2
         txid = res.tx_hash
 
-        time.sleep(5)
-
-        for daemon in [daemon2, daemon3]:
-            res = daemon.get_transaction_pool_hashes()
-            assert len(res.tx_hashes) == 1
-            assert res.tx_hashes[0] == txid
+        # Due to Dandelion++, the network propagates transactions with a
+        # random delay, so poll for the transaction with a timeout. The delay
+        # should almost never exceed a maximum of 13s (~1/billion samples).
+        # Set the timeout slightly higher than the maximum delay to account
+        # for transmission and processing time.
+        timeout = 13.5
+        pending_daemons = set(daemons)
+        expected_hashes = [txid]
+        wait_cutoff = time.monotonic() + timeout
+        while True:
+            done = []
+            for daemon in pending_daemons:
+                res = daemon.get_transaction_pool_hashes()
+                hashes = res.get('tx_hashes')
+                if hashes:
+                    assert hashes == expected_hashes
+                    done.append(daemon)
+            pending_daemons.difference_update(done)
+            if len(pending_daemons) == 0:
+                break
+            max_delay = wait_cutoff - time.monotonic()
+            if max_delay <= 0:
+                break
+            time.sleep(min(.2, max_delay))
+        npending = len(pending_daemons)
+        assert npending == 0, '%d daemons pending' % npending
 
 
 if __name__ == '__main__':

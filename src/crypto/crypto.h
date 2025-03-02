@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2023, The Monero Project
+// Copyright (c) 2014-2024, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -70,22 +70,6 @@ namespace crypto {
   };
 
   using secret_key = epee::mlocked<tools::scrubbed<ec_scalar>>;
-
-  POD_CLASS public_keyV {
-    std::vector<public_key> keys;
-    int rows;
-  };
-
-  POD_CLASS secret_keyV {
-    std::vector<secret_key> keys;
-    int rows;
-  };
-
-  POD_CLASS public_keyM {
-    int cols;
-    int rows;
-    std::vector<secret_keyV> column_vectors;
-  };
 
   POD_CLASS key_derivation: ec_point {
     friend class crypto_ops;
@@ -171,7 +155,9 @@ namespace crypto {
   /* Generate a value filled with random bytes.
    */
   template<typename T>
-  typename std::enable_if<std::is_pod<T>::value, T>::type rand() {
+  T rand() {
+    static_assert(std::is_standard_layout_v<T>, "cannot write random bytes into non-standard layout type");
+    static_assert(std::is_trivially_copyable_v<T>, "cannot write random bytes into non-trivially copyable type");
     typename std::remove_cv<T>::type res;
     generate_random_bytes_thread_safe(sizeof(T), (uint8_t*)&res);
     return res;
@@ -314,8 +300,14 @@ namespace crypto {
   inline std::ostream &operator <<(std::ostream &o, const crypto::public_key &v) {
     epee::to_hex::formatted(o, epee::as_byte_span(v)); return o;
   }
-  inline std::ostream &operator <<(std::ostream &o, const crypto::secret_key &v) {
-    epee::to_hex::formatted(o, epee::as_byte_span(v)); return o;
+  /* Do NOT overload the << operator for crypto::secret_key here. Use secret_key_explicit_print_ref
+   * instead to prevent accidental implicit dumping of secret key material to the logs (which has
+   * happened before). For the same reason, do not overload it for crypto::ec_scalar either since
+   * crypto::secret_key is a subclass. I'm not sorry that it's obtuse; that's the point, bozo.
+   */
+  struct secret_key_explicit_print_ref { const crypto::secret_key &sk; };
+  inline std::ostream &operator <<(std::ostream &o, const secret_key_explicit_print_ref v) {
+    epee::to_hex::formatted(o, epee::as_byte_span(unwrap(unwrap(v.sk)))); return o;
   }
   inline std::ostream &operator <<(std::ostream &o, const crypto::key_derivation &v) {
     epee::to_hex::formatted(o, epee::as_byte_span(v)); return o;

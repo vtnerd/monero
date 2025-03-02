@@ -4,9 +4,6 @@
 [submodule "external/rapidjson"]
 	path = external/rapidjson
 	url = https://github.com/Tencent/rapidjson
-[submodule "external/trezor-common"]
-	path = external/trezor-common
-	url = https://github.com/trezor/trezor-common.git
 [submodule "external/randomx"]
 	path = external/randomx
 	url = https://github.com/tevador/RandomX
@@ -14,3 +11,6 @@
 	path = external/supercop
 	url = https://github.com/monero-project/supercop
 	branch = monero
+[submodule "external/gtest"]
+	path = external/gtest
+	url = https://github.com/google/googletest.git

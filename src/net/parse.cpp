@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2023, The Monero Project
+// Copyright (c) 2018-2024, The Monero Project
 
 //
 // All rights reserved.
@@ -81,10 +81,10 @@ namespace net
         if (host_str_ref.ends_with(".onion"))
             return tor_address::make(address, default_port);
         if (host_str_ref.ends_with(".i2p"))
-            return i2p_address::make(address, default_port);
+            return i2p_address::make(address);
 
         boost::system::error_code ec;
-        boost::asio::ip::address_v6 v6 = boost::asio::ip::address_v6::from_string(host_str, ec);
+        boost::asio::ip::address_v6 v6 = boost::asio::ip::make_address_v6(host_str, ec);
         ipv6 = !ec;
 
         std::uint16_t port = default_port;

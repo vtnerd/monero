@@ -1,13 +1,8 @@
 package=android_ndk
-$(package)_version=17b
+$(package)_version=27c
 $(package)_download_path=https://dl.google.com/android/repository/
-$(package)_file_name=android-ndk-r$($(package)_version)-linux-x86_64.zip
-$(package)_sha256_hash=5dfbbdc2d3ba859fed90d0e978af87c71a91a5be1f6e1c40ba697503d48ccecd
-
-define $(package)_set_vars
-$(package)_config_opts_arm=--arch arm
-$(package)_config_opts_aarch64=--arch arm64
-endef
+$(package)_file_name=android-ndk-r$($(package)_version)-linux.zip
+$(package)_sha256_hash=59c2f6dc96743b5daf5d1626684640b20a6bd2b1d85b13156b90333741bad5cc
 
 define $(package)_extract_cmds
   echo $($(package)_sha256_hash) $($(1)_source_dir)/$($(package)_file_name) | sha256sum -c &&\
@@ -15,8 +10,6 @@ define $(package)_extract_cmds
 endef
 
 define $(package)_stage_cmds
-  android-ndk-r$($(package)_version)/build/tools/make_standalone_toolchain.py --api 21 \
-    --install-dir $(build_prefix) --stl=libc++ $($(package)_config_opts) &&\
-  mv $(build_prefix) $($(package)_staging_dir)/$(host_prefix)
+  mkdir -p $($(package)_staging_prefix_dir) && \
+  mv android-ndk-r$($(package)_version)/toolchains/llvm/prebuilt/linux-x86_64/* $($(package)_staging_prefix_dir)
 endef
-

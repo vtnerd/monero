@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2023, The Monero Project
+// Copyright (c) 2014-2024, The Monero Project
 //
 // All rights reserved.
 //
@@ -28,6 +28,7 @@
 
 #include "common/dns_utils.h"
 // check local first (in the event of static or in-source compilation of libunbound)
+#include "misc_language.h"
 #include "unbound.h"
 
 #include <deque>
@@ -105,6 +106,7 @@ get_builtin_ds(void)
   static const char * const ds[] =
   {
     ". IN DS 20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D\n",
+    ". IN DS 38696 8 2 683D2D0ACB8C9B712A1948B27F741219298D0A450D612C483AF444A4C0FB2B16\n",
     NULL
   };
   return ds;
@@ -195,36 +197,7 @@ boost::optional<std::string> tlsa_to_string(const char* src, size_t len)
     return boost::none;
   return std::string(src, len);
 }
-
-// custom smart pointer.
-// TODO: see if std::auto_ptr and the like support custom destructors
-template<typename type, void (*freefunc)(type*)>
-class scoped_ptr
-{
-public:
-  scoped_ptr():
-    ptr(nullptr)
-  {
-  }
-  scoped_ptr(type *p):
-    ptr(p)
-  {
-  }
-  ~scoped_ptr()
-  {
-    freefunc(ptr);
-  }
-  operator type *() { return ptr; }
-  type **operator &() { return &ptr; }
-  type *operator->() { return ptr; }
-  operator const type*() const { return &ptr; }
-
-private:
-  type* ptr;
-};
-
-typedef class scoped_ptr<ub_result,ub_resolve_free> ub_result_ptr;
-
+  
 struct DNSResolverData
 {
   ub_ctx* m_ub_context;
@@ -327,10 +300,14 @@ std::vector<std::string> DNSResolver::get_record(const std::string& url, int rec
   std::vector<std::string> addresses;
   dnssec_available = false;
   dnssec_valid = false;
-
-  // destructor takes care of cleanup
-  ub_result_ptr result;
-
+  
+  ub_result *result;
+  // Make sure we are cleaning after result.
+  epee::misc_utils::auto_scope_leave_caller scope_exit_handler =
+    epee::misc_utils::create_scope_leave_handler([&](){
+    ub_resolve_free(result);
+  });
+  
   MDEBUG("Performing DNSSEC " << get_record_name(record_type) << " record query for " << url);
 
   // call DNS resolver, blocking.  if return value not zero, something went wrong

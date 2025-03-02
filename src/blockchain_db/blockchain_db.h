@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2023, The Monero Project
+// Copyright (c) 2014-2024, The Monero Project
 //
 // All rights reserved.
 //
@@ -718,41 +718,6 @@ public:
    */
   virtual std::string get_db_name() const = 0;
 
-
-  // FIXME: these are just for functionality mocking, need to implement
-  // RAII-friendly and multi-read one-write friendly locking mechanism
-  //
-  // acquire db lock
-  /**
-   * @brief acquires the BlockchainDB lock
-   *
-   * This function is a stub until such a time as locking is implemented at
-   * this level.
-   *
-   * The subclass implementation should return true unless implementing a
-   * locking scheme of some sort, in which case it should return true upon
-   * acquisition of the lock and block until then.
-   *
-   * If any of this cannot be done, the subclass should throw the corresponding
-   * subclass of DB_EXCEPTION
-   *
-   * @return true, unless at a future time false makes sense (timeout, etc)
-   */
-  virtual bool lock() = 0;
-
-  // release db lock
-  /**
-   * @brief This function releases the BlockchainDB lock
-   *
-   * The subclass, should it have implemented lock(), will release any lock
-   * held by the calling thread.  In the case of recursive locking, it should
-   * release one instance of a lock.
-   *
-   * If any of this cannot be done, the subclass should throw the corresponding
-   * subclass of DB_EXCEPTION
-   */
-  virtual void unlock() = 0;
-
   /**
    * @brief tells the BlockchainDB to start a new "batch" of blocks
    *
@@ -1304,6 +1269,21 @@ public:
    * @return true iff the transactions were found
    */
   virtual bool get_pruned_tx_blobs_from(const crypto::hash& h, size_t count, std::vector<cryptonote::blobdata> &bd) const = 0;
+
+  /**
+   * @brief Get all txids in the database (chain and pool) that match a certain nbits txid template
+   *
+   * To be more specific, for all `dbtxid` txids in the database, return `dbtxid` if
+   * `0 == cryptonote::compare_hash32_reversed_nbits(txid_template, dbtxid, nbits)`.
+   *
+   * @param txid_template the transaction id template
+   * @param nbits number of bits to compare against in the template
+   * @param max_num_txs The maximum number of txids to match, if we hit this limit, throw early
+   * @return std::vector<crypto::hash> the list of all matching txids
+   *
+   * @throw TX_EXISTS if the number of txids that match exceed `max_num_txs`
+   */
+  virtual std::vector<crypto::hash> get_txids_loose(const crypto::hash& txid_template, std::uint32_t nbits, uint64_t max_num_txs = 0) = 0;
 
   /**
    * @brief fetches a variable number of blocks and transactions from the given height, in canonical blockchain order

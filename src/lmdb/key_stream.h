@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2023, The Monero Project
+// Copyright (c) 2018-2024, The Monero Project
 
 // All rights reserved.
 //
@@ -133,6 +133,7 @@ namespace lmdb
         //! \pre `!is_end()` \return Current key
         K get_key() const noexcept
         {
+            static_assert(std::is_trivially_copyable<K>(), "key is not memcpy safe");
             assert(!is_end());
             K out;
             std::memcpy(std::addressof(out), key.data(), sizeof(out));

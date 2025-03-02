@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #encoding=utf-8
 
-# Copyright (c) 2019-2023, The Monero Project
+# Copyright (c) 2019-2024, The Monero Project
 # 
 # All rights reserved.
 # 
@@ -32,7 +32,6 @@
 """Test URI RPC
 """
 
-from __future__ import print_function
 try:
   from urllib import quote as urllib_quote
 except:

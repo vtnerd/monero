@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2023, The Monero Project
+// Copyright (c) 2014-2024, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -25,9 +25,6 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#include <boost/chrono/chrono.hpp>
-#include <boost/thread/thread.hpp>
 
 #undef UNICODE
 #undef _UNICODE
@@ -103,8 +100,8 @@ namespace {
   // to allow the user to read any output.
   void pause_to_display_admin_window_messages()
   {
-    boost::chrono::milliseconds how_long{1500};
-    boost::this_thread::sleep_for(how_long);
+    std::chrono::milliseconds how_long{1500};
+    std::this_thread::sleep_for(how_long);
   }
 }
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2023, The Monero Project
+# Copyright (c) 2014-2024, The Monero Project
 #
 # All rights reserved.
 #
@@ -78,5 +78,4 @@ target_link_libraries(device
     ${Boost_SERIALIZATION_LIBRARY}
   PRIVATE
     version
-    ${Blocks}
     ${EXTRA_LIBRARIES})

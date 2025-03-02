@@ -33,6 +33,9 @@
 #include "portable_storage_base.h"
 #include "portable_storage_bin_utils.h"
 
+#undef MONERO_DEFAULT_LOG_CATEGORY
+#define MONERO_DEFAULT_LOG_CATEGORY "serialization"
+
 #ifdef EPEE_PORTABLE_STORAGE_RECURSION_LIMIT
 #define EPEE_PORTABLE_STORAGE_RECURSION_LIMIT_INTERNAL EPEE_PORTABLE_STORAGE_RECURSION_LIMIT
 #else 
@@ -228,6 +231,7 @@ namespace epee
       default: 
         CHECK_AND_ASSERT_THROW_MES(false, "unknown entry_type code = " << type);
       }
+      return read_ae<int8_t>(); // unreachable, dummy return to avoid compiler warning
     }
 
     inline 
@@ -319,6 +323,7 @@ namespace epee
       default: 
         CHECK_AND_ASSERT_THROW_MES(false, "unknown entry_type code = " << ent_type);
       }
+      return read_se<int8_t>(); // unreachable, dummy return to avoid compiler warning
     }
     inline 
     void throwable_buffer_reader::read(section& sec)

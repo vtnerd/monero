@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2023, The Monero Project
+// Copyright (c) 2014-2024, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -197,7 +197,7 @@ struct binary_archive<true> : public binary_archive_base<true>
   {
     for (size_t i = 0; i < sizeof(T); i++) {
       stream_.put((char)(v & 0xff));
-      if (1 < sizeof(T)) v >>= 8;
+      if constexpr (1 < sizeof(T)) { v >>= 8; }
     }
   }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Monero Research Labs
+// Copyright (c) 2016-2024, Monero Research Labs
 //
 // Author: Shen Noether <shen.noether@gmx.com>
 //
@@ -84,6 +84,7 @@ namespace rct {
             return bytes[i];
         }
         bool operator==(const key &k) const { return !crypto_verify_32(bytes, k.bytes); }
+        bool operator!=(const key &k) const { return crypto_verify_32(bytes, k.bytes); }
         unsigned char bytes[32];
     };
     typedef std::vector<key> keyV; //vector of keys
@@ -218,7 +219,7 @@ namespace rct {
       rct::key a, b, t;
 
       Bulletproof():
-        A({}), S({}), T1({}), T2({}), taux({}), mu({}), a({}), b({}), t({}) {}
+        A({}), S({}), T1({}), T2({}), taux({}), mu({}), a({}), b({}), t({}), V({}), L({}), R({}) {}
       Bulletproof(const rct::key &V, const rct::key &A, const rct::key &S, const rct::key &T1, const rct::key &T2, const rct::key &taux, const rct::key &mu, const rct::keyV &L, const rct::keyV &R, const rct::key &a, const rct::key &b, const rct::key &t):
         V({V}), A(A), S(S), T1(T1), T2(T2), taux(taux), mu(mu), L(L), R(R), a(a), b(b), t(t) {}
       Bulletproof(const rct::keyV &V, const rct::key &A, const rct::key &S, const rct::key &T1, const rct::key &T2, const rct::key &taux, const rct::key &mu, const rct::keyV &L, const rct::keyV &R, const rct::key &a, const rct::key &b, const rct::key &t):
@@ -253,7 +254,7 @@ namespace rct {
       rct::key r1, s1, d1;
       rct::keyV L, R;
 
-      BulletproofPlus() {}
+      BulletproofPlus(): V(), A(), A1(), B(), r1(), s1(), d1(), L(), R() {}
       BulletproofPlus(const rct::key &V, const rct::key &A, const rct::key &A1, const rct::key &B, const rct::key &r1, const rct::key &s1, const rct::key &d1, const rct::keyV &L, const rct::keyV &R):
         V({V}), A(A), A1(A1), B(B), r1(r1), s1(s1), d1(d1), L(L), R(R) {}
       BulletproofPlus(const rct::keyV &V, const rct::key &A, const rct::key &A1, const rct::key &B, const rct::key &r1, const rct::key &s1, const rct::key &d1, const rct::keyV &L, const rct::keyV &R):
@@ -304,7 +305,7 @@ namespace rct {
       RCTTypeCLSAG = 5,
       RCTTypeBulletproofPlus = 6,
     };
-    enum RangeProofType { RangeProofBorromean, RangeProofBulletproof, RangeProofMultiOutputBulletproof, RangeProofPaddedBulletproof };
+    enum RangeProofType { RangeProofBorromean, RangeProofPaddedBulletproof };
     struct RCTConfig {
       RangeProofType range_proof_type;
       int bp_version;
@@ -324,6 +325,10 @@ namespace rct {
         std::vector<ecdhTuple> ecdhInfo;
         ctkeyV outPk;
         xmr_amount txnFee; // contains b
+
+        rctSigBase() :
+          type(RCTTypeNull), message{}, mixRing{}, pseudoOuts{}, ecdhInfo{}, outPk{}, txnFee(0)
+        {}
 
         template<bool W, template <bool> class Archive>
         bool serialize_rctsig_base(Archive<W> &ar, size_t inputs, size_t outputs)
@@ -362,11 +367,17 @@ namespace rct {
           {
             if (type == RCTTypeBulletproof2 || type == RCTTypeCLSAG || type == RCTTypeBulletproofPlus)
             {
+              // Since RCTTypeBulletproof2 enote types, we don't serialize the blinding factor, and only serialize the
+              // first 8 bytes of ecdhInfo[i].amount
               ar.begin_object();
-              if (!typename Archive<W>::is_saving())
+              crypto::hash8 trunc_amount; // placeholder variable needed to maintain "strict aliasing"
+              if (!typename Archive<W>::is_saving()) // loading
                 memset(ecdhInfo[i].amount.bytes, 0, sizeof(ecdhInfo[i].amount.bytes));
-              crypto::hash8 &amount = (crypto::hash8&)ecdhInfo[i].amount;
-              FIELD(amount);
+              else // saving
+                memcpy(trunc_amount.data, ecdhInfo[i].amount.bytes, sizeof(trunc_amount));
+              FIELD_N("amount", trunc_amount);
+              if (!typename Archive<W>::is_saving()) // loading
+                memcpy(ecdhInfo[i].amount.bytes, trunc_amount.data, sizeof(trunc_amount));
               ar.end_object();
             }
             else
@@ -761,7 +772,7 @@ namespace std
 BLOB_SERIALIZER(rct::key);
 BLOB_SERIALIZER(rct::key64);
 BLOB_SERIALIZER(rct::ctkey);
-BLOB_SERIALIZER(rct::multisig_kLRki);
+BLOB_SERIALIZER_FORCED(rct::multisig_kLRki);
 BLOB_SERIALIZER(rct::boroSig);
 
 VARIANT_TAG(debug_archive, rct::key, "rct::key");

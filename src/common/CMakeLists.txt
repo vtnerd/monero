@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2023, The Monero Project
+# Copyright (c) 2014-2024, The Monero Project
 #
 # All rights reserved.
 #
@@ -50,10 +50,6 @@ set(common_sources
 
 if (STACK_TRACE)
   list(APPEND common_sources stack_trace.cpp)
-endif()
-
-if (BACKCOMPAT)
-  list(APPEND common_sources compat/glibc_compat.cpp)
 endif()
 
 set(common_headers)

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023, The Monero Project
+// Copyright (c) 2017-2024, The Monero Project
 //
 // All rights reserved.
 //
@@ -79,10 +79,10 @@ TEST(Crypto, Ostream)
   EXPECT_TRUE(is_formatted<crypto::hash8>());
   EXPECT_TRUE(is_formatted<crypto::hash>());
   EXPECT_TRUE(is_formatted<crypto::public_key>());
-  EXPECT_TRUE(is_formatted<crypto::secret_key>());
   EXPECT_TRUE(is_formatted<crypto::signature>());
   EXPECT_TRUE(is_formatted<crypto::key_derivation>());
   EXPECT_TRUE(is_formatted<crypto::key_image>());
+  EXPECT_TRUE(is_formatted<rct::key>());
 }
 
 TEST(Crypto, null_keys)
@@ -112,6 +112,7 @@ TEST(Crypto, tree_branch)
 {
   crypto::hash inputs[6];
   crypto::hash branch[8];
+  crypto::hash branch_1[8 + 1];
   crypto::hash root, root2;
   size_t depth;
   uint32_t path, path2;
@@ -296,28 +297,36 @@ TEST(Crypto, tree_branch)
   ASSERT_FALSE(crypto::is_branch_in_tree(inputs[5].data, root.data, (const char(*)[32])branch, depth, path));
   ASSERT_FALSE(crypto::is_branch_in_tree(crypto::null_hash.data, root.data, (const char(*)[32])branch, depth, path));
 
+  // a version with an extra (dummy) hash
+  memcpy(branch_1, branch, sizeof(branch));
+  branch_1[depth] = crypto::null_hash;
+
   ASSERT_FALSE(crypto::is_branch_in_tree(inputs[4].data, root.data, (const char(*)[32])branch, depth - 1, path));
-  ASSERT_FALSE(crypto::is_branch_in_tree(inputs[4].data, root.data, (const char(*)[32])branch, depth + 1, path));
+  ASSERT_FALSE(crypto::is_branch_in_tree(inputs[4].data, root.data, (const char(*)[32])branch_1, depth + 1, path));
   ASSERT_FALSE(crypto::is_branch_in_tree(inputs[4].data, root.data, (const char(*)[32])branch, depth, path ^ 1));
   ASSERT_FALSE(crypto::is_branch_in_tree(inputs[4].data, root.data, (const char(*)[32])branch, depth, path ^ 2));
   ASSERT_FALSE(crypto::is_branch_in_tree(inputs[4].data, root.data, (const char(*)[32])branch, depth, path ^ 3));
-  ASSERT_FALSE(crypto::is_branch_in_tree(inputs[4].data, root.data, (const char(*)[32])(branch + 1), depth, path));
+  ASSERT_FALSE(crypto::is_branch_in_tree(inputs[4].data, root.data, (const char(*)[32])(branch_1 + 1), depth, path));
 
   // five, not found
   ASSERT_FALSE(crypto::tree_branch((const char(*)[32])inputs, 5, crypto::null_hash.data, (char(*)[32])branch, &depth, &path));
 
   // depth encoding roundtrip
-  for (uint32_t n_chains = 1; n_chains <= 65; ++n_chains)
+  for (uint32_t n_chains = 1; n_chains <= 256; ++n_chains)
   {
-    for (uint32_t nonce = 0; nonce < 1024; ++nonce)
+    for (uint32_t nonce = 0xffffffff - 512; nonce != 1025; ++nonce)
     {
-      const uint32_t depth = cryptonote::encode_mm_depth(n_chains, nonce);
+      const uint64_t depth = cryptonote::encode_mm_depth(n_chains, nonce);
       uint32_t n_chains_2, nonce_2;
       ASSERT_TRUE(cryptonote::decode_mm_depth(depth, n_chains_2, nonce_2));
       ASSERT_EQ(n_chains, n_chains_2);
       ASSERT_EQ(nonce, nonce_2);
     }
   }
+
+  // 257 chains is too much
+  try { cryptonote::encode_mm_depth(257, 0); ASSERT_TRUE(false); }
+  catch (...) {}
 }
 
 TEST(Crypto, generator_consistency)

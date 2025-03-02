@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2023, The Monero Project
+# Copyright (c) 2014-2024, The Monero Project
 # 
 # All rights reserved.
 # 
@@ -32,7 +32,7 @@ set(MONERO_WALLET_CRYPTO_BENCH "auto" CACHE STRING "Select wallet crypto librari
 
 # The docs say this only affects grouping in IDEs
 set(folder "tests")
-set(TEST_DATA_DIR "${CMAKE_CURRENT_LIST_DIR}/data")
+set(TEST_DATA_DIR "${CMAKE_CURRENT_BINARY_DIR}/data")
 
 if (WIN32 AND STATIC)
   add_definitions(-DSTATICLIB)
@@ -40,46 +40,14 @@ if (WIN32 AND STATIC)
   add_definitions(-DMINIUPNP_STATICLIB)
 endif ()
 
-find_package(GTest)
+set(BUILD_GMOCK OFF CACHE BOOL "Don't build GMock" FORCE)
+set(INSTALL_GTEST OFF CACHE BOOL "Don't install GTest" FORCE)
+add_subdirectory("${CMAKE_SOURCE_DIR}/external/gtest" ${CMAKE_BINARY_DIR}/googletest)
+include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/external/gtest/googletest/include")
+set(GTEST_LIBRARIES gtest gtest_main)
 
-if (GTest_FOUND)
-  include_directories(SYSTEM ${GTEST_INCLUDE_DIRS})
-else ()
-  message(STATUS "GTest not found on the system: will use GTest bundled with this source")
-
-  include(ExternalProject)
-  ExternalProject_Add(googletest
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/gtest
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/gtest
-    DOWNLOAD_COMMAND ""
-    UPDATE_COMMAND ""
-    INSTALL_COMMAND ""
-  )
-  add_library(gtest      UNKNOWN IMPORTED)
-  add_library(gtest_main UNKNOWN IMPORTED)
-  set_target_properties(gtest PROPERTIES
-    IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/gtest/${CMAKE_STATIC_LIBRARY_PREFIX}gtest${CMAKE_STATIC_LIBRARY_SUFFIX}"
-  )
-  set_target_properties(gtest_main PROPERTIES
-    IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/gtest/${CMAKE_STATIC_LIBRARY_PREFIX}gtest_main${CMAKE_STATIC_LIBRARY_SUFFIX}"
-  )
-  add_dependencies(gtest      googletest)
-  add_dependencies(gtest_main googletest)
-
-  # Emulate the FindGTest module's variable.
-  set(GTEST_LIBRARIES gtest gtest_main)
-  set(GTEST_BOTH_LIBRARIES gtest gtest_main)
-  include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/gtest/include")
-endif (GTest_FOUND)
-
-file(COPY
-  data/wallet_9svHk1.keys
-  data/wallet_9svHk1
-  data/outputs
-  data/unsigned_monero_tx
-  data/signed_monero_tx
-  data/sha256sum
-  DESTINATION data)
+message(STATUS "Copying test data directory...")
+file(COPY data DESTINATION .) # Copy data directory from source root to build root
 
 if (CMAKE_BUILD_TYPE STREQUAL "fuzz" OR OSSFUZZ)
   add_subdirectory(fuzz)
@@ -89,7 +57,6 @@ else ()
   add_subdirectory(crypto)
   add_subdirectory(functional_tests)
   add_subdirectory(performance_tests)
-  add_subdirectory(core_proxy)
   add_subdirectory(unit_tests)
   add_subdirectory(difficulty)
   add_subdirectory(block_weight)
@@ -165,7 +132,6 @@ set(enabled_tests
     block_weight
     hash
     performance_tests
-    core_proxy
     fuzz
     unit_tests)
 

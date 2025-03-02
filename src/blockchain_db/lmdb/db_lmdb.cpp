@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2023, The Monero Project
+// Copyright (c) 2014-2024, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -28,13 +28,17 @@
 #include "db_lmdb.h"
 
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 #include <boost/format.hpp>
 #include <boost/circular_buffer.hpp>
 #include <memory>  // std::unique_ptr
 #include <cstring>  // memcpy
 
+#ifdef WIN32
+#include <winioctl.h>
+#endif
+
 #include "string_tools.h"
-#include "file_io_utils.h"
 #include "common/util.h"
 #include "common/pruning.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
@@ -1321,6 +1325,54 @@ BlockchainLMDB::BlockchainLMDB(bool batch_transactions): BlockchainDB()
   m_hardfork = nullptr;
 }
 
+#ifdef WIN32
+static bool disable_ntfs_compression(const boost::filesystem::path& filepath)
+{
+  DWORD file_attributes = ::GetFileAttributesW(filepath.c_str());
+  if (file_attributes == INVALID_FILE_ATTRIBUTES)
+  {
+    MERROR("Failed to get " << filepath.string() << " file attributes. Error: " << ::GetLastError());
+    return false;
+  }
+  
+  if (!(file_attributes & FILE_ATTRIBUTE_COMPRESSED))
+    return true; // not compressed
+
+  LOG_PRINT_L1("Disabling NTFS compression for " << filepath.string());
+  HANDLE file_handle = ::CreateFileW(
+    filepath.c_str(),
+    GENERIC_READ | GENERIC_WRITE,
+    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+    nullptr,
+    OPEN_EXISTING,
+    boost::filesystem::is_directory(filepath) ? FILE_FLAG_BACKUP_SEMANTICS : 0, // Needed to open handles to directories
+    nullptr
+  );
+
+  if (file_handle == INVALID_HANDLE_VALUE) 
+  {
+    MERROR("Failed to open handle: " << filepath.string() << ". Error: " << ::GetLastError());
+    return false;
+  }
+
+  USHORT compression_state = COMPRESSION_FORMAT_NONE;
+  DWORD bytes_returned;
+  BOOL ok = ::DeviceIoControl(
+    file_handle,
+    FSCTL_SET_COMPRESSION,
+    &compression_state,
+    sizeof(compression_state),
+    nullptr,
+    0,
+    &bytes_returned,
+    nullptr
+  );
+
+  ::CloseHandle(file_handle);
+  return ok;
+}
+#endif
+
 void BlockchainLMDB::open(const std::string& filename, const int db_flags)
 {
   int result;
@@ -1346,6 +1398,18 @@ void BlockchainLMDB::open(const std::string& filename, const int db_flags)
     LOG_PRINT_L0("Move " << CRYPTONOTE_BLOCKCHAINDATA_FILENAME << " and/or " << CRYPTONOTE_BLOCKCHAINDATA_LOCK_FILENAME << " to " << filename << ", or delete them, and then restart");
     throw DB_ERROR("Database could not be opened");
   }
+
+#ifdef WIN32
+  // ensure NTFS compression is disabled on the directory and database file to avoid corruption of the blockchain
+  if (!disable_ntfs_compression(filename))
+    LOG_PRINT_L0("Failed to disable NTFS compression on folder: " << filename << ". Error: " << ::GetLastError());
+  boost::filesystem::path datafile(filename);
+  datafile /= CRYPTONOTE_BLOCKCHAINDATA_FILENAME;
+  if (!boost::filesystem::exists(datafile))
+    boost::filesystem::ofstream(datafile).close(); // create the file to see if NTFS compression is enabled beforehand
+  if (!disable_ntfs_compression(datafile))
+    throw DB_ERROR("Database file is NTFS compressed and compression could not be disabled");
+#endif
 
   boost::optional<bool> is_hdd_result = tools::is_hdd(filename.c_str());
   if (is_hdd_result)
@@ -1687,22 +1751,6 @@ std::string BlockchainLMDB::get_db_name() const
 
   return std::string("lmdb");
 }
-
-// TODO: this?
-bool BlockchainLMDB::lock()
-{
-  LOG_PRINT_L3("BlockchainLMDB::" << __func__);
-  check_open();
-  return false;
-}
-
-// TODO: this?
-void BlockchainLMDB::unlock()
-{
-  LOG_PRINT_L3("BlockchainLMDB::" << __func__);
-  check_open();
-}
-
 
 // The below two macros are for DB access within block add/remove, whether
 // regular batch txn is in use or not. m_write_txn is used as a batch txn, even
@@ -3144,6 +3192,58 @@ bool BlockchainLMDB::get_pruned_tx_blobs_from(const crypto::hash& h, size_t coun
   return true;
 }
 
+std::vector<crypto::hash> BlockchainLMDB::get_txids_loose(const crypto::hash& txid_template, std::uint32_t bits, uint64_t max_num_txs)
+{
+  LOG_PRINT_L3("BlockchainLMDB::" << __func__);
+  check_open();
+
+  std::vector<crypto::hash> matching_hashes;
+
+  TXN_PREFIX_RDONLY();  // Start a read-only transaction
+  RCURSOR(tx_indices);  // Open cursors to the tx_indices and txpool_meta databases
+  RCURSOR(txpool_meta);
+
+  // Search on-chain and pool transactions together, starting with on-chain txs
+  MDB_cursor* cursor = m_cur_tx_indices;
+  MDB_val k = zerokval; // tx_indicies DB uses a dummy key
+  MDB_val_set(v, txid_template); // tx_indicies DB indexes data values by crypto::hash value on front
+  MDB_cursor_op op = MDB_GET_BOTH_RANGE; // Set the cursor to the first key/value pair >= the given key
+  bool doing_chain = true; // this variable tells us whether we are processing chain or pool txs
+  while (1)
+  {
+    const int get_result = mdb_cursor_get(cursor, &k, &v, op);
+    op = doing_chain ? MDB_NEXT_DUP : MDB_NEXT; // Set the cursor to the next key/value pair
+    if (get_result && get_result != MDB_NOTFOUND)
+      throw0(DB_ERROR(lmdb_error("DB error attempting to fetch txid range", get_result).c_str()));
+
+    // In tx_indicies, the hash is stored at the data, in txpool_meta at the key
+    const crypto::hash* const p_dbtxid = (const crypto::hash*)(doing_chain ? v.mv_data : k.mv_data);
+
+    // Check if we reached the end of a DB or the hashes no longer match the template
+    if (get_result == MDB_NOTFOUND || compare_hash32_reversed_nbits(txid_template, *p_dbtxid, bits))
+    {
+      if (doing_chain) // done with chain processing, switch to pool processing
+      {
+        k.mv_size = sizeof(crypto::hash); // txpool_meta DB is indexed using crypto::hash as keys
+        k.mv_data = (void*) txid_template.data;
+        cursor = m_cur_txpool_meta; // switch databases
+        op = MDB_SET_RANGE; // Set the cursor to the first key >= the given key
+        doing_chain = false;
+        continue;
+      }
+      break; // if we get to this point, then we finished pool processing and we are done
+    }
+    else if (matching_hashes.size() >= max_num_txs && max_num_txs != 0)
+      throw0(TX_EXISTS("number of tx hashes in template range exceeds maximum"));
+
+    matching_hashes.push_back(*p_dbtxid);
+  }
+
+  TXN_POSTFIX_RDONLY();  // End the read-only transaction
+
+  return matching_hashes;
+}
+
 bool BlockchainLMDB::get_blocks_from(uint64_t start_height, size_t min_block_count, size_t max_block_count, size_t max_tx_count, size_t max_size, std::vector<std::pair<std::pair<cryptonote::blobdata, crypto::hash>, std::vector<std::pair<crypto::hash, cryptonote::blobdata>>>>& blocks, bool pruned, bool skip_coinbase, bool get_miner_tx_hash) const
 {
   LOG_PRINT_L3("BlockchainLMDB::" << __func__);
@@ -4500,12 +4600,11 @@ bool BlockchainLMDB::is_read_only() const
 
 uint64_t BlockchainLMDB::get_database_size() const
 {
-  uint64_t size = 0;
   boost::filesystem::path datafile(m_folder);
   datafile /= CRYPTONOTE_BLOCKCHAINDATA_FILENAME;
-  if (!epee::file_io_utils::get_file_size(datafile.string(), size))
-    size = 0;
-  return size;
+  boost::system::error_code ec{};
+  const boost::uintmax_t size = boost::filesystem::file_size(datafile, ec);
+  return (ec ? 0 : static_cast<uint64_t>(size));
 }
 
 void BlockchainLMDB::fixup()

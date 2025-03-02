@@ -2,7 +2,7 @@
 /// @author rfree (current maintainer in monero.cc project)
 /// @brief implementaion for throttling of connection (count and rate-limit speed etc)
 
-// Copyright (c) 2014-2023, The Monero Project
+// Copyright (c) 2014-2024, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -46,13 +46,13 @@ namespace net_utils
 
 
 class network_throttle : public i_network_throttle {
-	private:
+	public:
 		struct packet_info {
 			size_t m_size; // octets sent. Summary for given small-window (e.g. for all packaged in 1 second)
 			packet_info();
 		};
 
-
+	private:
 		network_speed_bps m_target_speed;
 		size_t m_network_add_cost; // estimated add cost of headers 
 		size_t m_network_minimal_segment; // estimated minimal cost of sending 1 byte to round up to

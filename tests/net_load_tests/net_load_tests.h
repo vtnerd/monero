@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2023, The Monero Project
+// Copyright (c) 2014-2024, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -32,7 +32,6 @@
 
 #include <atomic>
 
-#include <boost/asio/io_service.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
 #include "include_base_utils.h"

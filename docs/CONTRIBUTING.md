@@ -43,6 +43,15 @@ Commit messages should be sensible. That means a subject line that
 describes the patch, with an optional longer body that gives details,
 documentation, etc.
 
+Please reference the current merged PR list for a general subject line
+format of the current contributors. As of 2024 the subject line uses the
+following format:
+
+subdirectory under src where changes were made: description of change
+
+For example (PR #9189):
+cryptonote_core: early out on out of bounds scaling parameter
+
 When submitting a pull request on GitHub, make sure your branch is
 rebased. No merge commits nor stray commits from other people in
 your submitted branch, please. You may be asked to rebase if there
@@ -56,7 +65,7 @@ the previous paragraph is here.
 ## License
 
 Copyright (c) 2009-2015 Pieter Hintjens.
-Copyright (c) 2017-2023, The Monero Project
+Copyright (c) 2017-2024, The Monero Project
 
 This Specification is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version.
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2023, The Monero Project
+// Copyright (c) 2014-2024, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -29,15 +29,5 @@
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
 #pragma once
-
-// FIXME: Why is this ifdef needed?  Hopefully making it struct won't break things.
-
-/*
-#if defined(_MSC_VER)
-#define POD_CLASS struct
-#else
-#define POD_CLASS class
-#endif
-*/
 
 #define POD_CLASS struct

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2023, The Monero Project
+// Copyright (c) 2019-2024, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -30,8 +30,6 @@
 
 #include "cryptonote_basic/difficulty.h"
 #include "serialization.h"
-
-template<> struct is_basic_type<cryptonote::difficulty_type> { typedef boost::true_type type; };
 
 template <template <bool> class Archive>
 inline bool do_serialize(Archive<false>& ar, cryptonote::difficulty_type &diff)

@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2023, Monero Research Labs
+// Copyright (c) 2016-2024, Monero Research Labs
 //
 // Author: Shen Noether <shen.noether@gmx.com>
 //
@@ -30,7 +30,6 @@
 
 #include <boost/lexical_cast.hpp>
 #include "misc_log_ex.h"
-#include "cryptonote_basic/cryptonote_format_utils.h"
 #include "rctOps.h"
 using namespace crypto;
 using namespace std;

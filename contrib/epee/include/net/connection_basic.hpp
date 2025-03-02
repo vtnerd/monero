@@ -8,7 +8,7 @@
 // ! (how ever if in some wonderful juristdictions that is not the case, then why not make another sub-class withat that members and licence it as epee part)
 // ! Working on above premise, IF this is valid in your juristdictions, then consider this code as released as:
 
-// Copyright (c) 2014-2023, The Monero Project
+// Copyright (c) 2014-2024, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -112,21 +112,20 @@ class connection_basic { // not-templated base class for rapid developmet of som
     std::deque<byte_slice> m_send_que;
     volatile bool m_is_multithreaded;
     /// Strand to ensure the connection's handlers are not called concurrently.
-    boost::asio::io_service::strand strand_;
+    boost::asio::io_context::strand strand_;
     /// Socket for the connection.
     boost::asio::ssl::stream<boost::asio::ip::tcp::socket> socket_;
     ssl_support_t m_ssl_support;
 
 	public:
 		// first counter is the ++/-- count of current sockets, the other socket_number is only-increasing ++ number generator
-		connection_basic(boost::asio::ip::tcp::socket&& socket, std::shared_ptr<connection_basic_shared_state> state, ssl_support_t ssl_support);
-		connection_basic(boost::asio::io_service &io_service, std::shared_ptr<connection_basic_shared_state> state, ssl_support_t ssl_support);
+		connection_basic(boost::asio::io_context &context, boost::asio::ip::tcp::socket&& sock, std::shared_ptr<connection_basic_shared_state> state, ssl_support_t ssl_support);
+		connection_basic(boost::asio::io_context &context, std::shared_ptr<connection_basic_shared_state> state, ssl_support_t ssl_support);
 
 		virtual ~connection_basic() noexcept(false);
 
                 //! \return `shared_state` object passed in construction (ptr never changes).
 		connection_basic_shared_state& get_state() noexcept { return *m_state; /* verified in constructor */ }
-		connection_basic(boost::asio::io_service& io_service, std::atomic<long> &ref_sock_count, std::atomic<long> &sock_number, ssl_support_t ssl);
 
 		boost::asio::ip::tcp::socket& socket() { return socket_.next_layer(); }
 		ssl_support_t get_ssl_support() const { return m_ssl_support; }
@@ -134,13 +133,39 @@ class connection_basic { // not-templated base class for rapid developmet of som
 
 		bool client_handshake(ssl_options_t& ssl)
 		{
-			return ssl.handshake(socket_, boost::asio::ssl::stream_base::client);
+			return ssl.handshake(strand_.context(), socket_, boost::asio::ssl::stream_base::client);
 		}
 
 		bool server_handshake(boost::asio::const_buffer buffer)
 		{
 			//m_state != nullptr verified in constructor
-			return m_state->ssl_options().handshake(socket_, boost::asio::ssl::stream_base::server, buffer);
+			return m_state->ssl_options().handshake(strand_.context(), socket_, boost::asio::ssl::stream_base::server, buffer);
+
+		template<typename MutableBufferSequence, typename ReadHandler>
+		void async_read_some(const MutableBufferSequence &buffers, ReadHandler &&handler)
+		{
+			if (m_ssl_support == epee::net_utils::ssl_support_t::e_ssl_support_enabled)
+				socket_.async_read_some(buffers, std::forward<ReadHandler>(handler));
+			else
+				socket().async_read_some(buffers, std::forward<ReadHandler>(handler));
+		}
+
+		template<typename ConstBufferSequence, typename WriteHandler>
+		void async_write_some(const ConstBufferSequence &buffers, WriteHandler &&handler)
+		{
+			if (m_ssl_support == epee::net_utils::ssl_support_t::e_ssl_support_enabled)
+				socket_.async_write_some(buffers, std::forward<WriteHandler>(handler));
+			else
+				socket().async_write_some(buffers, std::forward<WriteHandler>(handler));
+		}
+
+		template<typename ConstBufferSequence, typename WriteHandler>
+		void async_write(const ConstBufferSequence &buffers, WriteHandler &&handler)
+		{
+			if (m_ssl_support == epee::net_utils::ssl_support_t::e_ssl_support_enabled)
+				boost::asio::async_write(socket_, buffers, std::forward<WriteHandler>(handler));
+			else
+				boost::asio::async_write(socket(), buffers, std::forward<WriteHandler>(handler));
 		}
 
 		// various handlers to be called from connection class:

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023, The Monero Project
+// Copyright (c) 2017-2024, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -28,6 +28,7 @@
 
 #include "gtest/gtest.h"
 
+#include <iomanip>
 #include <stdint.h>
 #include "misc_log_ex.h"
 #include "memwipe.h"
