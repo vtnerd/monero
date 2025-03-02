@@ -749,32 +749,32 @@ namespace nodetool
     std::set<string_address> full_addrs;
     if (m_nettype == cryptonote::TESTNET)
     {
-      full_addrs.insert("176.9.0.187:28080", autodetect);
-      full_addrs.insert("51.79.173.165:28080", autodetect);
-      full_addrs.insert("192.99.8.110:28080", autodetect);
-      full_addrs.insert("37.187.74.171:28080", autodetect);
-      full_addrs.insert("88.99.195.15:28080", autodetect);
+      full_addrs.insert(string_address{"176.9.0.187:28080", autodetect});
+      full_addrs.insert(string_address{"51.79.173.165:28080", autodetect});
+      full_addrs.insert(string_address{"192.99.8.110:28080", autodetect});
+      full_addrs.insert(string_address{"37.187.74.171:28080", autodetect});
+      full_addrs.insert(string_address{"88.99.195.15:28080", autodetect});
     }
     else if (m_nettype == cryptonote::STAGENET)
     {
-      full_addrs.insert("176.9.0.187:38080", autodetect);
-      full_addrs.insert("51.79.173.165:38080", autodetect);
-      full_addrs.insert("192.99.8.110:38080", autodetect);
-      full_addrs.insert("37.187.74.171:38080", autodetect);
-      full_addrs.insert("88.99.195.15:38080", autodetect);
+      full_addrs.insert(string_address{"176.9.0.187:38080", autodetect});
+      full_addrs.insert(string_address{"51.79.173.165:38080", autodetect});
+      full_addrs.insert(string_address{"192.99.8.110:38080", autodetect});
+      full_addrs.insert(string_address{"37.187.74.171:38080", autodetect});
+      full_addrs.insert(string_address{"88.99.195.15:38080", autodetect});
     }
     else if (m_nettype == cryptonote::FAKECHAIN)
     {
     }
     else
     {
-      full_addrs.insert("176.9.0.187:18080", autodetect);
-      full_addrs.insert("88.198.163.90:18080", autodetect);
-      full_addrs.insert("66.85.74.134:18080", autodetect);
-      full_addrs.insert("51.79.173.165:18080", autodetect);
-      full_addrs.insert("192.99.8.110:18080", autodetect);
-      full_addrs.insert("37.187.74.171:18080", autodetect);
-      full_addrs.insert("88.99.195.15:18080", autodetect);
+      full_addrs.insert(string_address{"176.9.0.187:18080", autodetect});
+      full_addrs.insert(string_address{"88.198.163.90:18080", autodetect});
+      full_addrs.insert(string_address{"66.85.74.134:18080", autodetect});
+      full_addrs.insert(string_address{"51.79.173.165:18080", autodetect});
+      full_addrs.insert(string_address{"192.99.8.110:18080", autodetect});
+      full_addrs.insert(string_address{"37.187.74.171:18080", autodetect});
+      full_addrs.insert(string_address{"88.99.195.15:18080", autodetect});
     }
     return full_addrs;
   }

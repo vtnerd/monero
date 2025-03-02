@@ -140,6 +140,7 @@ class connection_basic { // not-templated base class for rapid developmet of som
 		{
 			//m_state != nullptr verified in constructor
 			return m_state->ssl_options().handshake(strand_.context(), socket_, boost::asio::ssl::stream_base::server, buffer);
+    }
 
 		template<typename MutableBufferSequence, typename ReadHandler>
 		void async_read_some(const MutableBufferSequence &buffers, ReadHandler &&handler)
