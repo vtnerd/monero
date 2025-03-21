@@ -154,11 +154,16 @@ namespace cryptonote
   std::string round_money_up(const std::string &amount, unsigned significant_digits);
   //---------------------------------------------------------------
   template<class t_object>
-  bool t_serializable_object_from_blob(t_object& to, const blobdata& b_blob)
+  bool t_serializable_object_from_blob(t_object& to, const epee::span<const std::uint8_t> b_blob)
   {
-    binary_archive<false> ba{epee::strspan<std::uint8_t>(b_blob)};
-    bool r = ::serialization::serialize(ba, to);
-    return r;
+    binary_archive<false> ba{b_blob};
+    return ::serialization::serialize(ba, to);
+  }
+  //---------------------------------------------------------------
+  template<class t_object>
+  bool t_serializable_object_from_blob(t_object& to, const boost::string_ref b_blob)
+  {
+    return t_serializable_object_from_blob(to, epee::strspan<std::uint8_t>(b_blob));
   }
   //---------------------------------------------------------------
   template<class t_object>

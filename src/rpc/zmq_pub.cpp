@@ -46,7 +46,6 @@
 #include "common/expect.h"
 #include "crypto/crypto.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
-#include "cryptonote_basic/events.h"
 #include "misc_log_ex.h"
 #include "serialization/json_object.h"
 #include "ringct/rctTypes.h"
@@ -61,7 +60,7 @@ namespace
 
   using chain_writer =  void(epee::byte_stream&, std::uint64_t, epee::span<const cryptonote::block>);
   using miner_writer =  void(epee::byte_stream&, uint8_t, uint64_t, const crypto::hash&, const crypto::hash&, cryptonote::difficulty_type, uint64_t, uint64_t, const std::vector<cryptonote::tx_block_template_backlog_entry>&);
-  using txpool_writer = void(epee::byte_stream&, epee::span<const cryptonote::txpool_event>);
+  using txpool_writer = void(epee::byte_stream&, epee::span<const epee::byte_slice>);
 
   template<typename F>
   struct context
@@ -81,14 +80,6 @@ namespace
   {
     return lhs.name < rhs;
   }
-
-  struct is_valid
-  {
-    bool operator()(const cryptonote::txpool_event& event) const noexcept
-    {
-      return event.res;
-    }
-  };
 
   template<typename T, std::size_t N>
   void verify_sorted(const std::array<context<T>, N>& elems, const char* name)
@@ -141,6 +132,30 @@ namespace
     uint64_t blob_size;
     uint64_t weight;
     uint64_t fee;
+  };
+
+  struct unpacked_tx
+  {
+    const cryptonote::transaction& tx;
+    epee::byte_slice tx_blob;
+  };
+
+  struct unpack_tx
+  {
+    cryptonote::transaction* tx;
+
+    using result_type = unpacked_tx;
+    result_type operator()(const epee::byte_slice& blob) const
+    {
+      assert(tx != nullptr);
+      tx->set_null();
+      if (!t_serializable_object_from_blob(*tx, epee::to_span(blob)))
+      {
+        MERROR("Failed to unpacked tx from blob");
+        tx->set_null();
+      }
+      return {*tx, blob.clone()};
+    }
   };
 
   void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const minimal_chain& self)
@@ -206,24 +221,32 @@ namespace
   // boost::adaptors are in place "views" - no copy/move takes place
   // moving transactions (via sort, etc.), is expensive!
 
-  void json_full_txpool(epee::byte_stream& buf, epee::span<const cryptonote::txpool_event> txes)
+  void json_full_txpool(epee::byte_stream& buf, epee::span<const epee::byte_slice> txes)
   {
     namespace adapt = boost::adaptors;
-    const auto to_full_tx = [](const cryptonote::txpool_event& event)
+    const auto to_full_tx = [](const unpacked_tx& event) -> const cryptonote::transaction&
     {
       return event.tx;
     };
-    json_pub(buf, (txes | adapt::filtered(is_valid{}) | adapt::transformed(to_full_tx)));
+    cryptonote::transaction tx;
+    json_pub(buf, (txes | adapt::transformed(unpack_tx{std::addressof(tx)}) | adapt::transformed(to_full_tx)));
   }
 
-  void json_minimal_txpool(epee::byte_stream& buf, epee::span<const cryptonote::txpool_event> txes)
+  void json_minimal_txpool(epee::byte_stream& buf, epee::span<const epee::byte_slice> txes)
   {
     namespace adapt = boost::adaptors;
-    const auto to_minimal_tx = [](const cryptonote::txpool_event& event)
+    const auto to_minimal_tx = [](const unpacked_tx& event)
     {
-      return minimal_txpool{event.tx, event.hash, event.blob_size, event.weight, cryptonote::get_tx_fee(event.tx)};
+      return minimal_txpool{
+        event.tx,
+        get_transaction_hash(event.tx),
+        event.tx_blob.size(),
+        get_transaction_weight(event.tx),
+        get_tx_fee(event.tx)
+      };
     };
-    json_pub(buf, (txes | adapt::filtered(is_valid{}) | adapt::transformed(to_minimal_tx)));
+    cryptonote::transaction tx;
+    json_pub(buf, (txes | adapt::transformed(unpack_tx{std::addressof(tx)}) | adapt::transformed(to_minimal_tx)));
   }
 
   constexpr const std::array<context<chain_writer>, 2> chain_contexts =
@@ -431,7 +454,7 @@ bool zmq_pub::relay_to_pub(void* const relay, void* const pub)
   if (!*relayed)
   {
     std::array<std::size_t, 2> subs;
-    std::vector<cryptonote::txpool_event> events;
+    std::vector<epee::byte_slice> events;
     {
       const boost::lock_guard<boost::mutex> lock{sync_};
       if (txes_.empty())
@@ -499,7 +522,7 @@ std::size_t zmq_pub::send_miner_data(uint8_t major_version, uint64_t height, con
   return 0;
 }
 
-std::size_t zmq_pub::send_txpool_add(std::vector<txpool_event> txes)
+std::size_t zmq_pub::send_txpool_add(std::vector<epee::byte_slice>&& txes)
 {
   if (txes.empty())
     return 0;
@@ -538,7 +561,7 @@ void zmq_pub::miner_data::operator()(uint8_t major_version, uint64_t height, con
     MERROR("Unable to send ZMQ/Pub - ZMQ server destroyed");
 }
 
-void zmq_pub::txpool_add::operator()(std::vector<cryptonote::txpool_event> txes) const
+void zmq_pub::txpool_add::operator()(std::vector<epee::byte_slice>&& txes) const
 {
   const std::shared_ptr<zmq_pub> self = self_.lock();
   if (self)

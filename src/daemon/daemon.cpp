@@ -39,7 +39,6 @@
 
 #include "common/password.h"
 #include "common/util.h"
-#include "cryptonote_basic/events.h"
 #include "daemon/core.h"
 #include "daemon/p2p.h"
 #include "daemon/protocol.h"

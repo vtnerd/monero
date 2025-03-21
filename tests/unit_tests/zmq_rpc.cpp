@@ -33,7 +33,6 @@
 
 #include "cryptonote_basic/account.h"
 #include "cryptonote_basic/cryptonote_basic.h"
-#include "cryptonote_basic/events.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "json_serialization.h"
 #include "net/zmq.h"
@@ -120,44 +119,52 @@ namespace
     return out;
   }
 
-  testing::AssertionResult compare_full_txpool(epee::span<const cryptonote::txpool_event> events, const published_json& pub)
+  std::vector<epee::byte_slice> to_byte_slices(const std::vector<cryptonote::transaction>& events)
+  {
+    std::vector<epee::byte_slice> out;
+    out.reserve(events.size());
+
+    for (const auto& tx : events)
+    {
+      cryptonote::blobdata blob;
+      if (!t_serializable_object_to_blob(tx, blob))
+        throw std::runtime_error{"Failed serialization"};
+      out.emplace_back(std::move(blob));
+    }
+
+    return out;
+  }
+
+  testing::AssertionResult compare_full_txpool(epee::span<const cryptonote::transaction> events, const published_json& pub)
   {
     MASSERT(pub.first == "json-full-txpool_add");
     MASSERT(pub.second.IsArray());
-    MASSERT(pub.second.Size() <= events.size());
+    MASSERT(pub.second.Size() == events.size());
 
     std::size_t i = 0;
-    for (const cryptonote::txpool_event& event : events)
+    for (const auto& event : events)
     {
-      MASSERT(i <= pub.second.Size());
-      if (!event.res)
-        continue;
-
       cryptonote::transaction tx{};
       cryptonote::json::fromJsonValue(pub.second[i], tx);
 
       crypto::hash id{};
-      MASSERT(cryptonote::get_transaction_hash(event.tx, id));
       MASSERT(cryptonote::get_transaction_hash(tx, id));
-      MASSERT(event.tx.hash == tx.hash);
+      MASSERT(cryptonote::get_transaction_hash(event, id));
+      MASSERT(event.hash == tx.hash);
       ++i;
     }
     return testing::AssertionSuccess();
   }
 
-  testing::AssertionResult compare_minimal_txpool(epee::span<const cryptonote::txpool_event> events, const published_json& pub)
+  testing::AssertionResult compare_minimal_txpool(epee::span<const cryptonote::transaction> events, const published_json& pub)
   {
     MASSERT(pub.first == "json-minimal-txpool_add");
     MASSERT(pub.second.IsArray());
-    MASSERT(pub.second.Size() <= events.size());
+    MASSERT(pub.second.Size() == events.size());
 
     std::size_t i = 0;
-    for (const cryptonote::txpool_event& event : events)
+    for (const auto& event : events)
     {
-      MASSERT(i <= pub.second.Size());
-      if (!event.res)
-        continue;
-
       std::size_t actual_size = 0;
       crypto::hash actual_id{};
 
@@ -167,7 +174,7 @@ namespace
 
       std::size_t expected_size = 0;
       crypto::hash expected_id{};
-      MASSERT(cryptonote::get_transaction_hash(event.tx, expected_id, expected_size));
+      MASSERT(cryptonote::get_transaction_hash(event, expected_id, expected_size));
       MASSERT(expected_size == actual_size);
       MASSERT(expected_id == actual_id);
       ++i;
@@ -371,7 +378,7 @@ TEST_F(zmq_pub, NoBlocking)
 
 TEST_F(zmq_pub, DefaultDrop)
 {
-  EXPECT_EQ(0u, pub->send_txpool_add({{make_transaction(), {}, true}}));
+  EXPECT_EQ(0u, pub->send_txpool_add(to_byte_slices({make_transaction()})));
 
   const cryptonote::block bl = make_block();
   EXPECT_EQ(0u,pub->send_chain_main(5, {std::addressof(bl), 1}));
@@ -384,12 +391,12 @@ TEST_F(zmq_pub, JsonFullTxpool)
 
   ASSERT_TRUE(sub_request(topic));
 
-  std::vector<cryptonote::txpool_event> events
+  const std::vector<cryptonote::transaction> events
   {
-   {make_transaction(), {}, true}, {make_transaction(), {}, true}
+    make_transaction(), make_transaction()
   };
 
-  EXPECT_NO_THROW(pub->send_txpool_add(events));
+  EXPECT_NO_THROW(pub->send_txpool_add(to_byte_slices(events)));
   EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
 
   auto pubs = get_published(dummy_client.get());
@@ -397,25 +404,7 @@ TEST_F(zmq_pub, JsonFullTxpool)
   ASSERT_LE(1u, pubs.size());
   EXPECT_TRUE(compare_full_txpool(epee::to_span(events), pubs.front()));
 
-  EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(events));
-  EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
-
-  pubs = get_published(dummy_client.get());
-  EXPECT_EQ(1u, pubs.size());
-  ASSERT_LE(1u, pubs.size());
-  EXPECT_TRUE(compare_full_txpool(epee::to_span(events), pubs.front()));
-
-  events.at(0).res = false;
-  EXPECT_EQ(1u, pub->send_txpool_add(events));
-  EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
-
-  pubs = get_published(dummy_client.get());
-  EXPECT_EQ(1u, pubs.size());
-  ASSERT_LE(1u, pubs.size());
-  EXPECT_TRUE(compare_full_txpool(epee::to_span(events), pubs.front()));
-
-  events.at(0).res = false;
-  EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(events));
+  EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(to_byte_slices(events)));
   EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
 
   pubs = get_published(dummy_client.get());
@@ -430,12 +419,12 @@ TEST_F(zmq_pub, JsonMinimalTxpool)
 
   ASSERT_TRUE(sub_request(topic));
 
-  std::vector<cryptonote::txpool_event> events
+  const std::vector<cryptonote::transaction> events
   {
-   {make_transaction(), {}, true}, {make_transaction(), {}, true}
+    make_transaction(), make_transaction()
   };
 
-  EXPECT_NO_THROW(pub->send_txpool_add(events));
+  EXPECT_NO_THROW(pub->send_txpool_add(to_byte_slices(events)));
   EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
 
   auto pubs = get_published(dummy_client.get());
@@ -443,31 +432,12 @@ TEST_F(zmq_pub, JsonMinimalTxpool)
   ASSERT_LE(1u, pubs.size());
   EXPECT_TRUE(compare_minimal_txpool(epee::to_span(events), pubs.front()));
 
-  EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(events));
+  EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(to_byte_slices(events)));
   EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
 
   pubs = get_published(dummy_client.get());
   EXPECT_EQ(1u, pubs.size());
   ASSERT_LE(1u, pubs.size());
-  EXPECT_TRUE(compare_minimal_txpool(epee::to_span(events), pubs.front()));
-
-  events.at(0).res = false;
-  EXPECT_EQ(1u, pub->send_txpool_add(events));
-  EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
-
-  pubs = get_published(dummy_client.get());
-  EXPECT_EQ(1u, pubs.size());
-  ASSERT_LE(1u, pubs.size());
-  EXPECT_TRUE(compare_minimal_txpool(epee::to_span(events), pubs.front()));
-
-  events.at(0).res = false;
-  EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(events));
-  EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
-
-  pubs = get_published(dummy_client.get());
-  EXPECT_EQ(1u, pubs.size());
-  ASSERT_LE(1u, pubs.size());
-  EXPECT_TRUE(compare_minimal_txpool(epee::to_span(events), pubs.front()));
 }
 
 TEST_F(zmq_pub, JsonFullChain)
@@ -526,12 +496,12 @@ TEST_F(zmq_pub, JsonFullAll)
 
   ASSERT_TRUE(sub_request(topic));
   {
-    std::vector<cryptonote::txpool_event> events
+    const std::vector<cryptonote::transaction> events
     {
-     {make_transaction(), {}, true}, {make_transaction(), {}, true}
+      make_transaction(), make_transaction()
     };
 
-    EXPECT_EQ(1u, pub->send_txpool_add(events));
+    EXPECT_EQ(1u, pub->send_txpool_add(to_byte_slices(events)));
     EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
 
     auto pubs = get_published(dummy_client.get());
@@ -539,25 +509,7 @@ TEST_F(zmq_pub, JsonFullAll)
     ASSERT_LE(1u, pubs.size());
     EXPECT_TRUE(compare_full_txpool(epee::to_span(events), pubs.front()));
 
-    EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(events));
-    EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
-
-    pubs = get_published(dummy_client.get());
-    EXPECT_EQ(1u, pubs.size());
-    ASSERT_LE(1u, pubs.size());
-    EXPECT_TRUE(compare_full_txpool(epee::to_span(events), pubs.front()));
-
-    events.at(0).res = false;
-    EXPECT_NO_THROW(pub->send_txpool_add(events));
-    EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
-
-    pubs = get_published(dummy_client.get());
-    EXPECT_EQ(1u, pubs.size());
-    ASSERT_LE(1u, pubs.size());
-    EXPECT_TRUE(compare_full_txpool(epee::to_span(events), pubs.front()));
-
-    events.at(0).res = false;
-    EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(events));
+    EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(to_byte_slices(events)));
     EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
 
     pubs = get_published(dummy_client.get());
@@ -593,12 +545,12 @@ TEST_F(zmq_pub, JsonMinimalAll)
   ASSERT_TRUE(sub_request(topic));
 
   {
-    std::vector<cryptonote::txpool_event> events
+    const std::vector<cryptonote::transaction> events
     {
-     {make_transaction(), {}, true}, {make_transaction(), {}, true}
+      make_transaction(), make_transaction()
     };
 
-    EXPECT_EQ(1u, pub->send_txpool_add(events));
+    EXPECT_EQ(1u, pub->send_txpool_add(to_byte_slices(events)));
     EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
 
     auto pubs = get_published(dummy_client.get());
@@ -606,25 +558,7 @@ TEST_F(zmq_pub, JsonMinimalAll)
     ASSERT_LE(1u, pubs.size());
     EXPECT_TRUE(compare_minimal_txpool(epee::to_span(events), pubs.front()));
 
-    EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(events));
-    EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
-
-    pubs = get_published(dummy_client.get());
-    EXPECT_EQ(1u, pubs.size());
-    ASSERT_LE(1u, pubs.size());
-    EXPECT_TRUE(compare_minimal_txpool(epee::to_span(events), pubs.front()));
-
-    events.at(0).res = false;
-    EXPECT_NO_THROW(pub->send_txpool_add(events));
-    EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
-
-    pubs = get_published(dummy_client.get());
-    EXPECT_EQ(1u, pubs.size());
-    ASSERT_LE(1u, pubs.size());
-    EXPECT_TRUE(compare_minimal_txpool(epee::to_span(events), pubs.front()));
-
-    events.at(0).res = false;
-    EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(events));
+    EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(to_byte_slices(events)));
     EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
 
     pubs = get_published(dummy_client.get());
@@ -660,12 +594,12 @@ TEST_F(zmq_pub, JsonAll)
   ASSERT_TRUE(sub_request(topic));
 
   {
-    std::vector<cryptonote::txpool_event> events
+    const std::vector<cryptonote::transaction> events
     {
-     {make_transaction(), {}, true}, {make_transaction(), {}, true}
+      make_transaction(), make_transaction()
     };
 
-    EXPECT_EQ(1u, pub->send_txpool_add(events));
+    EXPECT_EQ(1u, pub->send_txpool_add(to_byte_slices(events)));
     EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
 
     auto pubs = get_published(dummy_client.get());
@@ -674,27 +608,7 @@ TEST_F(zmq_pub, JsonAll)
     EXPECT_TRUE(compare_full_txpool(epee::to_span(events), pubs.front()));
     EXPECT_TRUE(compare_minimal_txpool(epee::to_span(events), pubs.back()));
 
-    EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(events));
-    EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
-
-    pubs = get_published(dummy_client.get());
-    EXPECT_EQ(2u, pubs.size());
-    ASSERT_LE(2u, pubs.size());
-    EXPECT_TRUE(compare_full_txpool(epee::to_span(events), pubs.front()));
-    EXPECT_TRUE(compare_minimal_txpool(epee::to_span(events), pubs.back()));
-
-    events.at(0).res = false;
-    EXPECT_EQ(1u, pub->send_txpool_add(events));
-    EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
-
-    pubs = get_published(dummy_client.get());
-    EXPECT_EQ(2u, pubs.size());
-    ASSERT_LE(2u, pubs.size());
-    EXPECT_TRUE(compare_full_txpool(epee::to_span(events), pubs.front()));
-    EXPECT_TRUE(compare_minimal_txpool(epee::to_span(events), pubs.back()));
-
-    events.at(0).res = false;
-    EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(events));
+    EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(to_byte_slices(events)));
     EXPECT_TRUE(pub->relay_to_pub(relay.get(), dummy_pub.get()));
 
     pubs = get_published(dummy_client.get());
@@ -746,27 +660,27 @@ TEST_F(zmq_pub, JsonTxpoolWeakPtrSkip)
 
   ASSERT_TRUE(sub_request(topic));
 
-  std::vector<cryptonote::txpool_event> events
+  const std::vector<cryptonote::transaction> events
   {
-    {make_transaction(), {}, true}, {make_transaction(), {}, true}
+    make_transaction(), make_transaction()
   };
 
   pub.reset();
-  EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(std::move(events)));
+  EXPECT_NO_THROW(cryptonote::listener::zmq_pub::txpool_add{pub}(to_byte_slices(events)));
 }
 
 TEST_F(zmq_server, pub)
 {
   subscribe("json-minimal");
 
-  std::vector<cryptonote::txpool_event> events
+  const std::vector<cryptonote::transaction> events
   {
-   {make_transaction(), {}, true}, {make_transaction(), {}, true}
+    make_transaction(), make_transaction()
   };
 
   const std::array<cryptonote::block, 1> blocks{{make_block()}};
 
-  ASSERT_EQ(1u, pub->send_txpool_add(events));
+  ASSERT_EQ(1u, pub->send_txpool_add(to_byte_slices(events)));
   ASSERT_EQ(1u, pub->send_chain_main(200, epee::to_span(blocks)));
 
   auto pubs = get_published(sub.get(), 2);

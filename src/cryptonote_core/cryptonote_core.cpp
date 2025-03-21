@@ -41,7 +41,6 @@ using namespace epee;
 #include "common/download.h"
 #include "common/threadpool.h"
 #include "common/command_line.h"
-#include "cryptonote_basic/events.h"
 #include "warnings.h"
 #include "crypto/crypto.h"
 #include "cryptonote_config.h"
@@ -1077,12 +1076,9 @@ namespace cryptonote
     // If new incoming tx passed verification and entered the pool, notify ZMQ
     if (!tvc.m_verifivation_failed && tvc.m_added_to_pool && matches_category(tx_relay, relay_category::legacy))
     {
-      m_blockchain_storage.notify_txpool_event({txpool_event{
-        .tx = tx,
-        .hash = tx_hash,
-        .blob_size = blob.size(),
-        .weight = tx_weight,
-        .res = true}});
+      std::vector<epee::byte_slice> events;
+      events.push_back(epee::byte_slice{{epee::strspan<std::uint8_t>(blob)}});
+      m_blockchain_storage.notify_txpool_event(std::move(events));
     }
 
     return res;
@@ -1133,36 +1129,6 @@ namespace cryptonote
     return true;
   }
   //-----------------------------------------------------------------------------------------------
-  bool core::notify_txpool_event(const epee::span<const cryptonote::blobdata> tx_blobs, epee::span<const crypto::hash> tx_hashes, epee::span<const cryptonote::transaction> txs, const std::vector<bool> &just_broadcasted) const
-  {
-    if (tx_blobs.size() != tx_hashes.size() || tx_blobs.size() != txs.size() || tx_blobs.size() != just_broadcasted.size())
-      return false;
-
-    /* Publish txs via ZMQ that are "just broadcasted" by the daemon. This is
-       done here in order to guarantee txs
-       are pub'd via ZMQ when we know the daemon has/will broadcast to other
-       nodes & *after* the tx is visible in the pool. This should get called
-       when the user submits a tx to a daemon in the "fluff" epoch relaying txs
-       via a public network. */
-    if (std::count(just_broadcasted.begin(), just_broadcasted.end(), true) == 0)
-      return true;
-
-    std::vector<txpool_event> results{};
-    results.resize(tx_blobs.size());
-    for (std::size_t i = 0; i < results.size(); ++i)
-    {
-      results[i].tx = std::move(txs[i]);
-      results[i].hash = std::move(tx_hashes[i]);
-      results[i].blob_size = tx_blobs[i].size();
-      results[i].weight = results[i].tx.pruned ? get_pruned_transaction_weight(results[i].tx) : get_transaction_weight(results[i].tx, results[i].blob_size);
-      results[i].res = just_broadcasted[i];
-    }
-
-    m_blockchain_storage.notify_txpool_event(std::move(results));
-
-    return true;
-  }
-  //-----------------------------------------------------------------------------------------------
   void core::on_transactions_relayed(const epee::span<const cryptonote::blobdata> tx_blobs, const relay_method tx_relay)
   {
     // lock ensures duplicate txs aren't pub'd via zmq
@@ -1171,16 +1137,15 @@ namespace cryptonote
     std::vector<crypto::hash> tx_hashes{};
     tx_hashes.resize(tx_blobs.size());
 
-    std::vector<cryptonote::transaction> txs{};
-    txs.resize(tx_blobs.size());
-
+    cryptonote::transaction tx;
     for (std::size_t i = 0; i < tx_blobs.size(); ++i)
     {
-      if (!parse_and_validate_tx_from_blob(tx_blobs[i], txs[i], tx_hashes[i]))
+      if (!parse_and_validate_tx_from_blob(tx_blobs[i], tx, tx_hashes[i]))
       {
         LOG_ERROR("Failed to parse relayed transaction");
         return;
       }
+      tx.set_null();
     }
 
     std::vector<bool> just_broadcasted{};
@@ -1188,8 +1153,23 @@ namespace cryptonote
 
     m_mempool.set_relayed(epee::to_span(tx_hashes), tx_relay, just_broadcasted);
 
+    if (tx_blobs.size() != just_broadcasted.size())
+      return;
+
+    const auto count = std::count(just_broadcasted.begin(), just_broadcasted.end(), true);
+    if (!count)
+      return;
+
+    std::vector<epee::byte_slice> blobs_broadcasted;
+    blobs_broadcasted.reserve(count);
+    for (std::size_t i = 0; i < just_broadcasted.size(); ++i)
+    {
+      if (just_broadcasted[i])
+        blobs_broadcasted.push_back(epee::byte_slice{{epee::strspan<std::uint8_t>(tx_blobs[i])}});
+    }
+
     if (matches_category(tx_relay, relay_category::legacy))
-      notify_txpool_event(tx_blobs, epee::to_span(tx_hashes), epee::to_span(txs), just_broadcasted);
+      m_blockchain_storage.notify_txpool_event(std::move(blobs_broadcasted));
   }
   //-----------------------------------------------------------------------------------------------
   bool core::get_block_template(block& b, const account_public_address& adr, difficulty_type& diffic, uint64_t& height, uint64_t& expected_reward, uint64_t& cumulative_weight, const blobdata& ex_nonce, uint64_t &seed_height, crypto::hash &seed_hash)

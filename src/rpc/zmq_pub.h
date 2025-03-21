@@ -42,6 +42,8 @@
 #include "span.h"
 #include "cryptonote_basic/difficulty.h"
 
+namespace epee { class byte_slice; }
+
 namespace cryptonote { namespace listener
 {
 /*! \brief Sends ZMQ PUB messages on cryptonote events
@@ -59,7 +61,7 @@ class zmq_pub
      pushed. */
 
     net::zmq::socket relay_;
-    std::deque<std::vector<txpool_event>> txes_;
+    std::deque<std::vector<epee::byte_slice>> txes_;
     std::array<std::size_t, 2> chain_subs_;
     std::array<std::size_t, 1> miner_subs_;
     std::array<std::size_t, 2> txpool_subs_;
@@ -99,7 +101,7 @@ class zmq_pub
     /*! Send a `ZMQ_PUB` notification for new tx(es) being added to the local
         pool. Thread-safe.
         \return Number of ZMQ messages sent to relay. */
-    std::size_t send_txpool_add(std::vector<cryptonote::txpool_event> txes);
+    std::size_t send_txpool_add(std::vector<epee::byte_slice>&& txes);
 
     //! Callable for `send_chain_main` with weak ownership to `zmq_pub` object.
     struct chain_main
@@ -119,7 +121,7 @@ class zmq_pub
     struct txpool_add
     {
       std::weak_ptr<zmq_pub> self_;
-      void operator()(std::vector<cryptonote::txpool_event> txes) const;
+      void operator()(std::vector<epee::byte_slice>&& txes) const;
     };
   };
 }}

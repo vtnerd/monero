@@ -40,8 +40,8 @@
 #include "tx_pool.h"
 #include "blockchain.h"
 #include "blockchain_db/blockchain_db.h"
+#include "byte_slice.h"
 #include "cryptonote_basic/cryptonote_boost_serialization.h"
-#include "cryptonote_basic/events.h"
 #include "cryptonote_config.h"
 #include "cryptonote_basic/miner.h"
 #include "hardforks/hardforks.h"
@@ -2028,12 +2028,11 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
 
       // If new incoming tx in alt block passed verification and entered the pool, notify ZMQ
       if (tvc.m_added_to_pool)
-        notify_txpool_event({txpool_event{
-          .tx = tx,
-          .hash = txid,
-          .blob_size = tx_blob.size(),
-          .weight = get_transaction_weight(tx),
-          .res = true}});
+      {
+        std::vector<epee::byte_slice> events;
+        events.push_back(epee::byte_slice{{epee::strspan<std::uint8_t>(tx_blob)}});
+        notify_txpool_event(std::move(events));
+      }
     }
     extra_block_txs.txs_by_txid.clear();
     extra_block_txs.nic_verified_hf_version = 0;
@@ -4155,7 +4154,7 @@ leave:
   std::vector<std::tuple<crypto::hash, size_t, bool>> txs_meta;
 
   // This will be the data sent to the ZMQ pool listeners for txs which skipped the mempool
-  std::vector<txpool_event> txpool_events;
+  std::vector<epee::byte_slice> txpool_events;
 
   // this lambda returns relevant txs back to the mempool
   auto return_txs_to_pool = [this, &txs, &txs_meta, &hf_version]()
@@ -4264,7 +4263,7 @@ leave:
         fee = get_tx_fee(tx);
         pruned = tx.pruned;
         extra_block_txs.txs_by_txid.erase(extra_txs_it);
-        txpool_events.emplace_back(txpool_event{tx, tx_id, txblob.size(), tx_weight, true});
+        txpool_events.push_back(epee::byte_slice{{epee::strspan<std::uint8_t>(txblob)}});
         find_tx_failure = false;
       }
     }
@@ -5419,7 +5418,7 @@ void Blockchain::add_miner_notify(MinerNotifyCallback&& notify)
   }
 }
 
-void Blockchain::notify_txpool_event(std::vector<txpool_event>&& event)
+void Blockchain::notify_txpool_event(std::vector<epee::byte_slice>&& event)
 {
   std::lock_guard<decltype(m_txpool_notifier_mutex)> lg(m_txpool_notifier_mutex);
   if (m_txpool_notifier)

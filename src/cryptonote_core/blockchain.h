@@ -65,6 +65,7 @@
 #include "cryptonote_basic/hardfork.h"
 #include "blockchain_db/blockchain_db.h"
 
+namespace epee { class byte_slice; }
 namespace tools { class Notify; }
 
 namespace cryptonote
@@ -92,7 +93,7 @@ namespace cryptonote
    */
   typedef std::function<const epee::span<const unsigned char>(cryptonote::network_type network)> GetCheckpointsCallback;
 
-  typedef boost::function<void(std::vector<txpool_event>)> TxpoolNotifyCallback;
+  typedef boost::function<void(std::vector<epee::byte_slice>&&)> TxpoolNotifyCallback;
   typedef boost::function<void(uint64_t /* height */, epee::span<const block> /* blocks */)> BlockNotifyCallback;
   typedef boost::function<void(uint8_t /* major_version */, uint64_t /* height */, const crypto::hash& /* prev_id */, const crypto::hash& /* seed_hash */, difficulty_type /* diff */, uint64_t /* median_weight */, uint64_t /* already_generated_coins */, const std::vector<tx_block_template_backlog_entry>& /* tx_backlog */)> MinerNotifyCallback;
 
@@ -862,7 +863,7 @@ namespace cryptonote
     /**
      * @brief Notify this Blockchain's txpool notifier about a txpool event
      */
-    void notify_txpool_event(std::vector<txpool_event>&& event);
+    void notify_txpool_event(std::vector<epee::byte_slice>&& event);
 
     /**
      * @brief Put DB in safe sync mode
