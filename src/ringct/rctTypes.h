@@ -330,6 +330,16 @@ namespace rct {
           type(RCTTypeNull), message{}, mixRing{}, pseudoOuts{}, ecdhInfo{}, outPk{}, txnFee(0)
         {}
 
+        void set_null()
+        {
+          type = RCTTypeNull;
+          mixRing.clear();
+          pseudoOuts.clear();
+          ecdhInfo.clear();
+          outPk.clear();
+          txnFee = 0;
+        }
+
         template<bool W, template <bool> class Archive>
         bool serialize_rctsig_base(Archive<W> &ar, size_t inputs, size_t outputs)
         {
@@ -421,6 +431,16 @@ namespace rct {
         std::vector<mgSig> MGs; // simple rct has N, full has 1
         std::vector<clsag> CLSAGs;
         keyV pseudoOuts; //C - for simple rct
+
+        void set_null()
+        {
+          rangeSigs.clear();
+          bulletproofs.clear();
+          bulletproofs_plus.clear();
+          MGs.clear();
+          CLSAGs.clear();
+          pseudoOuts.clear();
+        }
 
         // when changing this function, update cryptonote::get_pruned_transaction_weight
         template<bool W, template <bool> class Archive>
@@ -613,6 +633,12 @@ namespace rct {
     };
     struct rctSig: public rctSigBase {
         rctSigPrunable p;
+
+        void set_null()
+        {
+          rctSigBase::set_null();
+          p.set_null();
+        }
 
         keyV& get_pseudo_outs()
         {

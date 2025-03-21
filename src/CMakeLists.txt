@@ -124,3 +124,6 @@ endif()
 
 add_subdirectory(device)
 add_subdirectory(device_trezor)
+
+monero_add_executable(timing_test timing_test.cpp)
+target_link_libraries(timing_test PUBLIC epee cryptonote_basic)
