@@ -1178,6 +1178,8 @@ class Wallet(object):
     background_sync_options = BackgroundSyncOptions()
 
     def setup_background_sync(self, background_sync_type = background_sync_options.off, wallet_password = '', background_cache_password = ''):
+        if (background_cache_password is None):
+            background_cache_password = ''
         setup_background_sync = {
             'method': 'setup_background_sync',
             'jsonrpc': '2.0',
