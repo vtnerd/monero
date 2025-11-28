@@ -41,6 +41,7 @@ set(rpc_sources
 
 set(daemon_messages_sources
   message.cpp
+  message_data_structs.cpp
   daemon_messages.cpp)
 
 set(rpc_pub_sources zmq_pub.cpp)
@@ -154,6 +155,7 @@ target_link_libraries(daemon_messages
     cryptonote_protocol
     version
     serialization
+    wire
     ${EXTRA_LIBRARIES})
 
 target_link_libraries(daemon_rpc_server
@@ -165,6 +167,9 @@ target_link_libraries(daemon_rpc_server
     version
     daemon_messages
     serialization
+    wire
+    wire-json
+    wire-msgpack
     ${Boost_CHRONO_LIBRARY}
     ${Boost_REGEX_LIBRARY}
     ${Boost_SYSTEM_LIBRARY}

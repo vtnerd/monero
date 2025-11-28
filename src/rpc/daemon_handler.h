@@ -58,6 +58,8 @@ class DaemonHandler : public RpcHandler
     void handle(const GetHeight::Request& req, GetHeight::Response& res);
 
     void handle(const GetBlocksFast::Request& req, GetBlocksFast::Response& res);
+    
+    void handle(const GetBlocksFaster::Request& req, GetBlocksFaster::Response& res);
 
     void handle(const GetHashesFast::Request& req, GetHashesFast::Response& res);
 

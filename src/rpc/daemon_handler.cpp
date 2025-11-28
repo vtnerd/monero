@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <cstring>
 #include <stdexcept>
+#include <string_view>
 
 #include <boost/uuid/nil_generator.hpp>
 #include <boost/utility/string_ref.hpp>
@@ -39,6 +40,9 @@
 #include "cryptonote_core/cryptonote_core.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "cryptonote_basic/blobdatatype.h"
+#include "serialization/wire.h"
+#include "serialization/wire/json.h"
+#include "serialization/wire/msgpack.h"
 #include "ringct/rctSigs.h"
 #include "version.h"
 
@@ -77,6 +81,104 @@ namespace rpc
       return FullMessage::getResponse(response, id);
     }
 
+    namespace
+    {
+      struct base
+      {
+        const std::string_view jsonrpc = "2.0";
+      };
+
+      struct rpc_error : base
+      {
+        WIRE_DEFINE_CONVERSIONS()
+
+        rpc_error(const std::uint64_t id, rpc::error&& error)
+          : base() , id(id), error(std::move(error))
+        {}
+
+        const std::uint64_t id;
+        const rpc::error error;
+      };
+      void write_bytes(wire::writer& dest, const rpc_error& self)
+      {
+        wire::object(dest, WIRE_FIELD(jsonrpc), WIRE_FIELD(id), WIRE_FIELD(error)); 
+      }
+
+      template<typename U>
+      struct rpc_result : base
+      {
+        WIRE_DEFINE_CONVERSIONS()
+
+        rpc_result(const std::uint64_t id, const U& result)
+          : base(), id(id), result(result)
+        {}
+
+        const std::uint64_t id;
+        const U& result;
+      };
+
+      template<typename U>
+      void write_bytes(wire::writer& dest, const rpc_result<U>& self)
+      {
+        wire::object(dest, WIRE_FIELD(jsonrpc), WIRE_FIELD(id), WIRE_FIELD(result));
+      }
+
+      template<typename F, typename T>
+      expect<epee::byte_slice> output_rpc_format(const std::uint64_t id, const T& response)
+      {
+        std::error_code error{};
+        epee::byte_stream buf{};
+
+        if (response.status != Message::STATUS_OK)
+        {
+          rpc::error err{};
+          err.error_str = response.status;
+          err.message = response.error_details;
+          error = F::to_bytes(buf, rpc_error{id, std::move(err)});
+        }
+        else
+          error = F::to_bytes(buf, rpc_result<T>{id, response});
+
+        if (error)
+          return error;
+        return epee::byte_slice{std::move(buf)};
+      }
+
+      template<typename T>
+      expect<epee::byte_slice> output_rpc(const std::uint64_t id, const T& response, const std::string_view format)
+      {
+        if (format == "msgpack")
+          return output_rpc_format<wire::msgpack>(id, response);
+        return output_rpc_format<wire::json>(id, response);
+      }
+    }
+
+    // send json request, get choice (via field `format`) of reponse format
+    template<typename M>
+    epee::byte_slice handle_message_formats(DaemonHandler& handler, const rapidjson::Value& id, const rapidjson::Value& parameters)
+    {
+      typename M::Request request{};
+      request.fromJson(parameters);
+
+      typename M::Response response{};
+      handler.handle(request, response);
+
+      auto result = [&] () -> expect<epee::byte_slice>
+      {
+        if (id.IsUint64())
+          return output_rpc(id.GetUint64(), response, request.format);
+        return {wire::error::schema::integer};
+      }();
+
+      if (result)
+        return std::move(*result);
+
+      // a serialization error occurred, just dump stock message
+      return epee::byte_slice{
+        std::string{R"({"jsonrpc":"2.0","error":{"code":2,"message":"serialization output failed","error_str":")" + result.error().message() + "\"}}"}
+      };
+    }
+
     constexpr const handler_map handlers[] =
     {
       {u8"get_block_hash", handle_message<GetBlockHash>},
@@ -84,12 +186,13 @@ namespace rpc
       {u8"get_block_header_by_height", handle_message<GetBlockHeaderByHeight>},
       {u8"get_block_headers_by_height", handle_message<GetBlockHeadersByHeight>},
       {u8"get_blocks_fast", handle_message<GetBlocksFast>},
+      {u8"get_blocks_faster", handle_message_formats<GetBlocksFaster>},
       {u8"get_dynamic_fee_estimate", handle_message<GetFeeEstimate>},
       {u8"get_hashes_fast", handle_message<GetHashesFast>},
       {u8"get_height", handle_message<GetHeight>},
       {u8"get_info", handle_message<GetInfo>},
       {u8"get_last_block_header", handle_message<GetLastBlockHeader>},
-      {u8"get_output_distribution", handle_message<GetOutputDistribution>},
+      {u8"get_output_distribution", handle_message_formats<GetOutputDistribution>},
       {u8"get_output_histogram", handle_message<GetOutputHistogram>},
       {u8"get_output_keys", handle_message<GetOutputKeys>},
       {u8"get_peer_list", handle_message<GetPeerList>},
@@ -214,6 +317,77 @@ namespace rpc
 
     res.status = Message::STATUS_OK;
   }
+
+  void DaemonHandler::handle(const GetBlocksFaster::Request& req, GetBlocksFaster::Response& res)
+  {
+    std::vector<std::pair<std::pair<blobdata, crypto::hash>, std::vector<std::pair<crypto::hash, blobdata> > > > blocks;
+
+    if(!m_core.find_blockchain_supplement(req.start_height, req.block_ids, blocks, res.current_height, res.top_block_hash, res.start_height, req.prune, true, COMMAND_RPC_GET_BLOCKS_FAST_MAX_BLOCK_COUNT, COMMAND_RPC_GET_BLOCKS_FAST_MAX_TX_COUNT))
+    {
+      res.status = Message::STATUS_FAILED;
+      res.error_details = "core::find_blockchain_supplement() returned false";
+      return;
+    }
+
+    res.blocks.resize(blocks.size());
+    res.output_indices.resize(blocks.size());
+
+    auto it = blocks.begin();
+
+    uint64_t block_count = 0;
+    cryptonote::block block{}; // faster to re-use memory
+    while (it != blocks.end())
+    {
+      cryptonote::rpc::block_with_transaction_blobs& bwt = res.blocks[block_count];
+      if (!parse_and_validate_block_from_blob(it->first.first, block))
+      {
+        res.blocks.clear();
+        res.output_indices.clear();
+        res.status = Message::STATUS_FAILED;
+        res.error_details = "failed retrieving a requested block";
+        return;
+      }
+      bwt.block = std::move(it->first.first);
+
+      cryptonote::rpc::block_output_indices& indices = res.output_indices[block_count];
+      indices.reserve(it->second.size() + 1);
+      // miner tx output indices
+      {
+        cryptonote::rpc::tx_output_indices tx_indices;
+        if (!m_core.get_tx_outputs_gindexs(get_transaction_hash(block.miner_tx), tx_indices))
+        {
+          res.status = Message::STATUS_FAILED;
+          res.error_details = "core::get_tx_outputs_gindexs() returned false";
+          return;
+        }
+        indices.push_back(std::move(tx_indices));
+      }
+
+      auto hash_it = block.tx_hashes.begin();
+      bwt.transactions.reserve(it->second.size());
+      for (auto& blob : it->second)
+      {
+        bwt.transactions.push_back(std::move(blob.second));
+
+        cryptonote::rpc::tx_output_indices tx_indices;
+        if (!m_core.get_tx_outputs_gindexs(*hash_it, tx_indices))
+        {
+          res.status = Message::STATUS_FAILED;
+          res.error_details = "core::get_tx_outputs_gindexs() returned false";
+          return;
+        }
+
+        indices.push_back(std::move(tx_indices));
+        ++hash_it;
+      }
+
+      it++;
+      block_count++;
+    }
+
+    res.status = Message::STATUS_OK;
+  }
+
 
   void DaemonHandler::handle(const GetHashesFast::Request& req, GetHashesFast::Response& res)
   {

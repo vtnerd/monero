@@ -28,6 +28,8 @@
 
 #include "daemon_messages.h"
 #include "serialization/json_object.h"
+#include "serialization/wire.h"
+#include "serialization/wire/adapted/vector.h"
 
 namespace cryptonote
 {
@@ -61,6 +63,7 @@ void GetBlocksFast::Request::doToJson(rapidjson::Writer<epee::byte_stream>& dest
 {
   INSERT_INTO_JSON_OBJECT(dest, block_ids, block_ids);
   INSERT_INTO_JSON_OBJECT(dest, start_height, start_height);
+  INSERT_INTO_JSON_OBJECT(dest, format, format);
   INSERT_INTO_JSON_OBJECT(dest, prune, prune);
 }
 
@@ -73,6 +76,7 @@ void GetBlocksFast::Request::fromJson(const rapidjson::Value& val)
 
   GET_FROM_JSON_OBJECT(val, block_ids, block_ids);
   GET_FROM_JSON_OBJECT(val, start_height, start_height);
+  GET_FROM_JSON_OBJECT(val, format, format);
   GET_FROM_JSON_OBJECT(val, prune, prune);
 }
 
@@ -95,6 +99,30 @@ void GetBlocksFast::Response::fromJson(const rapidjson::Value& val)
   GET_FROM_JSON_OBJECT(val, start_height, start_height);
   GET_FROM_JSON_OBJECT(val, current_height, current_height);
   GET_FROM_JSON_OBJECT(val, output_indices, output_indices);
+}
+
+namespace
+{
+  template<typename F, typename T>
+  void map_blocks_faster_response(F& format, T& self)
+  {
+    wire::object(format,
+      WIRE_FIELD(blocks),
+      WIRE_FIELD(start_height),
+      WIRE_FIELD(current_height),
+      WIRE_FIELD(output_indices)
+    );
+  }
+}
+
+void GetBlocksFaster::Response::write_bytes(wire::writer& dest) const
+{
+  map_blocks_faster_response(dest, *this);
+}
+
+void GetBlocksFaster::Response::read_bytes(wire::reader& val)
+{
+  throw std::runtime_error{std::string{__FUNCTION__} + " is not implemented"};
 }
 
 
@@ -795,21 +823,23 @@ void GetOutputDistribution::Request::fromJson(const rapidjson::Value& val)
   GET_FROM_JSON_OBJECT(val, cumulative, cumulative);
 }
 
-void GetOutputDistribution::Response::doToJson(rapidjson::Writer<epee::byte_stream>& dest) const
+namespace
 {
-  INSERT_INTO_JSON_OBJECT(dest, status, status);
-  INSERT_INTO_JSON_OBJECT(dest, distributions, distributions);
+  template<typename F, typename T>
+  void map_output_distribution_response(F& format, T& self)
+  {
+    wire::object(format, WIRE_FIELD(status), WIRE_FIELD(distributions));
+  }
 }
 
-void GetOutputDistribution::Response::fromJson(const rapidjson::Value& val)
+void GetOutputDistribution::Response::write_bytes(wire::writer& dest) const
 {
-  if (!val.IsObject())
-  {
-    throw json::WRONG_TYPE("json object");
-  }
+  map_output_distribution_response(dest, *this);
+}
 
-  GET_FROM_JSON_OBJECT(val, status, status);
-  GET_FROM_JSON_OBJECT(val, distributions, distributions);
+void GetOutputDistribution::Response::read_bytes(wire::reader&)
+{
+  throw std::runtime_error{std::string{__FUNCTION__} + " is not implemented"};
 }
 
 }  // namespace rpc

@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2024, The Monero Project
+// Copyright (c) 2023, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -27,18 +27,20 @@
 
 #pragma once
 
-#include "serialization/wire/error.h"
-#include "serialization/wire/fwd.h"
-#include "serialization/wire/write.h"
+#define WIRE_MSGPACK_DECLARE_ENUM(type)            \
+  const char* get_string(type) noexcept;           \
+  void read_bytes(::wire::msgpack_reader&, type&); \
+  void write_bytes(:wire::msgpack_writer&, type)
 
-//! Define functions that list fields in `type` (using virtual interface)
-#define WIRE_DEFINE_OBJECT(type, map)                          \
-  void write_bytes(::wire::writer& dest, const type& source)   \
-  { map(dest, source); }
+#define WIRE_MSGPACK_DECLARE_OBJECT(type)                \
+  void read_bytes(::wire::msgpack_reader&, type&);       \
+  void write_bytes(::wire::msgpack_writer&, const type&)
 
-//! Define `from_bytes` and `to_bytes` for `this`.
-#define WIRE_DEFINE_CONVERSIONS()                                       \
-  template<typename W, typename T>                                      \
-  std::error_code to_bytes(T& dest) const                               \
-  { return ::wire_write::to_bytes<W>(dest, *this); }
+namespace wire
+{
+  struct msgpack;
+  class msgpack_reader;
+  class msgpack_slice_writer;
+  class msgpack_writer;
+}
 

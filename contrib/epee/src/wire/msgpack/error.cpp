@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2024, The Monero Project
+// Copyright (c) 2023, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -25,20 +25,51 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#pragma once
+#include "serialization/wire/msgpack/error.h"
 
-#include "serialization/wire/error.h"
-#include "serialization/wire/fwd.h"
-#include "serialization/wire/write.h"
+namespace wire
+{
+namespace error
+{
+  const char* get_string(const msgpack value) noexcept
+  {
+    switch (value)
+    {
+      default:
+        break;
+      case msgpack::incomplete:
+        return "Incomplete msgpack tree structure";
+      case msgpack::integer_encoding:
+        return "Unable to encode integer in msgpack";
+      case msgpack::invalid:
+        return "Invalid msgpack encoding";
+      case msgpack::max_tree_size:
+        return "Exceeded tag tracking amount";
+      case msgpack::not_enough_bytes:
+        return "Expected more bytes in the msgpack stream";
+      case msgpack::underflow_tree:
+        return "Expected more tags";
+    }
 
-//! Define functions that list fields in `type` (using virtual interface)
-#define WIRE_DEFINE_OBJECT(type, map)                          \
-  void write_bytes(::wire::writer& dest, const type& source)   \
-  { map(dest, source); }
+    return "Unknown msgpack error";
+  }
 
-//! Define `from_bytes` and `to_bytes` for `this`.
-#define WIRE_DEFINE_CONVERSIONS()                                       \
-  template<typename W, typename T>                                      \
-  std::error_code to_bytes(T& dest) const                               \
-  { return ::wire_write::to_bytes<W>(dest, *this); }
+  const std::error_category& msgpack_category() noexcept
+  {
+    struct category final : std::error_category
+    {
+      virtual const char* name() const noexcept override final
+      {
+        return "wire::error::msgpack_category()";
+      }
 
+      virtual std::string message(int value) const override final
+      {
+        return get_string(msgpack(value));
+      }
+    };
+    static const category instance{};
+    return instance;
+  }
+} // error
+} // wire

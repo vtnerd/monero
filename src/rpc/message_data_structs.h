@@ -29,10 +29,12 @@
 #pragma once
 
 #include "crypto/hash.h"
+#include "cryptonote_basic/blobdatatype.h"
 #include "cryptonote_basic/cryptonote_basic.h"
 #include "cryptonote_basic/difficulty.h"
 #include "ringct/rctSigs.h"
 #include "rpc/rpc_handler.h"
+#include "serialization/wire/fwd.h"
 
 #include <unordered_map>
 #include <vector>
@@ -48,6 +50,13 @@ namespace rpc
     cryptonote::block block;
     std::vector<cryptonote::transaction> transactions;
   };
+
+  struct block_with_transaction_blobs
+  {
+    cryptonote::blobdata block;
+    std::vector<cryptonote::blobdata> transactions;
+  };
+  WIRE_DECLARE_OBJECT(block_with_transaction_blobs);
 
   typedef std::vector<uint64_t> tx_output_indices;
 
@@ -156,6 +165,7 @@ namespace rpc
 
     //TODO: data member?  not required, may want later.
   };
+  WIRE_DECLARE_OBJECT(error);
 
   struct BlockHeaderResponse
   {
@@ -209,6 +219,7 @@ namespace rpc
     uint64_t amount;
     bool cumulative;
   };
+  WIRE_DECLARE_OBJECT(output_distribution);
 }  // namespace rpc
 
 }  // namespace cryptonote

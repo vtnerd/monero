@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2024, The Monero Project
+// Copyright (c) 2023, The Monero Project
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -27,18 +27,26 @@
 
 #pragma once
 
-#include "serialization/wire/error.h"
-#include "serialization/wire/fwd.h"
-#include "serialization/wire/write.h"
+#include "serialization/wire/msgpack/base.h"
+#include "serialization/wire/msgpack/write.h"
 
-//! Define functions that list fields in `type` (using virtual interface)
-#define WIRE_DEFINE_OBJECT(type, map)                          \
-  void write_bytes(::wire::writer& dest, const type& source)   \
-  { map(dest, source); }
+#define WIRE_MSGPACK_DEFINE_ENUM(type, map)                         \
+  void read_bytes(::wire::msgpack_reader& source, type& dest)       \
+  {                                                                 \
+    dest = type(source.enumeration(map));                           \
+  }                                                                 \
+  void write_bytes(::wire::msgpack_writer& dest, const type source) \
+  {                                                                 \
+    dest.enumeration(std::size_t(source), map);                     \
+  }
 
-//! Define `from_bytes` and `to_bytes` for `this`.
-#define WIRE_DEFINE_CONVERSIONS()                                       \
-  template<typename W, typename T>                                      \
-  std::error_code to_bytes(T& dest) const                               \
-  { return ::wire_write::to_bytes<W>(dest, *this); }
+#define WIRE_MSGPACK_DEFINE_OBJECT(type, map)                        \
+  void read_bytes(::wire::msgpack_reader& source, type& dest)        \
+  {                                                                  \
+    map(source, dest);                                               \
+  }                                                                  \
+  void write_bytes(::wire::msgpack_writer& dest, const type& source) \
+  {                                                                  \
+    map(dest, source);                                               \
+  }
 

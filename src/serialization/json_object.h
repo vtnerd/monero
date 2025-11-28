@@ -246,6 +246,9 @@ void fromJsonValue(const rapidjson::Value& val, cryptonote::block_complete_entry
 void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const cryptonote::rpc::block_with_transactions& blk);
 void fromJsonValue(const rapidjson::Value& val, cryptonote::rpc::block_with_transactions& blk);
 
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const cryptonote::rpc::block_with_transaction_blobs& blk);
+void fromJsonValue(const rapidjson::Value& val, cryptonote::rpc::block_with_transaction_blobs& blk);
+
 void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const cryptonote::rpc::transaction_info& tx_info);
 void fromJsonValue(const rapidjson::Value& val, cryptonote::rpc::transaction_info& tx_info);
 
@@ -310,9 +313,6 @@ void fromJsonValue(const rapidjson::Value& val, cryptonote::rpc::DaemonInfo& inf
 
 void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const cryptonote::rpc::output_distribution& dist);
 void fromJsonValue(const rapidjson::Value& val, cryptonote::rpc::output_distribution& dist);
-
-void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const cryptonote::tx_block_template_backlog_entry& entry);
-void fromJsonValue(const rapidjson::Value& val, cryptonote::tx_block_template_backlog_entry& entry);
 
 template <typename Map>
 typename std::enable_if<sfinae::is_map_like<Map>::value, void>::type toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const Map& map);

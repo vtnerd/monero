@@ -62,6 +62,16 @@ class classname \
         void doToJson(rapidjson::Writer<epee::byte_stream>& dest) const override final; \
         void fromJson(const rapidjson::Value& val) override final;
 
+#define BEGIN_RPC_MESSAGE_WIRE_RESPONSE \
+    class Response final : public Message \
+    { \
+      public: \
+        Response() { } \
+        ~Response() { } \
+        void write_bytes(wire::writer& dest) const; \
+        void read_bytes(wire::reader& val);
+
+
 #define END_RPC_MESSAGE_REQUEST };
 #define END_RPC_MESSAGE_RESPONSE };
 #define END_RPC_MESSAGE_CLASS };
@@ -90,6 +100,7 @@ END_RPC_MESSAGE_CLASS;
 BEGIN_RPC_MESSAGE_CLASS(GetBlocksFast);
   BEGIN_RPC_MESSAGE_REQUEST;
     RPC_MESSAGE_MEMBER(std::list<crypto::hash>, block_ids);
+    RPC_MESSAGE_MEMBER(std::string, format);
     RPC_MESSAGE_MEMBER(uint64_t, start_height);
     RPC_MESSAGE_MEMBER(bool, prune);
   END_RPC_MESSAGE_REQUEST;
@@ -103,6 +114,18 @@ BEGIN_RPC_MESSAGE_CLASS(GetBlocksFast);
   END_RPC_MESSAGE_RESPONSE;
 END_RPC_MESSAGE_CLASS;
 
+
+BEGIN_RPC_MESSAGE_CLASS(GetBlocksFaster);
+  using Request = GetBlocksFast::Request; 
+  BEGIN_RPC_MESSAGE_WIRE_RESPONSE;
+    RPC_MESSAGE_MEMBER(std::vector<cryptonote::rpc::block_with_transaction_blobs>, blocks);
+    RPC_MESSAGE_MEMBER(uint64_t, start_height);
+    RPC_MESSAGE_MEMBER(uint64_t, current_height);
+    RPC_MESSAGE_MEMBER(crypto::hash, top_block_hash);
+    RPC_MESSAGE_MEMBER(std::vector<cryptonote::rpc::block_output_indices>, output_indices);
+    RPC_MESSAGE_MEMBER(uint64_t, max_block_count);
+  END_RPC_MESSAGE_RESPONSE;
+END_RPC_MESSAGE_CLASS;
 
 BEGIN_RPC_MESSAGE_CLASS(GetHashesFast);
   BEGIN_RPC_MESSAGE_REQUEST;
@@ -436,11 +459,12 @@ END_RPC_MESSAGE_CLASS;
 BEGIN_RPC_MESSAGE_CLASS(GetOutputDistribution);
   BEGIN_RPC_MESSAGE_REQUEST;
     RPC_MESSAGE_MEMBER(std::vector<uint64_t>, amounts);
+    RPC_MESSAGE_MEMBER(std::string, format);
     RPC_MESSAGE_MEMBER(uint64_t, from_height);
     RPC_MESSAGE_MEMBER(uint64_t, to_height);
     RPC_MESSAGE_MEMBER(bool, cumulative);
   END_RPC_MESSAGE_REQUEST;
-  BEGIN_RPC_MESSAGE_RESPONSE;
+  BEGIN_RPC_MESSAGE_WIRE_RESPONSE;
     RPC_MESSAGE_MEMBER(std::vector<output_distribution>, distributions);
   END_RPC_MESSAGE_RESPONSE;
 END_RPC_MESSAGE_CLASS;
