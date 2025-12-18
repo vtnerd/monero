@@ -163,7 +163,7 @@ bool cryptonote_hierarchy_address_device::view_key_scalar_mult8_ed25519(const cr
 bool cryptonote_hierarchy_address_device::view_key_scalar_mult_x25519(const mx25519_pubkey &D,
     mx25519_pubkey &kvD) const
 {
-    return this->view_key_scalar_mult_x25519(D, kvD);
+    return this->m_k_view_incoming_dev->view_key_scalar_mult_x25519(D, kvD);
 }
 //-------------------------------------------------------------------------------------------------------------------
 void cryptonote_hierarchy_address_device::make_janus_anchor_special(const mx25519_pubkey &enote_ephemeral_pubkey,
