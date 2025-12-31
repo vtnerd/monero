@@ -812,6 +812,36 @@ void GetOutputDistribution::Response::fromJson(const rapidjson::Value& val)
   GET_FROM_JSON_OBJECT(val, distributions, distributions);
 }
 
+void GetTreePaths::Request::doToJson(rapidjson::Writer<epee::byte_stream>& dest) const
+{
+  INSERT_INTO_JSON_OBJECT(dest, outputs, outputs);
+}
+
+void GetTreePaths::Request::fromJson(const rapidjson::Value& val)
+{
+  if (!val.IsObject())
+  {
+    throw json::WRONG_TYPE("json object");
+  }
+
+  GET_FROM_JSON_OBJECT(val, outputs, outputs);
+}
+
+void GetTreePaths::Response::doToJson(rapidjson::Writer<epee::byte_stream>& dest) const
+{
+  INSERT_INTO_JSON_OBJECT(dest, paths, paths);
+}
+
+void GetTreePaths::Response::fromJson(const rapidjson::Value& val)
+{
+  if (!val.IsObject())
+  {
+    throw json::WRONG_TYPE("json object");
+  }
+
+  GET_FROM_JSON_OBJECT(val, paths, paths);
+}
+
 }  // namespace rpc
 
 }  // namespace cryptonote

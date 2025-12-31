@@ -445,6 +445,19 @@ BEGIN_RPC_MESSAGE_CLASS(GetOutputDistribution);
   END_RPC_MESSAGE_RESPONSE;
 END_RPC_MESSAGE_CLASS;
 
+BEGIN_RPC_MESSAGE_CLASS(GetTreePaths);
+  BEGIN_RPC_MESSAGE_REQUEST;
+    RPC_MESSAGE_MEMBER(std::vector<rpc::path_request>, outputs);
+  END_RPC_MESSAGE_RESPONSE;
+  BEGIN_RPC_MESSAGE_RESPONSE;
+    RPC_MESSAGE_MEMBER(std::vector<rpc::path_response>, paths);
+    RPC_MESSAGE_MEMBER(std::uint64_t, top_block_height);
+    RPC_MESSAGE_MEMBER(std::uint64_t, n_leaf_tuples);
+    RPC_MESSAGE_MEMBER(fcmp_pp::curve_trees::PathBytes, last_path);
+    RPC_MESSAGE_MEMBER(crypto::hash, top_block_hash);
+  END_RPC_MESSAGE_RESPONSE;
+END_RPC_MESSAGE_CLASS;
+
 }  // namespace rpc
 
 }  // namespace cryptonote

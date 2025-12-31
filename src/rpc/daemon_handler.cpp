@@ -96,6 +96,7 @@ namespace rpc
       {u8"get_rpc_version", handle_message<GetRPCVersion>},
       {u8"get_transaction_pool", handle_message<GetTransactionPool>},
       {u8"get_transactions", handle_message<GetTransactions>},
+      {u8"get_tree_paths", handle_message<GetTreePaths>},
       {u8"get_tx_global_output_indices", handle_message<GetTxGlobalOutputIndices>},
       {u8"hard_fork_info", handle_message<HardForkInfo>},
       {u8"key_images_spent", handle_message<KeyImagesSpent>},
@@ -878,6 +879,41 @@ namespace rpc
     catch (const std::exception& e)
     {
       res.distributions.clear();
+      res.status = Message::STATUS_FAILED;
+      res.error_details = e.what();
+    }
+  }
+
+  void DaemonHandler::handle(const GetTreePaths::Request& req, GetTreePaths::Response& res)
+  {
+    try
+    {
+      res.top_block_hash = m_core.get_blockchain_storage().get_db().top_block_hash(&res.top_block_height);
+      auto last = m_core.get_blockchain_storage().get_db().get_last_path(res.top_block_height);
+      res.n_leaf_tuples = last.first;
+      res.last_path = std::move(last.second);
+
+      std::vector<std::uint64_t> ids{};
+      for (const auto& out : req.outputs)
+      {
+        const auto info = m_core.get_blockchain_storage().get_db().get_output_key(out.amount, out.amount_index, false);
+        ids.push_back(info.output_id);
+        res.paths.push_back(rpc::path_response{out.amount, out.amount_index, info.output_id});
+      }
+
+      std::vector<std::uint64_t> leaf_idxs;
+      std::vector<fcmp_pp::curve_trees::PathBytes> paths;
+      m_core.get_blockchain_storage().get_db().get_path_by_global_output_id(ids, res.top_block_height, leaf_idxs, paths);
+      for (std::size_t i = 0; i < paths.size(); ++i)
+      {
+        auto& elem = res.paths.at(i);
+        elem.leaf_idx = leaf_idxs.at(i);
+        elem.path = std::move(paths.at(i));
+      }
+    }
+    catch (const std::exception& e)
+    {
+      MERROR("Failed to get output path data " << e.what());
       res.status = Message::STATUS_FAILED;
       res.error_details = e.what();
     }

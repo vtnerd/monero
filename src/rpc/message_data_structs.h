@@ -31,6 +31,7 @@
 #include "crypto/hash.h"
 #include "cryptonote_basic/cryptonote_basic.h"
 #include "cryptonote_basic/difficulty.h"
+#include "fcmp_pp/curve_trees.h"
 #include "ringct/rctSigs.h"
 #include "rpc/rpc_handler.h"
 
@@ -208,6 +209,21 @@ namespace rpc
     output_distribution_data data;
     uint64_t amount;
     bool cumulative;
+  };
+
+  struct path_request
+  {
+    std::uint64_t amount;
+    std::uint64_t amount_index;
+  };
+
+  struct path_response
+  {
+    std::uint64_t amount;
+    std::uint64_t amount_index;
+    std::uint64_t output_id;
+    std::uint64_t leaf_idx;
+    fcmp_pp::curve_trees::PathBytes path;
   };
 }  // namespace rpc
 
