@@ -35,6 +35,7 @@
 
 #include "cryptonote_basic/cryptonote_basic_impl.h"
 #include "cryptonote_core/cryptonote_tx_utils.h"
+#include "fcmp_pp/curve_trees.h"
 
 // drop macro from windows.h
 #ifdef GetObject
@@ -1553,6 +1554,122 @@ void fromJsonValue(const rapidjson::Value& val, cryptonote::tx_block_template_ba
   GET_FROM_JSON_OBJECT(val, entry.id, id);
   GET_FROM_JSON_OBJECT(val, entry.weight, weight);
   GET_FROM_JSON_OBJECT(val, entry.fee, fee);
+}
+
+void fromJsonValue(const rapidjson::Value& val, cryptonote::rpc::output_map& map)
+{
+  if (!val.IsObject())
+  {
+    throw WRONG_TYPE("json object");
+  }
+
+  GET_FROM_JSON_OBJECT(val, map.legacy, legacy);
+  GET_FROM_JSON_OBJECT(val, map.unified_id, unified_id);
+}
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const cryptonote::rpc::output_map& map)
+{
+  dest.StartObject();
+  INSERT_INTO_JSON_OBJECT(dest, legacy, map.legacy);
+  INSERT_INTO_JSON_OBJECT(dest, unified_id, map.unified_id);
+  dest.EndObject();
+}
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const cryptonote::rpc::path_response& path)
+{
+  dest.StartObject();
+  INSERT_INTO_JSON_OBJECT(dest, output_id, path.output_id);
+  INSERT_INTO_JSON_OBJECT(dest, leaf_idx, path.leaf_idx);
+  INSERT_INTO_JSON_OBJECT(dest, path, path.path);
+  dest.EndObject(); 
+}
+
+void fromJsonValue(const rapidjson::Value& val, rpc::path_response& path)
+{
+  if (!val.IsObject())
+  {
+    throw WRONG_TYPE("json object");
+  }
+
+  GET_FROM_JSON_OBJECT(val, path.output_id, output_id);
+  GET_FROM_JSON_OBJECT(val, path.leaf_idx, leaf_idx);
+  GET_FROM_JSON_OBJECT(val, path.path, path);
+}
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const fcmp_pp::curve_trees::PathBytes& path)
+{
+  dest.StartObject();
+  INSERT_INTO_JSON_OBJECT(dest, leaves, path.leaves);
+  INSERT_INTO_JSON_OBJECT(dest, layer_chunks, path.layer_chunks);
+  dest.EndObject();
+}
+
+void fromJsonValue(const rapidjson::Value& val, fcmp_pp::curve_trees::PathBytes& path)
+{
+  if (!val.IsObject())
+  {
+    throw WRONG_TYPE("json object");
+  }
+
+  GET_FROM_JSON_OBJECT(val, path.leaves, leaves);
+  GET_FROM_JSON_OBJECT(val, path.layer_chunks, layer_chunks);
+}
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const fcmp_pp::curve_trees::ChunkBytes& chunk)
+{
+  dest.StartObject();
+  INSERT_INTO_JSON_OBJECT(dest, chunk_bytes, chunk.chunk_bytes);
+  dest.EndObject();
+}
+
+void fromJsonValue(const rapidjson::Value& val, fcmp_pp::curve_trees::ChunkBytes& chunk)
+{
+  if (!val.IsObject())
+  {
+    throw WRONG_TYPE("json object");
+  }
+
+  GET_FROM_JSON_OBJECT(val, chunk.chunk_bytes, chunk_bytes);
+}
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const fcmp_pp::curve_trees::OutputContext& context)
+{
+  dest.StartObject();
+  INSERT_INTO_JSON_OBJECT(dest, output_id, context.output_id);
+  INSERT_INTO_JSON_OBJECT(dest, torsion_checked, context.torsion_checked);
+  INSERT_INTO_JSON_OBJECT(dest, output_pair, context.output_pair);
+  dest.EndObject();
+}
+
+void fromJsonValue(const rapidjson::Value& val, fcmp_pp::curve_trees::OutputContext& context)
+{
+  if (!val.IsObject())
+  {
+    throw WRONG_TYPE("json object");
+  }
+
+  GET_FROM_JSON_OBJECT(val, context.output_id, output_id);
+  GET_FROM_JSON_OBJECT(val, context.torsion_checked, torsion_checked);
+  GET_FROM_JSON_OBJECT(val, context.output_pair, output_pair);
+}
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const fcmp_pp::curve_trees::OutputPair& pair)
+{
+  dest.StartObject();
+  INSERT_INTO_JSON_OBJECT(dest, output_pubkey, pair.output_pubkey);
+  INSERT_INTO_JSON_OBJECT(dest, commitment, pair.commitment);
+  dest.EndObject();
+}
+
+void fromJsonValue(const rapidjson::Value& val, fcmp_pp::curve_trees::OutputPair& pair)
+{
+  if (!val.IsObject())
+  {
+    throw WRONG_TYPE("json object");
+  }
+
+  GET_FROM_JSON_OBJECT(val, pair.output_pubkey, output_pubkey);
+  GET_FROM_JSON_OBJECT(val, pair.commitment, commitment);
 }
 
 }  // namespace json

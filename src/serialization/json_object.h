@@ -59,6 +59,17 @@
     OBJECT_HAS_MEMBER_OR_THROW(source, #key) \
     cryptonote::json::fromJsonValue(source[#key], dst)
 
+namespace fcmp_pp
+{
+namespace curve_trees
+{
+  struct ChunkBytes;
+  struct OutputContext;
+  struct OutputPair;
+  struct PathBytes;
+}
+}
+
 namespace cryptonote
 {
 
@@ -313,6 +324,24 @@ void fromJsonValue(const rapidjson::Value& val, cryptonote::rpc::output_distribu
 
 void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const cryptonote::tx_block_template_backlog_entry& entry);
 void fromJsonValue(const rapidjson::Value& val, cryptonote::tx_block_template_backlog_entry& entry);
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const cryptonote::rpc::output_map& map);
+void fromJsonValue(const rapidjson::Value& val, cryptonote::rpc::output_map& map); 
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const rpc::path_response& path);
+void fromJsonValue(const rapidjson::Value& val, rpc::path_response& path);
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const fcmp_pp::curve_trees::PathBytes& path);
+void fromJsonValue(const rapidjson::Value& val, fcmp_pp::curve_trees::PathBytes& path);
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const fcmp_pp::curve_trees::ChunkBytes& chunk);
+void fromJsonValue(const rapidjson::Value& val, fcmp_pp::curve_trees::ChunkBytes& chunk);
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const fcmp_pp::curve_trees::OutputContext& context);
+void fromJsonValue(const rapidjson::Value& val, fcmp_pp::curve_trees::OutputContext& context);
+
+void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const fcmp_pp::curve_trees::OutputPair& pair);
+void fromJsonValue(const rapidjson::Value& val, fcmp_pp::curve_trees::OutputPair& pair);
 
 template <typename Map>
 typename std::enable_if<sfinae::is_map_like<Map>::value, void>::type toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const Map& map);
