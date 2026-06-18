@@ -45,7 +45,7 @@
 //standard headers
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
-#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl"
+#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl.tx_builder_inputs"
 
 namespace carrot
 {
@@ -65,8 +65,8 @@ static void make_sal_proof_nominal_address(const crypto::hash &signable_tx_hash,
     const crypto::secret_key &address_privkey_t,
     const OutputOpeningHintVariant &opening_hint,
     const epee::span<const crypto::public_key> main_address_spend_pubkeys,
-    const view_incoming_key_device *k_view_incoming_dev,
     const view_balance_secret_device *s_view_balance_dev,
+    const view_incoming_key_device *k_view_incoming_dev,
     fcmp_pp::FcmpPpSalProof &sal_proof_out,
     crypto::key_image &key_image_out)
 {
@@ -82,8 +82,8 @@ static void make_sal_proof_nominal_address(const crypto::hash &signable_tx_hash,
     crypto::secret_key sender_extension_t;
     CHECK_AND_ASSERT_THROW_MES(try_scan_opening_hint_sender_extensions(opening_hint,
             main_address_spend_pubkeys,
-            k_view_incoming_dev,
             s_view_balance_dev,
+            k_view_incoming_dev,
             sender_extension_g,
             sender_extension_t),
         "Could not make SA/L proof: failed to scan opening hint");
@@ -110,8 +110,8 @@ std::vector<FcmpRerandomizedOutputCompressed> generate_rerandomized_inputs_nonre
     epee::span<const carrot::RCTOutputEnoteProposal> output_enote_proposals,
     epee::span<const carrot::OutputOpeningHintVariant> input_proposals,
     const epee::span<const crypto::public_key> main_address_spend_pubkeys,
-    const carrot::view_incoming_key_device &k_view_incoming_dev,
-    const carrot::view_balance_secret_device *s_view_balance_dev)
+    const carrot::view_balance_secret_device *s_view_balance_dev,
+    const carrot::view_incoming_key_device &k_view_incoming_dev)
 {
     const std::size_t n_inputs = input_proposals.size();
 
@@ -140,8 +140,8 @@ std::vector<FcmpRerandomizedOutputCompressed> generate_rerandomized_inputs_nonre
         carrot::xmr_amount amount;
         const bool scan_success = carrot::try_scan_opening_hint_amount(input_proposal,
             main_address_spend_pubkeys,
-            &k_view_incoming_dev,
             s_view_balance_dev,
+            &k_view_incoming_dev,
             amount,
             input_amount_blinding_factors.emplace_back());
         CARROT_CHECK_AND_THROW(scan_success,
@@ -209,8 +209,8 @@ void make_sal_proof_any_to_legacy_v1(const crypto::hash &signable_tx_hash,
         crypto::null_skey,
         opening_hint,
         {&main_address_spend_pubkey, 1},
-        &addr_dev,
         /*s_view_balance_dev=*/nullptr,
+        &addr_dev,
         sal_proof_out,
         key_image_out);
 }
@@ -250,7 +250,7 @@ void make_sal_proof_any_to_carrot_v1(const crypto::hash &signable_tx_hash,
         account_view_pubkey,
         address_index_preimage_2);
 
-    // k^j_subscal = H_n(K_s, j_major, j_minor, s^j_gen)
+    // k^j_subscal = H_n[s^j_ap2](K_s)
     crypto::secret_key subaddress_scalar;
     if (subaddr_index.index.is_subaddress())
     {
@@ -277,8 +277,8 @@ void make_sal_proof_any_to_carrot_v1(const crypto::hash &signable_tx_hash,
         address_privkey_t,
         opening_hint,
         {&main_address_spend_pubkey, 1},
-        &k_view_incoming_dev,
         &s_view_balance_dev,
+        &k_view_incoming_dev,
         sal_proof_out,
         key_image_out);
 }
@@ -314,8 +314,8 @@ void make_sal_proof_any_to_hybrid_v1(const crypto::hash &signable_tx_hash,
         address_privkey_t,
         opening_hint,
         get_all_main_address_spend_pubkeys_span(addr_dev, main_address_spend_pubkeys),
-        &k_view_incoming_dev,
         s_view_balance_dev,
+        &k_view_incoming_dev,
         sal_proof_out,
         key_image_out);
 }

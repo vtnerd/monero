@@ -149,7 +149,7 @@ bool try_load_carrot_enote_from_transaction_v1(const cryptonote::transaction &tx
  * @param[out] key_images_out -
  * @param[out] fee_out -
  * @param[out] encrypted_payment_id_out -
- * @return Carrot enotes, key images, fee, and encrypted pid contained within a non-coinbase transaction
+ * @return true iff all info was successfully parsed
  */
 bool try_load_carrot_from_transaction_v1(const cryptonote::transaction &tx,
     std::vector<CarrotEnoteV1> &enotes_out,
@@ -193,7 +193,7 @@ bool try_load_carrot_coinbase_enote_from_transaction_v1(const cryptonote::transa
  * @brief Load coinbase Carrot info from a cryptonote::transaction
  * @param tx -
  * @param[out] enotes_out -
- * @return Carrot coinbase enotes and block index contained within a coinbase transaction
+ * @return true iff enotes were successfully parsed
  */
 bool try_load_carrot_from_coinbase_transaction_v1(const cryptonote::transaction &tx,
     std::vector<CarrotCoinbaseEnoteV1> &enotes_out);
@@ -215,7 +215,7 @@ rct::rctSigPrunable store_fcmp_proofs_to_rct_prunable_v1(
     const std::uint64_t fcmp_reference_block,
     const std::uint8_t n_tree_layers);
 /**
- * @brief Calculate the signable tx hash of a FCMP++/CARROT v1 tx
+ * @brief Calculate the message for SA/L signing (**NOT** the full tx hash) of a FCMP++/CARROT v1 tx
  * @param tx pruned or full FCMP++ transaction
  * @throw std::runtime_error if `tx` is not FCMP++ or fails to serialize
  */

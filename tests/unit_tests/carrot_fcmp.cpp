@@ -436,8 +436,8 @@ TEST(carrot_fcmp, receive_scan_spend_and_verify_serialized_carrot_tx)
         epee::to_span(output_enote_proposals),
         epee::to_span(sorted_opening_hints),
         {&alice.carrot_account_spend_pubkey, 1},
-        alice.k_view_incoming_dev,
-        &alice.s_view_balance_dev);
+        &alice.s_view_balance_dev,
+        alice.k_view_incoming_dev);
     ASSERT_EQ(n_inputs, rerandomized_outputs.size());
 
     // Make SA/L proofs

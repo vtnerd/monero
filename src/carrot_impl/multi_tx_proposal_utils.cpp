@@ -42,7 +42,7 @@
 //standard headers
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
-#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl"
+#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl.multi_tx_proposal_utils"
 
 namespace carrot
 {
@@ -69,6 +69,7 @@ void make_multiple_carrot_transaction_proposals_transfer(
             [](const InputCandidate &ic) { return ic.core.amount == 0; }
         );
 
+    // reserve 1 for the change output
     static constexpr std::size_t max_n_dsts_per_tx = FCMP_PLUS_PLUS_MAX_OUTPUTS - 1;
 
     std::size_t n_dsts = normal_payment_proposals.size() + selfsend_payment_proposals.size();
@@ -76,6 +77,7 @@ void make_multiple_carrot_transaction_proposals_transfer(
     while (n_dsts)
     {
         // build payment proposals and subtractable info
+        // note: 'subtractable info' is proposal vector indices for proposals from which the fee can be subtracted
         std::vector<carrot::CarrotPaymentProposalV1> tx_normal_payment_proposals;
         std::vector<carrot::CarrotPaymentProposalVerifiableSelfSendV1> tx_selfsend_payment_proposals;
         std::set<std::size_t> tx_subtractable_normal_payment_proposals;
@@ -197,11 +199,12 @@ void make_multiple_carrot_transaction_proposals_sweep(
     };
 
     // To try to maximize the total amount of money sent in a sweep, we first order the amounts in
-    // ascending order. Then from low to high, we slide a "window" over a slice of contiguous
-    // amounts and call `get_input_count_for_max_usable_money_in_window` over that window. That call
-    // will tell how many of the inputs in that window are dusty. If any are dusty, we should keep
-    // sliding the window until we can't. Once that window stops, we use that window for the inputs
-    // for the current transaction. Repeat until no inputs are left or only dusty inputs are left.
+    // descending order. Then from top down (looking at lowest amounts first), we slide a "window"
+    // over a slice of contiguous amounts and call `get_input_count_for_max_usable_money_in_window`
+    // over that window. That call will tell how many of the inputs in that window are dusty. If any
+    // are dusty, we should keep sliding the window until we can't. Once that window stops, we use that
+    // window for the inputs for the current transaction. Repeat until no inputs are left or only
+    // dusty inputs are left.
 
     // while some selection of inputs of the highest amounts at some input count yields a net positive output sum...
     while (get_input_count_for_max_usable_money_in_window(0))

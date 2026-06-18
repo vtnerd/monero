@@ -45,7 +45,7 @@
 //standard headers
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
-#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl"
+#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl.spend_device_ram_borrowed"
 
 #define DEFINE_SUB_DEVICES()                                                 \
     std::shared_ptr<generate_image_key_device> legacy_k_generate_image_dev;  \
@@ -77,6 +77,7 @@ spend_device_ram_borrowed::spend_device_ram_borrowed(
     m_privkey_t(privkey_t)
 {
     assert(this->m_k_view_incoming_dev);
+    assert(this->m_address_dev);
 }
 //-------------------------------------------------------------------------------------------------------------------
 spend_device_ram_borrowed::spend_device_ram_borrowed(

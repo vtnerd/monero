@@ -115,8 +115,8 @@ std::pair<std::size_t, boost::multiprecision::uint128_t> get_input_count_for_max
  * The better candidate is determined by criteria in descending order of importance as follows:
  *     1. Amount (higher is better, duh)
  *     2. Age (older is better for protection against double spend attacks)
- *     3. Is pre-Carrot enote? (`false` is better for spending QFS)
- *     4. Is external enote?  (`false` is better for spending QFS)
+ *     3. Is pre-Carrot enote? (`false` is better for quantum forward-secrecy)
+ *     4. Is external enote?  (`false` is better for quantum forward-secrecy)
  */
 int compare_input_candidate_same_ota(const InputCandidate &lhs, const InputCandidate &rhs);
 /**
@@ -188,6 +188,7 @@ std::vector<std::size_t> get_input_counts_in_preferred_order(std::size_t max_n_i
  * @param input_candidates -
  * @param policies slice of ISPs to attempt selection on, in order of user's preference
  * @param flags see InputSelectionFlags namespace
+ * @param max_n_inputs - the maximum number of inputs to allow
  * @param[out] selected_input_indices_out selected indices into `input_candidates` (optional)
  * @return input selector functor
  *
@@ -212,7 +213,7 @@ select_inputs_func_t make_single_transfer_input_selector(
 namespace ispolicy
 {
 /**
- * @brief An ISP which generally attempts to select old outputs, but isn't necessarily optimal
+ * @brief An input selection policy which generally attempts to select old outputs, but isn't necessarily optimal
  */
 void select_greedy_aging(const epee::span<const InputCandidate>,
     const std::set<std::size_t>&,

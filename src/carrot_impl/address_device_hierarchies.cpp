@@ -46,7 +46,7 @@ extern "C"
 //standard headers
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
-#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl"
+#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl.address_device_hierarchies"
 
 namespace
 {
@@ -245,6 +245,7 @@ void carrot_hierarchy_address_device::get_address_pubkeys(const subaddress_index
     if (!subaddr_index.index.is_subaddress())
     {
         address_spend_pubkey_out = this->m_carrot_account_spend_pubkey;
+        address_view_pubkey_out = this->m_carrot_account_view_pubkey;
         return;
     }
 

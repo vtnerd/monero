@@ -126,4 +126,4 @@ struct hash<carrot::subaddress_index_extended>
         return h;
     }
 };
-}
+} //namespace std

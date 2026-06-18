@@ -43,7 +43,7 @@
 #include <algorithm>
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
-#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl"
+#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl.input_selection"
 
 namespace carrot
 {
@@ -209,11 +209,13 @@ std::vector<std::set<std::size_t>> form_preferred_input_candidate_subsets(
 
     // 5. We should prefer to spend non-forward-secret enotes in transactions where all the outputs
     // are going back to ourself. Otherwise, if we spend these enotes while transferring money to
-    // another entity, an external observer who A) has a quantum computer, and B) knows one of their
+    // another entity, an external observer who A) has a quantum computer, and B) knows one of our
     // public addresses, will be able to trace the money transfer. Such an observer will always be
     // able to tell which view-incoming keys / accounts these non-forward-secrets enotes belong to,
     // their amounts, and where they're spent. So since they already know that information, churning
-    // back to oneself doesn't actually reveal that much more additional information.
+    // back to oneself doesn't actually reveal that much more additional information. Plus it allows
+    // us to automatically convert non-forward-secret enotes to forward-secret enotes through
+    // churning.
     const bool prefer_non_fs = !is_normal_transfer;
     CARROT_CHECK_AND_THROW(!must_use_internal || !prefer_non_fs,
         carrot_logic_error, "bug: must_use_internal AND prefer_non_fs are true");
@@ -250,7 +252,7 @@ std::vector<std::set<std::size_t>> form_preferred_input_candidate_subsets(
     if (!must_use_internal || !prefer_non_fs)
     {
         // Spending non-FS inputs in a normal transfer transaction is not ideal, but at least
-        // when partition it like this, we aren't "dirtying" the carrot with the pre-carrot, and
+        // when partitioned like this, we aren't "dirtying" the carrot with the pre-carrot, and
         // the internal with the external
         if (!must_use_carrot)
             push_subset(pre_carrot_inputs);
@@ -340,9 +342,11 @@ select_inputs_func_t make_single_transfer_input_selector(
     const epee::span<const InputCandidate> input_candidates,
     const epee::span<const input_selection_policy_t> policies,
     const std::uint32_t flags,
-    const std::size_t max_n_inputs,
+    std::size_t max_n_inputs,
     std::set<size_t> *selected_input_indices_out)
 {
+    max_n_inputs = max_n_inputs ? max_n_inputs : FCMP_PLUS_PLUS_MAX_INPUTS;
+
     // input selector :D
     return [=](const boost::multiprecision::uint128_t &nominal_output_sum,
         const std::map<std::size_t, xmr_amount> &fee_by_input_count,
@@ -354,7 +358,7 @@ select_inputs_func_t make_single_transfer_input_selector(
 
         // 1. Sanity checks valid arguments
         const std::size_t n_candidates = input_candidates.size();
-        CARROT_CHECK_AND_THROW(!fee_by_input_count.empty(), missing_components, "no provided allowed input count");
+        CARROT_CHECK_AND_THROW(!fee_by_input_count.empty(), missing_components, "no provided fee by input count");
         CARROT_CHECK_AND_THROW(!policies.empty(), missing_components, "no input selection policies provided");
         CARROT_CHECK_AND_THROW(n_candidates, not_enough_money, "no input candidates provided");
 
@@ -388,7 +392,7 @@ select_inputs_func_t make_single_transfer_input_selector(
 
         std::set<std::size_t> all_idxs; for (std::size_t i = 0; i < input_candidates.size(); ++i) all_idxs.insert(i);
         const std::pair<std::size_t, boost::multiprecision::uint128_t> max_usable_money =
-            input_count_for_max_usable_money(input_candidates, all_idxs, FCMP_PLUS_PLUS_MAX_INPUTS, fee_by_input_count);
+            input_count_for_max_usable_money(input_candidates, all_idxs, max_n_inputs, fee_by_input_count);
         CARROT_CHECK_AND_THROW(max_usable_money.second >= absolute_minimum_required_money,
             not_enough_usable_money,
             "Not enough usable money in top " << max_usable_money.first << " inputs ("
@@ -413,7 +417,7 @@ select_inputs_func_t make_single_transfer_input_selector(
 
             // Skip if not enough money in this selectable set for max number of tx inputs...
             const auto max_usable_money = input_count_for_max_usable_money(input_candidates,
-                input_candidate_subset, FCMP_PLUS_PLUS_MAX_INPUTS, fee_by_input_count);
+                input_candidate_subset, max_n_inputs, fee_by_input_count);
             if (!max_usable_money.first)
                 continue;
             else if (max_usable_money.second < required_money_by_input_count.at(max_usable_money.first))
@@ -442,6 +446,16 @@ select_inputs_func_t make_single_transfer_input_selector(
                     continue;
                 else if (max_usable_money.second < required_money)
                     continue;
+                else if (subtract_fee && fee_by_input_count.at(max_usable_money.first) >= nominal_output_sum)
+                {
+                    // Note: we do not check for combinations less than max_usable_money where the fee is lower than
+                    // the output sum
+                    MDEBUG("Skipping input selection... fee exceeds output sum with 'subtract fee' option set. Fee "
+                        << cryptonote::print_money(fee_by_input_count.at(max_usable_money.first))
+                        << " for " << max_usable_money.first
+                        << " inputs is >= output sum " << cryptonote::print_money(nominal_output_sum));
+                    continue;
+                }
 
                 // After this point, we expect one of the policies to succeed, otherwise all input selection fails
 
@@ -492,8 +506,9 @@ select_inputs_func_t make_single_transfer_input_selector(
         CARROT_CHECK_AND_THROW(!selected_inputs_indices.empty(),
             not_enough_usable_money,
             "No single allowed subset of candidates had enough money to fund payment proposals and fees for inputs");
-        CARROT_CHECK_AND_THROW(*selected_inputs_indices.crbegin() < input_candidates.size(),
-            carrot_logic_error, "bug: selected inputs index out of range");
+        for (const std::size_t selected_inputs_index : selected_inputs_indices)
+            CARROT_CHECK_AND_THROW(selected_inputs_index < input_candidates.size(),
+                carrot_logic_error, "bug: selected inputs index out of range");
 
         // 9. Check the sum of input amounts is great enough
         const std::size_t num_selected = selected_inputs_indices.size();
@@ -566,17 +581,16 @@ void select_greedy_aging(const epee::span<const InputCandidate> input_candidates
         const xmr_amount currently_selected_amount = input_candidates[bi_it->second].core.amount;
         const xmr_amount lowest_replacement_amount = (currently_selected_amount > surplus)
             ? boost::numeric_cast<xmr_amount>(currently_selected_amount - surplus) : 0;
-        const auto lower_amount_it = std::lower_bound(selectable_inputs_by_amount.cbegin(),
-            selectable_inputs_by_amount.cend(), lowest_replacement_amount,
-            [&input_candidates](const std::size_t selectable_idx, const xmr_amount lowest_replacement_amount)
-                {
-                    CARROT_CHECK_AND_THROW(selectable_idx < input_candidates.size(),
-                        std::out_of_range, "input candidate index out of range");
-                    return input_candidates[selectable_idx].core.amount < lowest_replacement_amount;
-                });
-        for (auto amount_it = lower_amount_it; amount_it != selectable_inputs_by_amount.cend(); ++amount_it)
+        for (size_t i = 0; i < selectable_inputs_by_amount.size(); ++i)
         {
-            const std::size_t potential_replacement_idx = *amount_it;
+            // Ignore candidates with amounts too low for replacement
+            const std::size_t potential_replacement_idx = selectable_inputs_by_amount[i];
+            CARROT_CHECK_AND_THROW(potential_replacement_idx < input_candidates.size(),
+                std::out_of_range, "input candidate index out of range");
+            if (input_candidates[potential_replacement_idx].core.amount < lowest_replacement_amount)
+                continue;
+
+            // Replace if candidate's block index is lower
             if (selected_inputs_indices_out.count(potential_replacement_idx))
                 continue;
             const InputCandidate &potential_replacement_input = input_candidates[potential_replacement_idx];

@@ -49,20 +49,20 @@ struct RCTOutputEnoteProposal;
 namespace carrot
 {
 /**
- * @brief Generate rerandomized outputs (with non-refunable r_o) for given inputs in input proposals
+ * @brief Generate rerandomized outputs (with non-refundable r_o) for given inputs in input proposals
  * @param output_enote_proposals output enotes for spending tx, used to calculate r_c imbalance
  * @param input_proposals inputs for spending tx, used to extract (O, I, C) tuples and calculate r_c imbalance
- * @param main_address_spend_pubkeys all K_s
- * @param k_view_incoming_dev -
+ * @param main_address_spend_pubkeys all K_s, potentially includes a legacy and a Carrot pubkey
  * @param s_view_balance_dev -
+ * @param k_view_incoming_dev -
  * @return Rerandomized inputs in order of `input_proposals`
  */
 std::vector<FcmpRerandomizedOutputCompressed> generate_rerandomized_inputs_nonrefundable(
     epee::span<const carrot::RCTOutputEnoteProposal> output_enote_proposals,
     epee::span<const carrot::OutputOpeningHintVariant> input_proposals,
     const epee::span<const crypto::public_key> main_address_spend_pubkeys,
-    const carrot::view_incoming_key_device &k_view_incoming_dev,
-    const carrot::view_balance_secret_device *s_view_balance_dev);
+    const carrot::view_balance_secret_device *s_view_balance_dev,
+    const carrot::view_incoming_key_device &k_view_incoming_dev);
 /**
  * @brief Verify that rerandomized output and openings are correctly calculated for given (O, C)
  * @param rerandomized_output -

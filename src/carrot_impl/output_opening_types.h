@@ -1,4 +1,4 @@
-// Copyright (c) 2025, The Monero Project
+// Copyright (c) 2025-2026, The Monero Project
 //
 // All rights reserved.
 //
@@ -106,6 +106,8 @@ bool operator==(const CarrotOutputOpeningHintV1&, const CarrotOutputOpeningHintV
 
 /**
  * @brief Hint to open non-coinbase Carrot v1 enotes, given just public data, decrypted amount, and subaddress index
+ *
+ * The same as `CarrotOutputOpeningHintV1` but has decrypted amount, instead of encryoted.
  */
 struct CarrotOutputOpeningHintV2
 {
@@ -168,31 +170,31 @@ fcmp_pp::OutputPair to_output_pair(const OutputOpeningHintVariant &opening_hint)
 /**
  * @brief Scan sender extensions for given opening hint
  * @param opening_hint -
- * @param k_view_incoming_dev device for k_v (optional)
  * @param s_view_balance_dev device for s_vb (optional)
+ * @param k_view_incoming_dev device for k_v (optional)
  * @param[out] sender_extension_g_out k^g_o
  * @param[out] sender_extension_t_out k^t_o
  * @return true iff Carrot enote scan was successful, or if nominal legacy derivation-to-scalar didn't fail
  */
 bool try_scan_opening_hint_sender_extensions(const OutputOpeningHintVariant &opening_hint,
     const epee::span<const crypto::public_key> main_address_spend_pubkeys,
-    const view_incoming_key_device *k_view_incoming_dev,
     const view_balance_secret_device *s_view_balance_dev,
+    const view_incoming_key_device *k_view_incoming_dev,
     crypto::secret_key &sender_extension_g_out,
     crypto::secret_key &sender_extension_t_out);
 /**
  * @brief Scan amount and blinding factor for given opening hint
  * @param opening_hint -
- * @param k_view_incoming_dev device for k_v (optional)
  * @param s_view_balance_dev device for s_vb (optional)
+ * @param k_view_incoming_dev device for k_v (optional)
  * @param[out] amount_out a
  * @param[out] amount_blinding_factor_out k_a
  * @return true iff Carrot enote scan was successful, or if nominal legacy derivation-to-scalar didn't fail
  */
 bool try_scan_opening_hint_amount(const OutputOpeningHintVariant &opening_hint,
     const epee::span<const crypto::public_key> main_address_spend_pubkeys,
-    const view_incoming_key_device *k_view_incoming_dev,
     const view_balance_secret_device *s_view_balance_dev,
+    const view_incoming_key_device *k_view_incoming_dev,
     xmr_amount &amount_out,
     crypto::secret_key &amount_blinding_factor_out);
 } //namespace carrot

@@ -44,17 +44,17 @@ namespace carrot
 /**
  * @brief Spend device, implemented by borrowing references to in-memory keys
  */
-class spend_device_ram_borrowed: public spend_device
+class spend_device_ram_borrowed final: public spend_device
 {
 public:
-    /// @brief device composed (except k_s, k_ps, k_gi)
+    /// @brief from parts (excludes k_s, k_ps, k_gi)
     spend_device_ram_borrowed(std::shared_ptr<view_incoming_key_device> k_view_incoming_dev,
         std::shared_ptr<view_balance_secret_device> s_view_balance_dev,
         std::shared_ptr<address_device> address_dev,
         const crypto::secret_key &privkey_g,
         const crypto::secret_key &privkey_t);
 
-    /// @brief cryptonote-derived & ram borrowed from k_s, k_v
+    /// @brief from cryptonote k_s, k_v
     spend_device_ram_borrowed(const crypto::secret_key &k_spend, const crypto::secret_key &k_view);
 
     bool try_sign_carrot_transaction_proposal_v1(const CarrotTransactionProposalV1 &tx_proposal,

@@ -47,7 +47,7 @@ namespace carrot
 using InputProposalV1 = OutputOpeningHintVariant;
 
 /**
- * @brief A selfsend payment proposal, verified to an owned address
+ * @brief A selfsend payment proposal, verifiable to an owned address
  *
  * The `subaddr_index` field is intended to be be used to derive
  * `proposal.destination_address_spend_pubkey`, without the need for a subaddress lookahead table.

@@ -75,6 +75,8 @@ static void append_additional_payment_proposal_if_necessary(
         if (selfsend_payment_proposal.enote_type == CarrotEnoteType::PAYMENT)
             have_payment_type_selfsend = true;
 
+    // We set change amount to zero with the assumption a change proposal has already been inserted manually if a
+    // non-zero change is required.
     const auto additional_payment_proposal = get_additional_payment_proposal(normal_payment_proposals_inout.size(),
         selfsend_payment_proposals_inout.size(),
         /*needed_change_amount=*/0,
@@ -181,7 +183,7 @@ void make_carrot_transaction_proposal_v1(const std::vector<CarrotPaymentProposal
         CHECK_AND_ASSERT_THROW_MES(tx_weight != std::numeric_limits<uint64_t>::max(),
             "make_carrot_transaction_proposal_v1: invalid weight returned for ins=" << num_ins
             << " outs=" << num_outs << " extra_size=" << tx_extra_size);
-        CHECK_AND_ASSERT_THROW_MES(std::numeric_limits<uint64_t>::max() / tx_weight > fee_per_weight,
+        CHECK_AND_ASSERT_THROW_MES(tx_weight > 0 && std::numeric_limits<uint64_t>::max() / tx_weight > fee_per_weight,
             "make_carrot_transaction_proposal_v1: overflow in fee calculation");
         const xmr_amount fee = tx_weight * fee_per_weight;
         fee_per_input_count.emplace(num_ins, fee);
@@ -250,13 +252,13 @@ void make_carrot_transaction_proposal_v1_transfer(
     std::vector<CarrotPaymentProposalVerifiableSelfSendV1> selfsend_payment_proposals = selfsend_payment_proposals_in;
 
     // always add implicit selfsend enote, so resultant enotes' amounts mirror given payments set close as possible
-    // note: we always do this, even if the amount ends up being 0 and we already have a selfsend. this is because if we
+    // note: We always do this, even if the amount ends up being 0 and we already have a selfsend. This is because if we
     //       realize later that the change output we added here has a 0 amount, and we try removing it, then the fee
     //       would go down and then the change amount *wouldn't* be 0, so it must stay. Although technically,
     //       the scenario could arise where a change in input selection changes the input sum amount and fee exactly
-    //       such that we could remove the implicit change output and it happens to balance. IMO, handling this edge
-    //       case isn't worth the additional code complexity, and may cause unexpected uniformity issues. The calling
-    //       code might expect that transfers to N destinations always produces a transaction with N+1 outputs
+    //       such that we could remove the implicit change output and it happens to balance. Handling this edge
+    //       case isn't worth the additional code complexity, and may cause unexpected uniformity issues. E.g. the calling
+    //       code might expect that transfers to N destinations always produces a transaction with N+1 outputs.
     const bool add_payment_type_selfsend = normal_payment_proposals.empty() &&
         selfsend_payment_proposals.size() == 1 &&
         selfsend_payment_proposals.at(0).enote_type == CarrotEnoteType::CHANGE;
@@ -268,7 +270,7 @@ void make_carrot_transaction_proposal_v1_transfer(
         .enote_type = add_payment_type_selfsend ? CarrotEnoteType::PAYMENT : CarrotEnoteType::CHANGE
     });
 
-    // define carves fees and balance callback
+    // define carve fees and balance callback
     carve_fees_and_balance_func_t carve_fees_and_balance =
     [
         &subtractable_normal_payment_proposals,
@@ -281,66 +283,74 @@ void make_carrot_transaction_proposal_v1_transfer(
         std::vector<CarrotPaymentProposalVerifiableSelfSendV1> &selfsend_payment_proposals
     )
     {
-        // shadow subtractable_selfsend_payment_proposals and adjust for default case (no subtractable provided)
-        const auto &subtractable_selfsend_payment_proposals_ref = subtractable_selfsend_payment_proposals;
-        std::set<std::size_t> subtractable_selfsend_payment_proposals = subtractable_selfsend_payment_proposals_ref;
-        if (subtractable_normal_payment_proposals.empty() && subtractable_selfsend_payment_proposals.empty())
-            subtractable_selfsend_payment_proposals.insert(selfsend_payment_proposals.size() - 1);
+        // adjust selfsend subtractables for the default case (no subtractable provided)
+        // note that we assume A) no additional payment proposals will be added and B) proposals don't account
+        // for the fee yet, so subtraction *must* occur
+        std::set<std::size_t> subtractable_selfsends = subtractable_selfsend_payment_proposals;
+        if (subtractable_normal_payment_proposals.empty() && subtractable_selfsends.empty())
+            subtractable_selfsends.insert(selfsend_payment_proposals.size() - 1);
 
         const bool has_subbable_normal = !subtractable_normal_payment_proposals.empty();
-        const bool has_subbable_selfsend = !subtractable_selfsend_payment_proposals.empty();
+        const bool has_subbable_selfsend = !subtractable_selfsends.empty();
         const size_t num_normal = normal_payment_proposals.size();
         const size_t num_selfsend = selfsend_payment_proposals.size();
 
-        // check subbable indices invariants
-        CHECK_AND_ASSERT_THROW_MES(
-            !has_subbable_normal || *subtractable_normal_payment_proposals.crbegin() < num_normal,
-            "make unsigned transaction transfer subtractable: subtractable normal proposal index out of bounds");
-        CHECK_AND_ASSERT_THROW_MES(
-            !has_subbable_selfsend || *subtractable_selfsend_payment_proposals.crbegin() < num_selfsend,
-            "make unsigned transaction transfer subtractable: subtractable selfsend proposal index out of bounds");
+        // check subbable invariants
         CHECK_AND_ASSERT_THROW_MES(has_subbable_normal || has_subbable_selfsend,
             "make unsigned transaction transfer subtractable: no subtractable indices");
 
         // check selfsend proposal invariants
         CHECK_AND_ASSERT_THROW_MES(!selfsend_payment_proposals.empty(),
             "make unsigned transaction transfer subtractable: missing a selfsend proposal");
-        CHECK_AND_ASSERT_THROW_MES(selfsend_payment_proposals.back().amount == 0,
+
+        CarrotPaymentProposalVerifiableSelfSendV1 &change_target = selfsend_payment_proposals.back();
+        CHECK_AND_ASSERT_THROW_MES(change_target.amount == 0,
             "make unsigned transaction transfer subtractable: bug: added implicit change output has non-zero amount");
 
         // start by setting the last selfsend amount equal to (inputs - outputs), before fee
-        boost::multiprecision::uint128_t implicit_change_amount = input_sum_amount;
+        boost::multiprecision::uint128_t requested_output_amount = 0;
         for (const CarrotPaymentProposalV1 &normal_payment_proposal : normal_payment_proposals)
-            implicit_change_amount -= normal_payment_proposal.amount;
+            requested_output_amount += normal_payment_proposal.amount;
         for (const CarrotPaymentProposalVerifiableSelfSendV1 &selfsend_payment_proposal : selfsend_payment_proposals)
-            implicit_change_amount -= selfsend_payment_proposal.amount;
+            requested_output_amount += selfsend_payment_proposal.amount;
 
-        selfsend_payment_proposals.back().amount =
-            boost::numeric_cast<xmr_amount>(implicit_change_amount);
+        CHECK_AND_ASSERT_THROW_MES(input_sum_amount >= requested_output_amount + fee,
+            "make unsigned transaction transfer subtractable: bug: input amnts not >= output amnts + fee");
+
+        const boost::multiprecision::uint128_t implicit_change_amount = input_sum_amount - requested_output_amount;
+
+        change_target.amount = boost::numeric_cast<xmr_amount>(implicit_change_amount);
 
         // deduct an even fee amount from all subtractable outputs
-        const size_t num_subtractble_normal = subtractable_normal_payment_proposals.size();
-        const size_t num_subtractable_selfsend = subtractable_selfsend_payment_proposals.size();
-        const size_t num_subtractable = num_subtractble_normal + num_subtractable_selfsend;
+        const size_t num_subtractable_normal = subtractable_normal_payment_proposals.size();
+        const size_t num_subtractable_selfsend = subtractable_selfsends.size();
+        const size_t num_subtractable = num_subtractable_normal + num_subtractable_selfsend;
         const xmr_amount minimum_subtraction = fee / num_subtractable; // no div by 0 since we checked subtractable
-        for (size_t normal_sub_idx : subtractable_normal_payment_proposals)
+        for (const size_t normal_sub_idx : subtractable_normal_payment_proposals)
         {
+            CHECK_AND_ASSERT_THROW_MES(normal_sub_idx < num_normal,
+                "make unsigned transaction transfer subtractable: subtractable normal proposal index out of bounds");
+
             CarrotPaymentProposalV1 &normal_payment_proposal = normal_payment_proposals[normal_sub_idx];
             CHECK_AND_ASSERT_THROW_MES(normal_payment_proposal.amount >= minimum_subtraction,
                 "make unsigned transaction transfer subtractable: not enough funds in subtractable payment");
             normal_payment_proposal.amount -= minimum_subtraction;
         }
-        for (size_t selfsend_sub_idx : subtractable_selfsend_payment_proposals)
+        for (const size_t selfsend_sub_idx : subtractable_selfsends)
         {
-            xmr_amount &selfsend_amount = selfsend_payment_proposals[selfsend_sub_idx].amount;
-            CHECK_AND_ASSERT_THROW_MES(selfsend_amount >= minimum_subtraction,
+            CHECK_AND_ASSERT_THROW_MES(selfsend_sub_idx < num_selfsend,
+                "make unsigned transaction transfer subtractable: subtractable selfsend proposal index out of bounds");
+
+            CarrotPaymentProposalVerifiableSelfSendV1 &selfsend_payment_proposal =
+                selfsend_payment_proposals[selfsend_sub_idx];
+            CHECK_AND_ASSERT_THROW_MES(selfsend_payment_proposal.amount >= minimum_subtraction,
                 "make unsigned transaction transfer subtractable: not enough funds in subtractable payment");
-            selfsend_amount -= minimum_subtraction;
+            selfsend_payment_proposal.amount -= minimum_subtraction;
         }
 
-        // deduct 1 at a time from selfsend proposals
+        // deduct 1 at a time from selfsend proposals for the remainder
         xmr_amount fee_remainder = fee % num_subtractable;
-        for (size_t selfsend_sub_idx : subtractable_selfsend_payment_proposals)
+        for (const size_t selfsend_sub_idx : subtractable_selfsends)
         {
             if (fee_remainder == 0)
                 break;
@@ -355,7 +365,7 @@ void make_carrot_transaction_proposal_v1_transfer(
         // now deduct 1 at a time from normal proposals, shuffled
         if (fee_remainder != 0)
         {
-            // create vector of shuffled subtractble normal payment indices
+            // create vector of shuffled subtractable normal payment indices
             // note: we do this to hide the order that the normal payment proposals were described in this call, in case
             //       the recipients collude
             std::vector<size_t> shuffled_normal_subtractable(subtractable_normal_payment_proposals.cbegin(),
@@ -364,7 +374,7 @@ void make_carrot_transaction_proposal_v1_transfer(
                 shuffled_normal_subtractable.end(),
                 crypto::random_device{});
 
-            for (size_t normal_sub_idx : shuffled_normal_subtractable)
+            for (const size_t normal_sub_idx : shuffled_normal_subtractable)
             {
                 if (fee_remainder == 0)
                     break;
@@ -404,10 +414,11 @@ void make_carrot_transaction_proposal_v1_sweep(
     CarrotTransactionProposalV1 &tx_proposal_out)
 {
     // sanity check payment proposals are provided
-    CHECK_AND_ASSERT_THROW_MES(normal_payment_proposals.size() || selfsend_payment_proposals.size(),
+    const std::size_t n_normal_start = normal_payment_proposals.size();
+    CHECK_AND_ASSERT_THROW_MES(n_normal_start || selfsend_payment_proposals.size(),
         "make carrot transaction proposal v1 sweep: no payment proposals provided");
 
-    // sanity check that all payment proposal amounts are 0
+    // sanity check all payment proposal
     for (const CarrotPaymentProposalV1 &normal_payment_proposal : normal_payment_proposals)
     {
         CHECK_AND_ASSERT_THROW_MES(normal_payment_proposal.amount == 0,
@@ -420,7 +431,7 @@ void make_carrot_transaction_proposal_v1_sweep(
     }
 
     // sanity check that either normal payment proposals XOR selfsend are provided, not both
-    CHECK_AND_ASSERT_THROW_MES(bool(normal_payment_proposals.size()) ^ bool(selfsend_payment_proposals.size()),
+    CHECK_AND_ASSERT_THROW_MES(bool(n_normal_start) ^ bool(selfsend_payment_proposals.size()),
         "make carrot transaction proposal v1 sweep: both normal and self-send payment proposals are provided");
 
     const bool is_selfsend_sweep = !selfsend_payment_proposals.empty();
@@ -438,8 +449,8 @@ void make_carrot_transaction_proposal_v1_sweep(
         selected_inputs_out = std::move(selected_inputs);
     }; //end select_inputs
 
-    // define carves fees and balance callback
-    carve_fees_and_balance_func_t carve_fees_and_balance = [is_selfsend_sweep]
+    // define carve fees and balance callback
+    carve_fees_and_balance_func_t carve_fees_and_balance = [n_normal_start, is_selfsend_sweep]
     (
         const boost::multiprecision::uint128_t &input_sum_amount,
         const xmr_amount fee,
@@ -447,10 +458,20 @@ void make_carrot_transaction_proposal_v1_sweep(
         std::vector<CarrotPaymentProposalVerifiableSelfSendV1> &selfsend_payment_proposals
     )
     {
+        CHECK_AND_ASSERT_THROW_MES(input_sum_amount >= fee,
+            "make carrot transaction proposal v1 sweep: bug: input_sum_amount < fee");
+        CHECK_AND_ASSERT_THROW_MES(n_normal_start == normal_payment_proposals.size(),
+            "make carrot transaction proposal v1 sweep: bug: included dummy payment proposal");
+
+
         // get pointers to proposal amounts and shuffle, excluding implicit selfsend
         const size_t n_outputs = normal_payment_proposals.size() + selfsend_payment_proposals.size();
         std::vector<xmr_amount*> amount_ptrs;
         amount_ptrs.reserve(n_outputs);
+
+        // Note: `selfsend_payment_proposals` will be non-empty even if `is_selfsend_sweep` is false
+        // because a self-send is always needed. Branching on `is_selfsend_sweep` means the sweep won't
+        // push amounts into the 'change' output unintentionally.
         if (is_selfsend_sweep)
             for (CarrotPaymentProposalVerifiableSelfSendV1 &selfsend_payment_proposal : selfsend_payment_proposals)
                 amount_ptrs.push_back(&selfsend_payment_proposal.amount);

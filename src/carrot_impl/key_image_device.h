@@ -47,7 +47,7 @@ struct key_image_device
     /**
      * @brief Derive a key image for an enote, given its opening hint
      * @param opening_hint -
-     * @return L = x Hp(O) given O and some y s.t. O = x G + y T
+     * @return L = x Hp(O) given O and some x s.t. O = x G + y T
      *
      * The _implementor_ is expected to validate that this enote passes the burning bug check, Janus check, etc.
      */
@@ -59,7 +59,7 @@ struct key_image_device
      * @param onetime_address K_o
      * @param subaddr_index j
      * @param use_biased true if should use biased hash-to-point function
-     * @return L = x Hp(K_o) given K_o and some y s.t. K_o = x G + y T
+     * @return L = x Hp(K_o) given K_o and some x s.t. K_o = x G + y T
      *
      * The _caller_ is expected to validate that this enote passes the burning bug check, Janus check, etc.
      */
