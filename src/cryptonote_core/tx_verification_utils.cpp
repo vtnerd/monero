@@ -732,7 +732,9 @@ crypto::hash make_input_verification_id(const crypto::hash &tx_hash, const rct::
     return input_verification_id;
 }
 
-crypto::hash make_input_verification_id(const crypto::hash &tx_hash, const crypto::ec_point &dereferenced_fcmp_root)
+crypto::hash make_input_verification_id(const crypto::hash &tx_hash,
+    const crypto::ec_point &dereferenced_fcmp_root,
+    const uint8_t n_tree_layers)
 {
     std::stringstream ss;
 
@@ -745,6 +747,9 @@ crypto::hash make_input_verification_id(const crypto::hash &tx_hash, const crypt
     // Then serialize FCMP tree root
     ss.write(dereferenced_fcmp_root.data, sizeof(dereferenced_fcmp_root));
 
+    // Then serialize n tree layers
+    ss << n_tree_layers;
+
     // Calculate hash of TX hash and FCMP tree root blob
     crypto::hash input_verification_id;
     get_blob_hash(ss.str(), input_verification_id);
@@ -755,8 +760,9 @@ crypto::hash make_input_verification_id(const transaction &tx,
     const rct::ctkeyM &dereferenced_mix_ring,
     const crypto::ec_point &dereferenced_fcmp_root)
 {
+    CHECK_AND_ASSERT_THROW_MES(!tx.pruned, "make_input_verification_id: tx is pruned");
     if (rct::is_rct_fcmp(tx.rct_signatures.type))
-        return make_input_verification_id(get_transaction_hash(tx), dereferenced_fcmp_root);
+        return make_input_verification_id(get_transaction_hash(tx), dereferenced_fcmp_root, tx.rct_signatures.p.n_tree_layers);
     else
         return make_input_verification_id(get_transaction_hash(tx), dereferenced_mix_ring);
 }
@@ -890,8 +896,8 @@ bool batch_ver_fcmp_pp_consensus
             return false;
         }
 
-        input_verification_id_by_txid[txid] = make_input_verification_id(txid,
-            tree_root_by_block_index.at(reference_block).first);
+        const auto &root_pair = tree_root_by_block_index.at(reference_block);
+        input_verification_id_by_txid[txid] = make_input_verification_id(txid, root_pair.first, root_pair.second);
     }
 
     if (fcmp_pp_verify_inputs.empty())

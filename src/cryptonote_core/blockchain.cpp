@@ -742,7 +742,7 @@ block Blockchain::pop_block_from_blockchain()
         crypto::ec_point ref_tree_root{};
         if (get_fcmp_tx_tree_root(m_db, tx, ref_tree_root))
         {
-          valid_input_verification_id = make_input_verification_id(get_transaction_hash(tx), ref_tree_root);
+          valid_input_verification_id = make_input_verification_id(get_transaction_hash(tx), ref_tree_root, tx.rct_signatures.p.n_tree_layers);
         }
         else
         {

@@ -120,9 +120,9 @@ namespace cryptonote
     }
 
     // Quick check if inputs were rendered invalid. If false, this does not mean the inputs are still valid. The
-    // tx would still need to go through the full validation flow. But if true, we're sure the inputs are now
+    // tx should still go through the full validation flow. But if true, we're sure the inputs are now
     // invalid. This is helpful to avoid re-relaying invalid txs.
-    bool expect_invalid_tx_inputs(const crypto::hash &txid, const txpool_tx_meta_t &meta, const Blockchain& m_blockchain, std::unordered_map<uint64_t, crypto::ec_point> &tree_roots_by_block_inout)
+    bool expect_invalid_tx_inputs(const crypto::hash &txid, const txpool_tx_meta_t &meta, const Blockchain& m_blockchain, std::unordered_map<uint64_t, std::pair<crypto::ec_point, uint8_t>> &tree_roots_by_block_inout)
     {
       if (meta.max_used_block_height < m_blockchain.get_earliest_ideal_height_for_version(HF_VERSION_FCMP_PLUS_PLUS + 1))
         return false;
@@ -136,23 +136,24 @@ namespace cryptonote
       if (tree_roots_by_block_inout.find(reference_block) == tree_roots_by_block_inout.end())
       {
         crypto::ec_point tree_root;
+        uint8_t n_tree_layers;
         try
         {
-          m_blockchain.get_db().get_tree_root_at_blk_idx(reference_block, tree_root);
+          n_tree_layers = m_blockchain.get_db().get_tree_root_at_blk_idx(reference_block, tree_root);
         }
         catch (...)
         {
           MERROR("Failed to get tree root at block " << reference_block);
           return true;
         }
-        tree_roots_by_block_inout[reference_block] = tree_root;
+        tree_roots_by_block_inout[reference_block] = {tree_root, n_tree_layers};
       }
 
-      const crypto::ec_point &tree_root = tree_roots_by_block_inout[reference_block];
+      const auto &root_pair = tree_roots_by_block_inout[reference_block];
+      const crypto::ec_point &tree_root = root_pair.first;
+      const uint8_t n_tree_layers = root_pair.second;
 
-      // Warning: this doesn't guarantee the tx inputs are definitely still valid. Need to check the tx's included
-      // n_tree_layers as well, but we don't want to have to parse the full tx blob in here, so we do this spot check.
-      const auto expected_ver_id = make_input_verification_id(txid, tree_root);
+      const auto expected_ver_id = make_input_verification_id(txid, tree_root, n_tree_layers);
       if (meta.valid_input_verification_id == expected_ver_id)
         return false;
 
@@ -862,7 +863,7 @@ namespace cryptonote
     uint64_t next_check = clock::to_time_t(clock::from_time_t(time_t(now)) + max_relayable_check);
     std::vector<std::pair<crypto::hash, txpool_tx_meta_t>> change_timestamps;
 
-    std::unordered_map<uint64_t, crypto::ec_point> tree_roots_by_block;
+    std::unordered_map<uint64_t, std::pair<crypto::ec_point, uint8_t>> tree_roots_by_block;
 
     CRITICAL_REGION_LOCAL(m_transactions_lock);
     CRITICAL_REGION_LOCAL1(m_blockchain);

@@ -159,7 +159,9 @@ bool ver_input_proofs_fcmps(transaction& tx, const crypto::ec_point &dereference
  * was fetched without properly invalidating the hashes.
  */
 crypto::hash make_input_verification_id(const crypto::hash &tx_hash, const rct::ctkeyM &dereferenced_mix_ring);
-crypto::hash make_input_verification_id(const crypto::hash &tx_hash, const crypto::ec_point &dereferenced_fcmp_root);
+crypto::hash make_input_verification_id(const crypto::hash &tx_hash,
+    const crypto::ec_point &dereferenced_fcmp_root,
+    const uint8_t n_tree_layers);
 crypto::hash make_input_verification_id(const transaction &tx,
     const rct::ctkeyM &dereferenced_mix_ring,
     const crypto::ec_point &dereferenced_fcmp_root);
