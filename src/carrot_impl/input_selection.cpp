@@ -506,9 +506,9 @@ select_inputs_func_t make_single_transfer_input_selector(
         CARROT_CHECK_AND_THROW(!selected_inputs_indices.empty(),
             not_enough_usable_money,
             "No single allowed subset of candidates had enough money to fund payment proposals and fees for inputs");
-        for (const std::size_t selected_inputs_index : selected_inputs_indices)
-            CARROT_CHECK_AND_THROW(selected_inputs_index < input_candidates.size(),
-                carrot_logic_error, "bug: selected inputs index out of range");
+        // selected_inputs_indices is sorted via std::set
+        CARROT_CHECK_AND_THROW(*selected_inputs_indices.crbegin() < input_candidates.size(),
+            carrot_logic_error, "bug: selected inputs index out of range");
 
         // 9. Check the sum of input amounts is great enough
         const std::size_t num_selected = selected_inputs_indices.size();
@@ -581,16 +581,18 @@ void select_greedy_aging(const epee::span<const InputCandidate> input_candidates
         const xmr_amount currently_selected_amount = input_candidates[bi_it->second].core.amount;
         const xmr_amount lowest_replacement_amount = (currently_selected_amount > surplus)
             ? boost::numeric_cast<xmr_amount>(currently_selected_amount - surplus) : 0;
-        for (size_t i = 0; i < selectable_inputs_by_amount.size(); ++i)
+        // O(log(N))
+        const auto lower_amount_it = std::lower_bound(selectable_inputs_by_amount.cbegin(),
+            selectable_inputs_by_amount.cend(), lowest_replacement_amount,
+            [&input_candidates](const std::size_t selectable_idx, const xmr_amount lowest_replacement_amount)
+                {
+                    CARROT_CHECK_AND_THROW(selectable_idx < input_candidates.size(),
+                        std::out_of_range, "input candidate index out of range");
+                    return input_candidates[selectable_idx].core.amount < lowest_replacement_amount;
+                });
+        for (auto amount_it = lower_amount_it; amount_it != selectable_inputs_by_amount.cend(); ++amount_it)
         {
-            // Ignore candidates with amounts too low for replacement
-            const std::size_t potential_replacement_idx = selectable_inputs_by_amount[i];
-            CARROT_CHECK_AND_THROW(potential_replacement_idx < input_candidates.size(),
-                std::out_of_range, "input candidate index out of range");
-            if (input_candidates[potential_replacement_idx].core.amount < lowest_replacement_amount)
-                continue;
-
-            // Replace if candidate's block index is lower
+            const std::size_t potential_replacement_idx = *amount_it;
             if (selected_inputs_indices_out.count(potential_replacement_idx))
                 continue;
             const InputCandidate &potential_replacement_input = input_candidates[potential_replacement_idx];
