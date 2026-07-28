@@ -451,7 +451,7 @@ cryptonote::transaction make_single_enote_carrot_coinbase_transaction_v1(const C
     const cryptonote::blobdata &extra_nonce)
 {
     CHECK_AND_ASSERT_THROW_MES(!destination.is_subaddress,
-        "make_single_enote_carrot_coinbase_transaction_v1: subaddress are not allowed in miner transactions");
+        "make_single_enote_carrot_coinbase_transaction_v1: subaddresses are not allowed in miner transactions");
     CHECK_AND_ASSERT_THROW_MES(destination.payment_id == null_payment_id,
         "make_single_enote_carrot_coinbase_transaction_v1: integrated addresses are not allowed in miner transactions");
 
@@ -525,11 +525,13 @@ bool try_load_carrot_from_coinbase_transaction_v1(const cryptonote::transaction 
     //outputs
     enotes_out.resize(nouts);
     for (size_t i = 0; i < nouts; ++i)
+    {
         if (!try_load_carrot_coinbase_enote_from_transaction_v1(tx,
                 epee::to_span(enote_ephemeral_pubkeys),
                 i,
                 enotes_out[i]))
             return false;
+    }
 
     return true;
 }

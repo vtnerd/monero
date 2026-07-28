@@ -59,7 +59,7 @@ struct cryptonote_view_incoming_key_device: virtual public view_incoming_key_dev
 
 /// @brief takes a CN k_v device and K_s to derive addresses in Cryptonote style
 /// @note will fail if passed derive type is not ::PreCarrot or ::Auto
-class cryptonote_hierarchy_address_device: public address_device, public cryptonote_view_incoming_key_device
+class cryptonote_hierarchy_address_device final : public address_device, public cryptonote_view_incoming_key_device
 {
 public:
 //constructor
@@ -98,12 +98,11 @@ public:
         const std::uint32_t minor_index,
         crypto::secret_key &legacy_subaddress_extension_out) const override;
 
-protected:
+private:
 //member fields
     std::shared_ptr<cryptonote_view_incoming_key_device> m_k_view_incoming_dev;
     crypto::public_key m_cryptonote_account_spend_pubkey;
 
-private:
 //member functions
     void assert_derive_type(const subaddress_index_extended &subaddr_index,
         const char * const func_called) const;
@@ -111,7 +110,7 @@ private:
 
 /// @brief Takes a s_ga device and (K_s, K_v) to derive addresses in Carrot style
 /// @note Will fail if passed derive type is not ::Carrot or ::Auto
-class carrot_hierarchy_address_device: public address_device
+class carrot_hierarchy_address_device final: public address_device
 {
 public:
 //constructor
@@ -134,13 +133,12 @@ public:
 
     bool supports_address_derive_type(AddressDeriveType derive_type) const override;
 
-protected:
+private:
 //member fields
     std::shared_ptr<generate_address_secret_device> m_s_generate_address_dev;
     crypto::public_key m_carrot_account_spend_pubkey;
     crypto::public_key m_carrot_account_view_pubkey;
 
-private:
 //member functions
     crypto::secret_key get_subaddress_scalar(const subaddress_index &subaddr_index) const;
 
@@ -150,7 +148,7 @@ private:
 
 /// @brief Takes a CN and/or a Carrot address device and dispatches derivation according to the passed derive type
 /// @note Resolves to Carrot on ::Auto derive type if available
-class hybrid_hierarchy_address_device: public address_device
+class hybrid_hierarchy_address_device final: public address_device
 {
 public:
 //constructor
@@ -171,12 +169,11 @@ public:
 
     bool supports_address_derive_type(AddressDeriveType derive_type) const override;
 
-protected:
+private:
 //member fields
     std::shared_ptr<address_device> m_carrot_addr_dev;
     std::shared_ptr<address_device> m_cryptonote_addr_dev;
 
-private:
 //member functions
     const address_device& resolve_address_device(const AddressDeriveType derive_type,
         const char * const func_called) const;

@@ -72,7 +72,10 @@ using select_inputs_func_t = std::function<void(
     )>;
 
 /**
- * @brief Functor type to abstract the fee carving process, given output, fee, and selected input information
+ * @brief Adjusts payment proposals' amounts to balance the fee and input amount
+ *
+ * May include reducing normal payment amounts because they are 'subbable', or
+ * increasing selfsend payment amounts to collect leftover amount
  */
 using carve_fees_and_balance_func_t = std::function<void(
         const boost::multiprecision::uint128_t&,                // input sum amount
@@ -119,7 +122,7 @@ CarrotPaymentProposalSelfSendV1 verifiable_selfsend_to_core_v1(const CarrotPayme
  * for the transaction indexed by number of inputs, 3) the number of normal payment proposals, and
  * 4) the number of selfsend payment proposals, including additional ones added inside the body of
  * `make_carrot_transaction_proposal_v1`. `select_inputs` outputs a list of "selected inputs", in
- * no particular order, which are each an opening hint for a spent enote, and a corresponding
+ * no particular order, which are each an opening hint for a to-be-spent enote, and a corresponding
  * amount. Because the weight of a FCMP++ transaction is simply a function of number of inputs,
  * number of outputs, and tx_extra size, the exact concrete fee for each potential input count is
  * calculated and passed to the input selection callback for ease of algorithms.
@@ -180,7 +183,7 @@ void make_carrot_transaction_proposal_v1_transfer(
  * @param selfsend_payment_proposals selfsend payment proposals to be included in the tx (with amount=0)
  * @param fee_per_weight concrete fee is calculated as transaction weight times this value
  * @param extra truly "extra" fields to be included in tx_extra, doesn't include ephemeral tx pubkeys or PIDs
- * @param selected_inputs explicitly provided inputs
+ * @param selected_inputs explicitly provided inputs (shouldn't include "dust" inputs)
  * @param change_address_spend_pubkey address spend pubkey to send to for change selfsend enotes
  * @param change_address_index subaddress index of change_address_spend_pubkey in your account
  * @param[out] tx_proposal_out a fully formed Carrot transaction proposal

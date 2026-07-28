@@ -44,7 +44,7 @@ namespace carrot
 /**
  * @brief Wraps classic subaddress map used by wallet2 to implement subaddress map interface
  */
-class subaddress_map_legacy: public subaddress_map
+class subaddress_map_legacy final: public subaddress_map
 {
 public:
     subaddress_map_legacy(

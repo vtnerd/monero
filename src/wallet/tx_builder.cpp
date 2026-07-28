@@ -1196,8 +1196,8 @@ cryptonote::transaction finalize_all_fcmp_pp_proofs(
         epee::to_span(output_enote_proposals),
         epee::to_span(tx_proposal.input_proposals),
         main_address_spend_pubkeys,
-        k_view_incoming_dev,
-        s_view_balance_dev);
+        s_view_balance_dev,
+        k_view_incoming_dev);
 
     std::unordered_map<crypto::public_key, FcmpRerandomizedOutputCompressed> rerandomized_outputs_by_ota;
     for (std::size_t input_idx = 0; input_idx < rerandomized_outputs.size(); ++input_idx)

@@ -51,7 +51,8 @@ namespace carrot
  * @param extra truly "extra" fields to be included in *every* tx_extra, doesn't include ephemeral tx pubkeys or PIDs
  * @param input_candidates list of potential input candidates to choose from
  * @param input_selection_policies span of ISPs (see `make_single_transfer_input_selector` for more info)
- * @param input_selection_flags flags passed to `make_single_transfer_input_selector`
+ * @param input_selection_flags flags passed to `make_single_transfer_input_selector
+ * @param max_n_inputs the maximum number of inputs to allow per transaction`
  * @param change_address_spend_pubkey address spend pubkey to send to for change selfsend enotes
  * @param change_address_index subaddress index of change_address_spend_pubkey in your account
  * @param subtractable_normal_payment_proposals indices of normal payment proposals which are "fee subtractable"
@@ -62,7 +63,7 @@ namespace carrot
  * Internally, this function uses a greedy loop, selecting inputs with
  * `make_single_transfer_input_selector` for input selection for a single transaction, marking them
  * as used, and then moves onto the next single transaction in isolation. This is technically not
- * optimal, but optimality in this case our problem is NP-complete, which means that achieving
+ * optimal, but in this case our problem is NP-complete, which means that achieving
  * optimality requires a non-polynomial runtime. Also, using `make_single_transfer_input_selector`
  * for pulling single transactions at a time means that it's easier to verify the input selection
  * rules are being upheld for each individual transaction in the set.
@@ -90,6 +91,7 @@ void make_multiple_carrot_transaction_proposals_transfer(
  * @param selected_inputs explicitly provided inputs
  * @param change_address_spend_pubkey address spend pubkey to send to for change selfsend enotes
  * @param change_address_index subaddress index of change_address_spend_pubkey in your account
+ * @param ignore_dust do not include dust enotes in the sweep
  * @param[out] tx_proposal_out set of fully formed Carrot transaction proposal which spend all inputs
  *
  * Creates as many sweep transaction as is necessary to spend all of `selected_inputs`, including

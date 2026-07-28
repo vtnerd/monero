@@ -37,7 +37,7 @@
 #include <algorithm>
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
-#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl"
+#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl.subaddress_map_legacy"
 
 namespace carrot
 {

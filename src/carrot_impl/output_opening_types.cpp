@@ -41,7 +41,7 @@
 //standard headers
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
-#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl"
+#define MONERO_DEFAULT_LOG_CATEGORY "carrot_impl.output_opening_types"
 
 namespace carrot
 {
@@ -65,8 +65,8 @@ static CarrotEnoteV1 make_carrot_enote_from_v2_opening_hint(const CarrotOutputOp
 static bool try_opening_hint_scan_on_carrot_enote(const CarrotEnoteV1 &enote,
     const std::optional<encrypted_payment_id_t> &encrypted_payment_id,
     const epee::span<const crypto::public_key> main_address_spend_pubkeys,
-    const view_incoming_key_device *k_view_incoming_dev,
     const view_balance_secret_device *s_view_balance_dev,
+    const view_incoming_key_device *k_view_incoming_dev,
     crypto::secret_key &sender_extension_g_out,
     crypto::secret_key &sender_extension_t_out,
     xmr_amount &amount_out,
@@ -122,8 +122,8 @@ static bool try_opening_hint_scan_on_carrot_enote(const CarrotEnoteV1 &enote,
 //-------------------------------------------------------------------------------------------------------------------
 static bool try_scan_opening_hint(const OutputOpeningHintVariant &opening_hint,
     const epee::span<const crypto::public_key> main_address_spend_pubkeys,
-    const view_incoming_key_device *k_view_incoming_dev,
     const view_balance_secret_device *s_view_balance_dev,
+    const view_incoming_key_device *k_view_incoming_dev,
     crypto::secret_key &sender_extension_g_out,
     crypto::secret_key &sender_extension_t_out,
     xmr_amount &amount_out,
@@ -159,8 +159,8 @@ static bool try_scan_opening_hint(const OutputOpeningHintVariant &opening_hint,
             return try_opening_hint_scan_on_carrot_enote(hint.source_enote,
                 hint.encrypted_payment_id,
                 main_address_spend_pubkeys,
-                k_view_incoming_dev,
                 s_view_balance_dev,
+                k_view_incoming_dev,
                 sender_extension_g_out,
                 sender_extension_t_out,
                 amount_out,
@@ -172,25 +172,26 @@ static bool try_scan_opening_hint(const OutputOpeningHintVariant &opening_hint,
             // input_context = "R" || KI_1
             const input_context_t input_context = carrot::make_carrot_input_context(hint.tx_first_key_image);
 
-            // s^ctx_sr = H_32(s_sr, D_e, input_context) for internal&external s_sr
+            // s^ctx_sr = H_32[s_sr](D_e, input_context) for internal&external s_sr
             crypto::hash s_sender_receiver_ctx[2]; //! @TODO: wipe
             std::size_t n_keys_available = 0;
             if (s_view_balance_dev != nullptr)
             {
-                // s^ctx_sr = H_32(s_vb, D_e, input_context)
+                // internal: s_sr = s_vb
+                // s^ctx_sr = H_32[s_vb](D_e, input_context)
                 s_view_balance_dev->make_internal_sender_receiver_secret(hint.enote_ephemeral_pubkey,
                     input_context, s_sender_receiver_ctx[n_keys_available++]);
             }
             if (k_view_incoming_dev != nullptr)
             {
-                // s_sr = k_v D_e
+                // external: s_sr = k_v D_e
                 mx25519_pubkey s_sender_receiver;
                 if (!carrot::try_make_carrot_shared_key_receiver(*k_view_incoming_dev,
                         hint.enote_ephemeral_pubkey,
                         s_sender_receiver))
                     return false;
 
-                // s^ctx_sr = H_32(k_v D_e, D_e, input_context)
+                // s^ctx_sr = H_32[k_v D_e](D_e, input_context)
                 carrot::make_carrot_contextualized_sender_receiver_secret(
                     s_sender_receiver.data,
                     hint.enote_ephemeral_pubkey,
@@ -204,8 +205,8 @@ static bool try_scan_opening_hint(const OutputOpeningHintVariant &opening_hint,
                     make_carrot_enote_from_v2_opening_hint(hint, s_sender_receiver_ctx[i]),
                     hint.encrypted_payment_id,
                     main_address_spend_pubkeys,
-                    k_view_incoming_dev,
-                    s_view_balance_dev,
+                    (i == 1 && n_keys_available == 2) ? nullptr : s_view_balance_dev,
+                    (i == 0 && n_keys_available == 2) ? nullptr : k_view_incoming_dev,
                     sender_extension_g_out,
                     sender_extension_t_out,
                     amount_out,
@@ -239,8 +240,8 @@ static bool try_scan_opening_hint(const OutputOpeningHintVariant &opening_hint,
         }
 
         epee::span<const crypto::public_key> main_address_spend_pubkeys;
-        const view_incoming_key_device *k_view_incoming_dev;
         const view_balance_secret_device *s_view_balance_dev;
+        const view_incoming_key_device *k_view_incoming_dev;
         crypto::secret_key &sender_extension_g_out;
         crypto::secret_key &sender_extension_t_out;
         xmr_amount &amount_out;
@@ -249,8 +250,8 @@ static bool try_scan_opening_hint(const OutputOpeningHintVariant &opening_hint,
 
     return std::visit(try_scan_opening_hint_visitor{
             main_address_spend_pubkeys,
-            k_view_incoming_dev,
             s_view_balance_dev,
+            k_view_incoming_dev,
             sender_extension_g_out,
             sender_extension_t_out,
             amount_out,
@@ -387,8 +388,8 @@ fcmp_pp::OutputPair to_output_pair(const OutputOpeningHintVariant &opening_hint)
 //-------------------------------------------------------------------------------------------------------------------
 bool try_scan_opening_hint_sender_extensions(const OutputOpeningHintVariant &opening_hint,
     const epee::span<const crypto::public_key> main_address_spend_pubkeys,
-    const view_incoming_key_device *k_view_incoming_dev,
     const view_balance_secret_device *s_view_balance_dev,
+    const view_incoming_key_device *k_view_incoming_dev,
     crypto::secret_key &sender_extension_g_out,
     crypto::secret_key &sender_extension_t_out)
 {
@@ -396,8 +397,8 @@ bool try_scan_opening_hint_sender_extensions(const OutputOpeningHintVariant &ope
     crypto::secret_key amount_blinding_factor;
     return try_scan_opening_hint(opening_hint,
         main_address_spend_pubkeys,
-        k_view_incoming_dev,
         s_view_balance_dev,
+        k_view_incoming_dev,
         sender_extension_g_out,
         sender_extension_t_out,
         amount,
@@ -406,16 +407,16 @@ bool try_scan_opening_hint_sender_extensions(const OutputOpeningHintVariant &ope
 //-------------------------------------------------------------------------------------------------------------------
 bool try_scan_opening_hint_amount(const OutputOpeningHintVariant &opening_hint,
     const epee::span<const crypto::public_key> main_address_spend_pubkeys,
-    const view_incoming_key_device *k_view_incoming_dev,
     const view_balance_secret_device *s_view_balance_dev,
+    const view_incoming_key_device *k_view_incoming_dev,
     xmr_amount &amount_out,
     crypto::secret_key &amount_blinding_factor_out)
 {
     crypto::secret_key sender_extension_g, sender_extension_t;
     return try_scan_opening_hint(opening_hint,
         main_address_spend_pubkeys,
-        k_view_incoming_dev,
         s_view_balance_dev,
+        k_view_incoming_dev,
         sender_extension_g,
         sender_extension_t,
         amount_out,

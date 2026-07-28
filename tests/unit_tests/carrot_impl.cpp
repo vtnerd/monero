@@ -1912,8 +1912,8 @@ TEST(carrot_impl, new_hierarchy_spend_device_ram_1in_2out)
         epee::to_span(output_enote_proposals),
         epee::to_span(tx_proposal.input_proposals),
         {&alice.carrot_account_spend_pubkey, 1},
-        alice.k_view_incoming_dev,
-        &alice.s_view_balance_dev);
+        &alice.s_view_balance_dev,
+        alice.k_view_incoming_dev);
 
     // compose compound signing device
     const spend_device_ram_borrowed spend_dev(
