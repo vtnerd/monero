@@ -314,8 +314,10 @@ void make_carrot_transaction_proposal_v1_transfer(
         for (const CarrotPaymentProposalVerifiableSelfSendV1 &selfsend_payment_proposal : selfsend_payment_proposals)
             requested_output_amount += selfsend_payment_proposal.amount;
 
-        CHECK_AND_ASSERT_THROW_MES(input_sum_amount >= requested_output_amount + fee,
-            "make unsigned transaction transfer subtractable: bug: input amnts not >= output amnts + fee");
+        // note: fee will be subbed from `requested_output_amount` or `implicit_change_amount`, failure occurs
+        // later if there are insufficient funds for it.
+        CHECK_AND_ASSERT_THROW_MES(input_sum_amount >= requested_output_amount,
+            "make unsigned transaction transfer subtractable: bug: input amnts not >= output amnts");
 
         const boost::multiprecision::uint128_t implicit_change_amount = input_sum_amount - requested_output_amount;
 
@@ -460,9 +462,8 @@ void make_carrot_transaction_proposal_v1_sweep(
     {
         CHECK_AND_ASSERT_THROW_MES(input_sum_amount >= fee,
             "make carrot transaction proposal v1 sweep: bug: input_sum_amount < fee");
-        CHECK_AND_ASSERT_THROW_MES(n_normal_start == normal_payment_proposals.size(),
+        CHECK_AND_ASSERT_THROW_MES(is_selfsend_sweep || n_normal_start == normal_payment_proposals.size(),
             "make carrot transaction proposal v1 sweep: bug: included dummy payment proposal");
-
 
         // get pointers to proposal amounts and shuffle, excluding implicit selfsend
         const size_t n_outputs = normal_payment_proposals.size() + selfsend_payment_proposals.size();
